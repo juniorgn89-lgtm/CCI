@@ -17,6 +17,7 @@ import { Bug,
   LayoutDashboard,
   Package,
   ShoppingCart,
+  PackageSearch,
   ClipboardList,
   ArrowDownCircle,
   ArrowUpCircle,
@@ -99,6 +100,7 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Aferições', to: '/operacao?tab=afericoes', Icon: FlaskConical },
   ],
   '/compras': [
+    { label: 'Análise de estoque para comprar', to: '/compras?tab=analise', Icon: PackageSearch },
     { label: 'Pedidos de compra', to: '/compras?tab=pedidos', Icon: ShoppingCart },
     { label: 'Transferências', to: '/compras?tab=transferencias', Icon: ArrowLeftRight },
   ],
@@ -115,7 +117,6 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
   '/estoques': [
     { label: 'Visão Geral', to: '/estoques', Icon: LayoutDashboard },
     { label: 'Produtos', to: '/estoques?tab=produtos', Icon: Package },
-    { label: 'Comprar', to: '/estoques?tab=comprar', Icon: ShoppingCart },
   ],
   '/financeiro': [
     { label: 'Dashboard', to: '/financeiro', Icon: LayoutDashboard },

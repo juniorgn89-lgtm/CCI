@@ -107,7 +107,6 @@ export const useConvenienciasLayout = createModuleLayoutStore('visor360-convenie
 export const useEstoquesLayout = createModuleLayoutStore('visor360-estoques-layout', [
   { id: 'visao', label: 'Visão Geral', visible: true },
   { id: 'produtos', label: 'Produtos', visible: true },
-  { id: 'comprar', label: 'Comprar', visible: true },
 ])
 
 // Bump no nome da store força reset pra essa aba específica (rename

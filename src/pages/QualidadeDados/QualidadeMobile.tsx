@@ -7,7 +7,7 @@ import type { IssueSeverity } from '@/pages/QualidadeDados/components/IssueSecti
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
-import PostoLocalSelect from '@/components/filters/PostoLocalSelect'
+import PostoChips from '@/components/mobile/PostoChips'
 import { formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { KpiCard, Section, Badge, type Tone } from '@/components/mobile/primitives'
@@ -41,8 +41,8 @@ const QualidadeMobile = () => {
   const q = useQualidadeDados(selectedCodigo)
 
   const postoTabs = postos.length > 1 ? (
-    <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
-      <PostoLocalSelect postos={postos} value={selectedCodigo} onChange={setActiveCodigo} />
+    <div>
+      <PostoChips postos={postos} value={selectedCodigo} onChange={setActiveCodigo} />
     </div>
   ) : null
 

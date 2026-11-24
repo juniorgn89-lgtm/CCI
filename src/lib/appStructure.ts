@@ -136,6 +136,7 @@ export const APP_STRUCTURE: AppModule[] = [
     plano: 'pro',
     permId: 'compras',
     tabs: [
+      { id: 'analise', label: 'Análise de estoque para comprar', plano: 'pro' },
       { id: 'pedidos', label: 'Pedidos', plano: 'pro' },
       { id: 'transferencias', label: 'Transferências', plano: 'pro' },
     ],
@@ -149,7 +150,6 @@ export const APP_STRUCTURE: AppModule[] = [
     tabs: [
       { id: 'visao', label: 'Visão Geral', plano: 'pro' },
       { id: 'produtos', label: 'Produtos', plano: 'pro' },
-      { id: 'comprar', label: 'Comprar', plano: 'pro' },
     ],
   },
   {

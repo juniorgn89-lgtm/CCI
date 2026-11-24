@@ -7,7 +7,7 @@ import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { useMetasStore } from '@/store/metas'
-import PostoLocalSelect from '@/components/filters/PostoLocalSelect'
+import PostoChips from '@/components/mobile/PostoChips'
 import { buildScoreInputs, computeScores } from '@/lib/frentistaScore'
 import { formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
@@ -92,8 +92,8 @@ const ProdutividadeMobile = () => {
   }, [frentistaRows, prevByCodigo, manualMode, metas])
 
   const postoTabs = postos.length > 1 ? (
-    <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
-      <PostoLocalSelect postos={postos} value={selectedCodigo} onChange={setActiveCodigo} />
+    <div>
+      <PostoChips postos={postos} value={selectedCodigo} onChange={setActiveCodigo} />
     </div>
   ) : null
 

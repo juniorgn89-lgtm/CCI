@@ -33,6 +33,28 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.25',
+    data: '2026-11-24',
+    resumo: 'O que comprar agora fica em Compras, e o botão do posto mostra com clareza onde você está.',
+    itens: [
+      {
+        icone: 'relatorio',
+        titulo: 'Análise de estoque para comprar, em Compras',
+        descricao: 'A lista do que comprar (saldo, média de venda, cobertura e quanto pedir) saiu de Estoques e foi para Compras › Análise de estoque para comprar, ao lado dos pedidos. Marque os produtos e monte o pedido dali mesmo. Links antigos levam direto para a tela nova.',
+      },
+      {
+        icone: 'ajuste',
+        titulo: 'Botão do posto mais claro',
+        descricao: 'No topo, o botão mostra em duas linhas o que está aberto (um posto, vários ou a rede toda) e o nome escrito normal, como Posto Itapoa. Quando falta escolher o posto, ele fica amarelo.',
+      },
+      {
+        icone: 'mobile',
+        titulo: 'Ajustes no celular',
+        descricao: 'A tela de Bombas mostra que está carregando em vez de dizer que não tem bombeamento. Os cartões do Radar de Preços ficaram em pé, fáceis de ler. A escolha do posto virou pílulas com o nome escrito normal, o item escolhido na barra de baixo voltou a aparecer em destaque e as telas escuras não têm mais fundo preto.',
+      },
+    ],
+  },
+  {
     versao: '1.2.24',
     data: '2026-11-24',
     resumo: 'Menu mais enxuto e notificações com destaque mais discreto no computador.',

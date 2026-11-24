@@ -130,13 +130,13 @@ const RadarVisaoGeral = ({ onAnalisar }: Props) => {
                   return (
                     <div key={c.id} className="relative overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
                       <span className={cn('absolute inset-y-0 left-0 w-[3px]', tc.dot)} />
-                      <div className="flex items-center gap-4 px-4 py-3 pl-5">
-                        <div className="w-44 shrink-0">
+                      <div className="flex flex-col gap-2 px-4 py-3 pl-5 sm:flex-row sm:items-center sm:gap-4">
+                        <div className="sm:w-44 sm:shrink-0">
                           <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{c.posto}</p>
                           <p className="text-[11px] text-gray-500 dark:text-gray-400">{c.fuel}</p>
                           <CustoFrescor c={c} />
                         </div>
-                        <button type="button" onClick={() => setAberto(ab ? null : c.id)} className="min-w-0 flex-1 text-left" title="Ver a conta">
+                        <button type="button" onClick={() => setAberto(ab ? null : c.id)} className="min-w-0 text-left sm:flex-1" aria-label="Ver a conta">
                           <p className={cn('text-[13px] font-bold', tc.text)}>{c.acao}</p>
                           <p className="text-[12px] leading-snug text-gray-600 dark:text-gray-300">{c.motivo}</p>
                         </button>
@@ -154,7 +154,7 @@ const RadarVisaoGeral = ({ onAnalisar }: Props) => {
                           <p className="flex items-center justify-end gap-0.5 text-[9px] font-semibold uppercase tracking-wide text-gray-400">{c.veredito === 'subir' ? 'Vale' : c.quantoL > 0 ? 'Até' : 'Volume/dia'}<InfoHint align="end" text={c.veredito === 'subir' ? 'Quanto a mais de lucro bruto a alta sugerida teria trazido no período filtrado: a alta por litro × os litros vendidos, supondo que o volume não caia.' : c.quantoL > 0 ? 'Até quanto por litro dá para baixar o preço com segurança: o menor entre voltar à referência e manter a margem mínima de segurança.' : 'Litros vendidos por dia, em média, neste combustível e posto. Serve para medir o peso de qualquer mudança de preço.'} /></p>
                           <p className={cn('text-[13px] font-bold tabular-nums', c.veredito === 'subir' ? tc.text : 'text-gray-800 dark:text-gray-100')}>{c.veredito === 'subir' ? `+${milShort(c.valor)}` : c.quantoL > 0 ? `${moneyL(c.quantoL)}/L` : `${Math.round(c.volumeDia).toLocaleString('pt-BR')} L`}</p>
                         </div>
-                        <button type="button" onClick={() => onAnalisar(c.empresaCodigo, c.fuel)} className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-700 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300">Analisar <ArrowRight className="h-3.5 w-3.5" /></button>
+                        <button type="button" onClick={() => onAnalisar(c.empresaCodigo, c.fuel)} className="inline-flex shrink-0 items-center gap-1 self-start rounded-lg sm:self-auto border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-700 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300">Analisar <ArrowRight className="h-3.5 w-3.5" /></button>
                       </div>
                       {ab && (
                         <div className="border-t border-gray-100 bg-gray-50/60 px-5 py-3 text-[12px] dark:border-gray-800 dark:bg-gray-800/30">
@@ -184,10 +184,10 @@ const RadarVisaoGeral = ({ onAnalisar }: Props) => {
           </div>
           <div className="space-y-2">
             {r.loja.filter((l) => fPosto === 'todos' || l.empresaCodigo === fPosto).map((l) => (
-              <div key={l.empresaCodigo} className="relative flex items-center gap-4 overflow-hidden rounded-xl border border-gray-200 bg-white px-4 py-3 pl-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+              <div key={l.empresaCodigo} className="relative flex flex-col gap-2 overflow-hidden rounded-xl sm:flex-row sm:items-center sm:gap-4 border border-gray-200 bg-white px-4 py-3 pl-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
                 <span className="absolute inset-y-0 left-0 w-[3px] bg-teal-500" />
-                <div className="w-44 shrink-0"><p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{l.posto}</p><p className="text-[11px] text-gray-500 dark:text-gray-400">Conveniência</p></div>
-                <div className="min-w-0 flex-1"><p className="text-[13px] font-bold text-teal-700 dark:text-teal-300">Puxar a margem da loja para {l.redeMargemPct.toFixed(0)}%</p><p className="text-[12px] leading-snug text-gray-600 dark:text-gray-300">{l.porque[0]} {l.porque[1]}</p></div>
+                <div className="sm:w-44 sm:shrink-0"><p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{l.posto}</p><p className="text-[11px] text-gray-500 dark:text-gray-400">Conveniência</p></div>
+                <div className="min-w-0 sm:flex-1"><p className="text-[13px] font-bold text-teal-700 dark:text-teal-300">Puxar a margem da loja para {l.redeMargemPct.toFixed(0)}%</p><p className="text-[12px] leading-snug text-gray-600 dark:text-gray-300">{l.porque[0]} {l.porque[1]}</p></div>
                 <div className="hidden w-24 shrink-0 text-right sm:block"><p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">Vale</p><p className="text-[13px] font-bold tabular-nums text-teal-700 dark:text-teal-300">+{milShort(l.valor)}</p></div>
               </div>
             ))}

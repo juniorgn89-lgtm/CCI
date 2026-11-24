@@ -510,14 +510,14 @@ const useOperacaoData = (empresaCodigoOverride?: number | null, periodo?: { data
   }
 
   // Período ATUAL — MESMAS queryKeys de useFuelVendaAnalytics (dedup garantido).
-  const { data: fuelVendaItens = [] } = useQuery({
+  const { data: fuelVendaItens = [], isLoading: lfv, isPlaceholderData: pfv } = useQuery({
     queryKey: ['fuel-venda-analytics', fuelEmpresas.join(','), dataInicial, dataFinal],
     queryFn: fetchFuelVendaItens(dataInicial, dataFinal),
     enabled: hasEmpresa,
     staleTime: 5 * 60 * 1000,
     placeholderData: keepPreviousData,
   })
-  const { data: fuelAutorizados = EMPTY_SET } = useQuery({
+  const { data: fuelAutorizados = EMPTY_SET, isLoading: lfa, isPlaceholderData: pfa } = useQuery({
     queryKey: ['fuel-venda-autorizados', fuelEmpresas.join(','), dataInicial, dataFinal],
     queryFn: fetchAutorizados(dataInicial, dataFinal),
     enabled: hasEmpresa,
@@ -563,6 +563,10 @@ const useOperacaoData = (empresaCodigoOverride?: number | null, periodo?: { data
   // Aguardar isChecking dos probes evita flicker entre cache e live.
   // Períodos `prev` (abast + caixas) NÃO entram no gate — UI renderiza
   // com dados correntes prontos; delta badges enchem quando o prev chegar.
+  // Bombas/litros vêm da VENDA fiscal: enquanto ela carrega (ou ainda mostra o
+  // período/posto anterior), a tela de bombas não pode dizer 'sem bombeamento'.
+  const carregandoVendaFiscal = hasEmpresa && (lfv || lfa || pfv || pfa)
+
   const isLoading =
     (l1 && !(cacheActive && abastCacheCurrent.isCacheHit)) ||
     (cacheActive && abastCacheCurrent.isChecking) ||
@@ -1458,6 +1462,7 @@ const useOperacaoData = (empresaCodigoOverride?: number | null, periodo?: { data
   return {
     ...computed,
     isLoading,
+    carregandoVendaFiscal,
     hasEmpresa,
     // "Instantâneo": dados vieram do snapshot mensal (abastecimentos + caixas).
     // Fora do modo FISCAL o abast vem live, então não é snapshot.

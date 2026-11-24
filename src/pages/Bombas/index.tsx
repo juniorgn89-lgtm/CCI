@@ -38,7 +38,8 @@ const BombasDoPosto = ({ codigo, nome, onRecolher, filtro }: { codigo: number; n
   const periodo = manut.desdeMaisAntigo
     ? { dataInicial: manut.desdeMaisAntigo < dataInicial ? manut.desdeMaisAntigo : dataInicial, dataFinal: hojeISO() }
     : undefined
-  const { bombaRows, bombaRowsPrev, isLoading } = useOperacaoData(codigo, periodo)
+  const { bombaRows, bombaRowsPrev, isLoading: carregandoBase, carregandoVendaFiscal } = useOperacaoData(codigo, periodo)
+  const isLoading = carregandoBase || carregandoVendaFiscal
   if (isLoading && bombaRows.length === 0) {
     return (
       <div className="space-y-2">

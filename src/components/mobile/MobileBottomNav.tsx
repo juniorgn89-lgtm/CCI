@@ -50,7 +50,8 @@ const MobileBottomNav = ({ items }: MobileBottomNavProps) => {
         )}
       >
         {/* Ativo: pílula branca atrás do ícone (padrão dos apps CCI). */}
-        <span className={cn('flex h-7 w-12 items-center justify-center rounded-full transition-colors', active && 'bg-white text-[#0f766e]')}>
+        <span className={cn('flex h-7 w-12 items-center justify-center rounded-full transition-colors', // bg-[#fff] (não bg-white): no escuro do celular o bg-white vira ardósia.
+          active && 'bg-[#fff] text-[#0f766e]')}>
           <Icon className="h-5 w-5" />
         </span>
         <span className={cn('max-w-full truncate px-0.5 text-[10.5px] leading-none', active ? 'font-semibold' : 'font-medium')}>{item.label}</span>

@@ -375,52 +375,54 @@ tbody > tr[data-marcada] > th:first-child {
   /* Escuro: destaque petróleo (navy/azul viram teal) */
   .dark .bg-\[\#1e3a5f\],
   .dark .bg-blue-600,
-  .dark .dark\:bg-blue-600,
-  .dark .dark\:bg-blue-700,
-  .dark .dark\:bg-\[\#2563eb\],
-  .dark .dark\:bg-\[\#60a5fa\] { background-color: #0d9488; }
+  html.dark .dark\:bg-blue-600,
+  html.dark .dark\:bg-blue-700,
+  html.dark .dark\:bg-\[\#2563eb\],
+  html.dark .dark\:bg-\[\#60a5fa\] { background-color: #0d9488; }
   .dark .hover\:bg-blue-700:hover,
-  .dark .dark\:hover\:bg-blue-700:hover { background-color: #14b8a6; }
+  html.dark .dark\:hover\:bg-blue-700:hover { background-color: #14b8a6; }
   .dark .text-blue-300,
   .dark .text-blue-400,
   .dark .text-blue-500,
   .dark .text-blue-600,
-  .dark .dark\:text-blue-300,
-  .dark .dark\:text-blue-400,
-  .dark .dark\:text-\[\#60a5fa\] { color: #5eead4; }
+  html.dark .dark\:text-blue-300,
+  html.dark .dark\:text-blue-400,
+  html.dark .dark\:text-\[\#60a5fa\] { color: #5eead4; }
   .dark .border-blue-400,
   .dark .border-blue-500,
-  .dark .dark\:border-\[\#60a5fa\] { border-color: #0d9488; }
+  html.dark .dark\:border-\[\#60a5fa\] { border-color: #0d9488; }
   .dark .bg-blue-50,
   .dark .bg-blue-100,
   .dark .bg-blue-50\/40,
   .dark .bg-blue-50\/60 { background-color: rgba(20, 184, 166, 0.12); }
 
-  /* ── Escuro: tokens fixos do restyle preto (classes dark:) ── */
-  .dark .dark\:bg-gray-950,
-  .dark .dark\:bg-black { background-color: #0b1220; }
-  .dark .dark\:bg-gray-900 { background-color: #1e293b; }
-  .dark .dark\:bg-gray-800 { background-color: #172234; }
-  .dark .dark\:bg-gray-700 { background-color: #2f3b4f; }
-  .dark .dark\:bg-\[\#0f0f0f\],
-  .dark .dark\:bg-\[\#0b0b0b\],
-  .dark .dark\:bg-\[\#111\],
-  .dark .dark\:bg-\[\#161616\],
-  .dark .dark\:bg-\[\#1c1c1c\] { background-color: #172234; }
-  .dark .dark\:bg-\[\#131316\],
-  .dark .dark\:bg-\[\#1f1f22\],
-  .dark .dark\:bg-\[\#242424\] { background-color: #1e293b; }
-  .dark .dark\:bg-\[\#303030\] { background-color: #2f3b4f; }
-  .dark .dark\:border-\[\#3a3a3a\],
-  .dark .dark\:border-\[\#303030\],
-  .dark .dark\:border-gray-700,
-  .dark .dark\:border-gray-800 { border-color: #2f3b4f; }
-  .dark .dark\:divide-gray-700 > :not([hidden]) ~ :not([hidden]),
-  .dark .dark\:divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: #2f3b4f; }
-  .dark .dark\:hover\:bg-gray-800:hover { background-color: #172234; }
-  .dark .dark\:hover\:bg-gray-700:hover { background-color: #3e4c63; }
+  /* ── Escuro: tokens fixos do restyle preto (classes dark:) ──
+     html.dark (e não só .dark): o Tailwind emite as variantes dark: no FIM do CSS,
+     depois deste bloco; com a mesma especificidade elas venceriam. */
+  html.dark .dark\:bg-gray-950,
+  html.dark .dark\:bg-black { background-color: #0b1220; }
+  html.dark .dark\:bg-gray-900 { background-color: #1e293b; }
+  html.dark .dark\:bg-gray-800 { background-color: #172234; }
+  html.dark .dark\:bg-gray-700 { background-color: #2f3b4f; }
+  html.dark .dark\:bg-\[\#0f0f0f\],
+  html.dark .dark\:bg-\[\#0b0b0b\],
+  html.dark .dark\:bg-\[\#111\],
+  html.dark .dark\:bg-\[\#161616\],
+  html.dark .dark\:bg-\[\#1c1c1c\] { background-color: #172234; }
+  html.dark .dark\:bg-\[\#131316\],
+  html.dark .dark\:bg-\[\#1f1f22\],
+  html.dark .dark\:bg-\[\#242424\] { background-color: #1e293b; }
+  html.dark .dark\:bg-\[\#303030\] { background-color: #2f3b4f; }
+  html.dark .dark\:border-\[\#3a3a3a\],
+  html.dark .dark\:border-\[\#303030\],
+  html.dark .dark\:border-gray-700,
+  html.dark .dark\:border-gray-800 { border-color: #2f3b4f; }
+  html.dark .dark\:divide-gray-700 > :not([hidden]) ~ :not([hidden]),
+  html.dark .dark\:divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: #2f3b4f; }
+  html.dark .dark\:hover\:bg-gray-800:hover { background-color: #172234; }
+  html.dark .dark\:hover\:bg-gray-700:hover { background-color: #3e4c63; }
   /* Containers (gradiente gray-900 → black no computador): cartão liso #1e293b. */
-  .dark .dark\:from-gray-900 { --tw-gradient-from: #1e293b var(--tw-gradient-from-position); }
-  .dark .dark\:to-black,
-  .dark .dark\:to-gray-900 { --tw-gradient-to: #1e293b var(--tw-gradient-to-position); }
+  html.dark .dark\:from-gray-900 { --tw-gradient-from: #1e293b var(--tw-gradient-from-position); }
+  html.dark .dark\:to-black,
+  html.dark .dark\:to-gray-900 { --tw-gradient-to: #1e293b var(--tw-gradient-to-position); }
 }

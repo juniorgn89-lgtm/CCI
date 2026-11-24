@@ -5,7 +5,7 @@ import useEstoqueAnalytics, { type ProductAnalyticsRow } from '@/pages/Estoques/
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
-import PostoLocalSelect from '@/components/filters/PostoLocalSelect'
+import PostoChips from '@/components/mobile/PostoChips'
 import { formatNumber } from '@/lib/formatters'
 import { KpiCard, Section, ScrollTabs, Badge, type Tone } from '@/components/mobile/primitives'
 import { LoadingScreen, EmptyCard } from '@/components/mobile/states'
@@ -74,8 +74,8 @@ const EstoqueMobile = () => {
   }, [productAnalytics])
 
   const postoTabs = postos.length > 1 ? (
-    <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5">
-      <PostoLocalSelect postos={postos} value={selectedCodigo} onChange={setActiveCodigo} />
+    <div>
+      <PostoChips postos={postos} value={selectedCodigo} onChange={setActiveCodigo} />
     </div>
   ) : null
 
