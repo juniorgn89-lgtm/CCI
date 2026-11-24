@@ -13,7 +13,8 @@ import {
   toggleRedeAtivo,
   toggleRedeGestao,
   toggleRedeCompras,
-  deleteRede,
+  excluirRedeEmLotes,
+  fetchPreviaExclusaoRede,
   type RedeRow,
 } from '@/api/supabase/redes'
 import { useTenantStore } from '@/store/tenant'
@@ -582,6 +583,7 @@ const RedeFormModal = ({ mode, rede, onClose, onSaved }: RedeFormModalProps) => 
             <button
               type="button"
               onClick={onClose}
+              disabled={submitting}
               className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
             >
               Cancelar
@@ -619,14 +621,21 @@ const DeleteRedeModal = ({ rede, onClose, onDeleted }: DeleteRedeModalProps) => 
   const [confirmText, setConfirmText] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
-  const canDelete = confirmText.trim() === rede.nome
+  const [apagadas, setApagadas] = useState(0)
+  // Prévia honesta: quantas linhas a rede tem no banco e quem trava a exclusão.
+  const previa = useQuery({ queryKey: ['excluir-rede-previa', rede.id], queryFn: () => fetchPreviaExclusaoRede(rede.id), staleTime: 0 })
+  const travada = (previa.data?.usuariosPrincipal ?? 0) > 0
+  const canDelete = confirmText.trim() === rede.nome && !travada
+  const totalLinhas = previa.data?.linhas ?? 0
+  const pct = totalLinhas > 0 ? Math.min(100, Math.round((apagadas / totalLinhas) * 100)) : 0
 
   const handleDelete = async () => {
     if (!canDelete) return
     setSubmitting(true)
     setErr(null)
+    setApagadas(0)
     try {
-      await deleteRede(rede.id)
+      await excluirRedeEmLotes(rede.id, setApagadas)
       onDeleted()
     } catch (e) {
       setErr((e as Error).message)
@@ -663,11 +672,29 @@ const DeleteRedeModal = ({ rede, onClose, onDeleted }: DeleteRedeModalProps) => 
             </p>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-red-600/90 dark:text-red-400/80">
               <li>Gerentes e frentistas vinculados a esta rede perderão acesso</li>
-              <li>O histórico de apuração permanecerá no banco mas órfão</li>
+              <li>Todo o histórico da rede é apagado do banco (apuração, compras, tarefas, avisos, acessos){previa.data ? <> — <span className="font-semibold tabular-nums">{previa.data.linhas.toLocaleString('pt-BR')}</span> linhas</> : null}</li>
               <li>A CHAVE da Quality usada pela rede não será mais válida no sistema</li>
               <li>Não há como desfazer — só recriando manualmente</li>
             </ul>
           </div>
+
+          {travada && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+              {previa.data!.usuariosPrincipal} usuário(s) têm esta rede como principal. Troque a rede deles em Usuários antes de excluir.
+            </div>
+          )}
+
+          {submitting && (
+            <div>
+              <div className="mb-1 flex justify-between text-[11px] text-gray-500 dark:text-gray-400">
+                <span>Apagando do banco… não feche esta janela.</span>
+                <span className="tabular-nums">{apagadas.toLocaleString('pt-BR')}{totalLinhas ? ` de ${totalLinhas.toLocaleString('pt-BR')}` : ''}</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                <div className="h-full rounded-full bg-red-500 transition-all" style={{ width: `${totalLinhas ? pct : 100}%` }} />
+              </div>
+            </div>
+          )}
 
           {/* Confirmação por digitação */}
           <label className="block">
@@ -712,7 +739,7 @@ const DeleteRedeModal = ({ rede, onClose, onDeleted }: DeleteRedeModalProps) => 
               {submitting ? (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Excluindo...
+                  Excluindo{totalLinhas ? ` ${pct}%` : '...'}
                 </>
               ) : (
                 <>

@@ -212,3 +212,39 @@ export const deleteRede = async (id: string): Promise<void> => {
   const { error } = await supabase.from('redes').delete().eq('id', id)
   if (error) throw error
 }
+
+/** Função do banco ainda não criada (docs/supabase-excluir-rede.sql). */
+const semFuncao = (code?: string) => code === 'PGRST202' || code === '42883'
+
+export interface PreviaExclusao { linhas: number; usuariosPrincipal: number }
+
+/** Quantas linhas a rede tem no banco e quantos usuários travam a exclusão. null = função não instalada. */
+export const fetchPreviaExclusaoRede = async (id: string): Promise<PreviaExclusao | null> => {
+  if (!supabase) throw new Error('Supabase não configurado')
+  const { data, error } = await supabase.rpc('excluir_rede_previa', { p_rede: id })
+  if (error) { if (semFuncao(error.code)) return null; throw error }
+  const d = data as { linhas?: number; usuarios_principal?: number }
+  return { linhas: Number(d.linhas ?? 0), usuariosPrincipal: Number(d.usuarios_principal ?? 0) }
+}
+
+/**
+ * Exclui a rede em lotes (cada chamada apaga um pedaço, dentro do tempo da API),
+ * incluindo as tabelas que não iriam em cascata. `onLote` recebe o acumulado.
+ * Sem a função no banco, cai no delete simples.
+ */
+export const excluirRedeEmLotes = async (id: string, onLote?: (apagadas: number) => void): Promise<void> => {
+  if (!supabase) throw new Error('Supabase não configurado')
+  let total = 0
+  for (let i = 0; i < 2000; i++) {
+    const { data, error } = await supabase.rpc('excluir_rede_lote', { p_rede: id, p_lote: 10000 })
+    if (error) {
+      if (i === 0 && semFuncao(error.code)) return deleteRede(id)
+      throw error
+    }
+    const d = data as { apagadas?: number; terminou?: boolean }
+    total += Number(d.apagadas ?? 0)
+    onLote?.(total)
+    if (d.terminou) return
+  }
+  throw new Error('A exclusão não terminou. Tente de novo: ela continua de onde parou.')
+}
