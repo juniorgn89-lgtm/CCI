@@ -246,6 +246,17 @@ const SUB: Record<EstadoPush, string> = {
   indisponivel: 'Este navegador não recebe avisos',
 }
 
+/** "Receber no celular" no telefone; no PC, o nome do sistema (Windows, Mac...). */
+const ondeReceber = () => {
+  const ua = navigator.userAgent
+  if (/Android|iPhone|iPod/.test(ua)) return 'no celular'
+  if (/iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return 'no tablet'
+  if (/Windows/.test(ua)) return 'no Windows'
+  if (/Macintosh|Mac OS X/.test(ua)) return 'no Mac'
+  if (/CrOS/.test(ua)) return 'no Chromebook'
+  return 'neste computador'
+}
+
 const ReceberNoCelular = ({ userId, onConfigurar }: { userId: string; onConfigurar: () => void }) => {
   const [est, setEst] = useState<EstadoPush | null>(null)
   const [ocupado, setOcupado] = useState(false)
@@ -254,6 +265,7 @@ const ReceberNoCelular = ({ userId, onConfigurar }: { userId: string; onConfigur
   useEffect(() => { void estado(userId).then(setEst) }, [userId])
 
   if (est == null) return null
+  const titulo = `Receber ${ondeReceber()}`
   const iphone = est === 'indisponivel' && precisaInstalar()
   const ligada = est === 'ligada'
   const travado = est === 'bloqueada' || (est === 'indisponivel' && !iphone) || iphone
@@ -272,14 +284,14 @@ const ReceberNoCelular = ({ userId, onConfigurar }: { userId: string; onConfigur
       <div className="flex items-center gap-3 px-4 py-3">
         <BellRing className={cn('h-5 w-5 shrink-0', ligada ? 'text-teal-600 dark:text-teal-300' : 'text-gray-400')} />
         <span className="min-w-0 flex-1">
-          <span className="block text-[14px] font-medium text-gray-900 dark:text-gray-100">Receber no celular</span>
+          <span className="block text-[14px] font-medium text-gray-900 dark:text-gray-100">{titulo}</span>
           <span className="block text-[11.5px] text-gray-500 dark:text-gray-400">{iphone ? 'No iPhone: instale o Visor360 na Tela de Início' : SUB[est]}</span>
         </span>
         <button
           type="button"
           role="switch"
           aria-checked={ligada}
-          aria-label="Receber no celular"
+          aria-label={titulo}
           disabled={ocupado || travado}
           onClick={() => void alternar()}
           className={cn(
