@@ -342,28 +342,57 @@ const ComprarEstoque = ({ data, categorias, coberturaDias, janelaDias, onCobertu
         </div>
 
         {comprasOn && visiveisSelecionaveis.length > 0 && (
-          <div className="flex flex-wrap items-center gap-3 border-b border-gray-200 px-4 py-2 text-[12px] dark:border-gray-700">
-            <button type="button" onClick={() => setMarcados((m) => { const n = new Set(m); for (const r of visiveisSelecionaveis) n.add(r.produtoCodigo); return n })} className="font-semibold text-[#2563eb] hover:underline dark:text-blue-300">
-              Selecionar os {visiveisSelecionaveis.length} da lista
-            </button>
-            {marcados.size > 0 && <button type="button" onClick={() => setMarcados(new Set())} className="text-gray-500 hover:underline dark:text-gray-400">Limpar seleção</button>}
-            <span className="text-gray-400">Marque os produtos e crie o pedido de compra direto daqui.</span>
-          </div>
+          marcados.size > 0 ? (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-blue-200 bg-blue-50 px-4 py-2.5 dark:border-blue-500/30 dark:bg-blue-950/30">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white">
+                <ShoppingCart className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">
+                  {marcados.size} {marcados.size === 1 ? 'produto marcado' : 'produtos marcados'}
+                  <span className="font-normal text-gray-500 dark:text-gray-400"> · {fmtUnidades(selUnidades)} unidades · </span>
+                  <span className="tabular-nums">{formatCurrency(selValor)}</span>
+                </p>
+                <p className="text-[11px] text-gray-500 dark:text-gray-400">O fornecedor vem da última compra de cada produto; fornecedores diferentes viram pedidos separados.</p>
+              </div>
+              <div className="ml-auto flex items-center gap-3 text-[12px]">
+                {marcados.size < visiveisSelecionaveis.length && (
+                  <button type="button" onClick={() => setMarcados((m) => { const n = new Set(m); for (const r of visiveisSelecionaveis) n.add(r.produtoCodigo); return n })} className="font-medium text-blue-700 hover:underline dark:text-blue-300">
+                    Marcar os {visiveisSelecionaveis.length} da lista
+                  </button>
+                )}
+                <button type="button" onClick={() => setMarcados(new Set())} className="text-gray-500 hover:underline dark:text-gray-400">Limpar</button>
+                <button type="button" onClick={() => setPedidoAberto(true)} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-4 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-blue-700">
+                  <ShoppingCart className="h-4 w-4" /> Criar pedido de compra
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3 border-b border-gray-200 px-4 py-2 text-[12px] dark:border-gray-700">
+              <button type="button" onClick={() => setMarcados((m) => { const n = new Set(m); for (const r of visiveisSelecionaveis) n.add(r.produtoCodigo); return n })} className="font-semibold text-[#2563eb] hover:underline dark:text-blue-300">
+                Selecionar os {visiveisSelecionaveis.length} da lista
+              </button>
+              <span className="text-gray-400">Marque os produtos e crie o pedido de compra direto daqui.</span>
+            </div>
+          )
         )}
         <DataTable columns={columns} data={filtered} keyExtractor={(r) => r.produtoCodigo} enableRowHighlight onRowClick={(r) => setAbertoCodigo(r.produtoCodigo)} />
       </div>
 
       {/* Barra da seleção → Compras */}
       {comprasOn && marcados.size > 0 && (
-        <div className="sticky bottom-3 z-20 flex flex-wrap items-center gap-3 rounded-xl border border-[#1e3a5f]/30 bg-white px-4 py-3 shadow-xl dark:border-blue-400/30 dark:bg-gray-900">
-          <ShoppingCart className="h-5 w-5 text-[#1e3a5f] dark:text-blue-300" />
-          <span className="text-[13px] text-gray-700 dark:text-gray-200">
-            <b className="font-semibold">{marcados.size} {marcados.size === 1 ? 'produto' : 'produtos'}</b> · {fmtUnidades(selUnidades)} unidades · {formatCurrency(selValor)}
-          </span>
-          <span className="text-[11px] text-gray-400">o fornecedor vem da última compra de cada produto; itens de fornecedores diferentes viram pedidos separados</span>
-          <button type="button" onClick={() => setPedidoAberto(true)} className="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-[#1e3a5f] px-4 py-2 text-[13px] font-semibold text-white hover:bg-[#172d4a]">
-            <ShoppingCart className="h-4 w-4" /> Criar pedido de compra
-          </button>
+        <div className="pointer-events-none sticky bottom-4 z-20 flex justify-center">
+          <div className="pointer-events-auto flex items-center gap-4 rounded-2xl border border-gray-200 bg-white py-2 pl-4 pr-2 shadow-2xl ring-1 ring-black/5 dark:border-gray-700 dark:bg-gray-900 dark:ring-white/5">
+            <span className="text-[13px] text-gray-700 dark:text-gray-200">
+              <b className="font-semibold text-gray-900 dark:text-gray-100">{marcados.size} {marcados.size === 1 ? 'produto' : 'produtos'}</b>
+              <span className="text-gray-400"> · </span>{fmtUnidades(selUnidades)} un.
+              <span className="text-gray-400"> · </span><span className="font-semibold tabular-nums">{formatCurrency(selValor)}</span>
+            </span>
+            <button type="button" onClick={() => setMarcados(new Set())} className="text-[12px] text-gray-500 hover:underline dark:text-gray-400">Limpar</button>
+            <button type="button" onClick={() => setPedidoAberto(true)} className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-blue-600 px-5 text-[13.5px] font-semibold text-white shadow-sm transition-colors hover:bg-blue-700">
+              <ShoppingCart className="h-4 w-4" /> Criar pedido de compra
+            </button>
+          </div>
         </div>
       )}
       {pedidoAberto && inicialPedido && (

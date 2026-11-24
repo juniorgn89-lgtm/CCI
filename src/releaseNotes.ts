@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.26',
+    data: '2026-11-24',
+    resumo: 'Criar o pedido de compra ficou mais fácil de achar.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Botão de criar pedido à vista',
+        descricao: 'Em Compras › Análise de estoque para comprar, ao marcar produtos aparece logo acima da lista uma barra com quantos foram marcados, as unidades, o valor e o botão Criar pedido de compra. Rolando a lista, o mesmo botão acompanha no rodapé da tela.',
+      },
+    ],
+  },
+  {
     versao: '1.2.25',
     data: '2026-11-24',
     resumo: 'O que comprar agora fica em Compras, e o botão do posto mostra com clareza onde você está.',
