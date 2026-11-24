@@ -37,23 +37,23 @@ export const TanquesMobileSection = () => {
   return (
     <>
       <Section Icon={Fuel} title="Tanques" accent="blue" flush
-        right={criticos > 0 ? <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-300"><AlertTriangle className="h-3 w-3" /> {criticos} crítico{criticos > 1 ? 's' : ''}</span> : <span className="text-[10.5px] text-gray-400">toque p/ ver ao vivo</span>}>
-        <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+        right={criticos > 0 ? <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-300"><AlertTriangle className="h-3 w-3" /> {criticos} crítico{criticos > 1 ? 's' : ''}</span> : <span className="text-[12px] text-gray-400">toque p/ ver ao vivo</span>}>
+        <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
           {postos.map((p) => {
             const nivel = nivelDe(p.pct)
             return (
-              <button key={p.codigo} type="button" onClick={() => setSel({ p, foco: null })} className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left active:bg-gray-50 dark:active:bg-white/5">
+              <button key={p.codigo} type="button" onClick={() => setSel({ p, foco: null })} className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-gray-50 dark:active:bg-white/5">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-[13px] font-medium text-gray-800 dark:text-gray-200">{p.nome}</span>
-                    <span className={cn('text-[12px] font-bold tabular-nums', COR_NIVEL[nivel].text)}>{Math.round(p.pct)}%</span>
+                    <span className="truncate text-[14.5px] font-medium text-gray-800 dark:text-gray-200">{p.nome}</span>
+                    <span className={cn('text-[13px] font-bold tabular-nums', COR_NIVEL[nivel].text)}>{Math.round(p.pct)}%</span>
                   </div>
                   <div className="mt-1.5"><ProgressBar pct={p.pct} color={COR_NIVEL[nivel].fill} /></div>
-                  <div className="mt-1 flex items-center justify-between text-[11px] text-gray-400">
+                  <div className="mt-1 flex items-center justify-between text-[12px] text-gray-400">
                     <span>{formatNumber(Math.round(p.atual))} L de {formatNumber(Math.round(p.cap))} L · {p.tanques.length} tanque{p.tanques.length > 1 ? 's' : ''}</span>
                     <span className="flex gap-1">
-                      {p.criticos > 0 && <span className="rounded-full bg-red-50 px-1.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-300">{p.criticos} crít.</span>}
-                      {p.baixos > 0 && <span className="rounded-full bg-amber-50 px-1.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{p.baixos} baixo{p.baixos > 1 ? 's' : ''}</span>}
+                      {p.criticos > 0 && <span className="rounded-full bg-red-50 px-1.5 text-[11px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-300">{p.criticos} crít.</span>}
+                      {p.baixos > 0 && <span className="rounded-full bg-amber-50 px-1.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{p.baixos} baixo{p.baixos > 1 ? 's' : ''}</span>}
                     </span>
                   </div>
                 </div>
@@ -100,28 +100,28 @@ export const ContasMobileSection = () => {
     const total30 = l.buckets.vencidas.total + l.buckets.hoje.total + l.buckets.d7.total + l.buckets.d30.total
     const carregando = r.carregando[lado]
     return (
-      <div key={lado} className="px-3.5 py-3">
+      <div key={lado} className="px-4 py-3">
         <div className="flex items-center justify-between">
-          <span className={cn('text-[12px] font-semibold', lado === 'pagar' ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400')}>{titulo(lado)}</span>
-          {carregando ? <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Loader2 className="h-3 w-3 animate-spin" /> buscando no ERP…</span> : <span className="text-[11px] text-gray-400">30 dias · <b className="text-gray-700 dark:text-gray-200">{brlShort(total30)}</b></span>}
+          <span className={cn('text-[13px] font-semibold', lado === 'pagar' ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400')}>{titulo(lado)}</span>
+          {carregando ? <span className="inline-flex items-center gap-1 text-[12px] text-gray-400"><Loader2 className="h-3 w-3 animate-spin" /> buscando no ERP…</span> : <span className="text-[12px] text-gray-400">30 dias · <b className="text-gray-700 dark:text-gray-200">{brlShort(total30)}</b></span>}
         </div>
-        {carregando ? <p className="mt-2 text-[11px] text-gray-400">Os títulos aparecem assim que terminar.</p> : (<>
+        {carregando ? <p className="mt-2 text-[12px] text-gray-400">Os títulos aparecem assim que terminar.</p> : (<>
         <div className="mt-2 grid grid-cols-4 gap-1.5">
           {FAIXAS.map((f) => {
             const v = l.buckets[f.id]
             const vencTom = lado === 'receber' ? 'text-orange-600 dark:text-orange-400' : 'text-red-600 dark:text-red-400'
             return (
-              <button key={f.id} type="button" onClick={() => abrirFaixa(lado, f.id)} className="rounded-lg border border-gray-200 px-1.5 py-1.5 text-left active:bg-gray-50 dark:border-[#3a3a3a] dark:active:bg-white/5">
-                <span className="block text-[9.5px] font-semibold uppercase tracking-wide text-gray-400">{f.label}</span>
-                <span className={cn('block text-[12px] font-bold tabular-nums', f.id === 'vencidas' && v.total > 0 ? vencTom : 'text-gray-900 dark:text-gray-100')}>{brlShort(v.total)}</span>
-                <span className="block text-[9.5px] text-gray-400">{v.count} doc.</span>
+              <button key={f.id} type="button" onClick={() => abrirFaixa(lado, f.id)} className="rounded-lg border border-gray-200 px-1.5 py-1.5 text-left active:bg-gray-50 dark:border-[#2f3b4f] dark:active:bg-white/5">
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-gray-400">{f.label}</span>
+                <span className={cn('block text-[13px] font-bold tabular-nums', f.id === 'vencidas' && v.total > 0 ? vencTom : 'text-gray-900 dark:text-gray-100')}>{brlShort(v.total)}</span>
+                <span className="block text-[11px] text-gray-400">{v.count} doc.</span>
               </button>
             )
           })}
         </div>
         <div className="mt-2 flex flex-wrap gap-1.5">
           {l.categorias.filter((c) => c.total > 0).map((c) => (
-            <button key={c.id} type="button" onClick={() => abrirCategoria(lado, c)} className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10.5px] text-gray-600 active:bg-gray-200 dark:bg-[#303030] dark:text-gray-300">
+            <button key={c.id} type="button" onClick={() => abrirCategoria(lado, c)} className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[12px] text-gray-600 active:bg-gray-200 dark:bg-[#172234] dark:text-gray-300">
               <span className={cn('h-1.5 w-1.5 rounded-full', c.dot)} />{c.label} <b className="tabular-nums">{brlShort(c.total)}</b>
             </button>
           ))}
@@ -134,12 +134,12 @@ export const ContasMobileSection = () => {
   return (
     <>
       <Section Icon={Wallet} title="Contas" accent="navy" flush
-        right={(r.carregando.pagar || r.carregando.receber) ? <span className="text-[10.5px] text-gray-400">carregando…</span> : <span className={cn('text-[11px] font-bold tabular-nums', saldo >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')} title="Tudo a receber menos tudo a pagar">{saldo >= 0 ? '+' : '−'}{brlShort(Math.abs(saldo))}</span>}>
-        <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+        right={(r.carregando.pagar || r.carregando.receber) ? <span className="text-[12px] text-gray-400">carregando…</span> : <span className={cn('text-[12px] font-bold tabular-nums', saldo >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')} title="Tudo a receber menos tudo a pagar">{saldo >= 0 ? '+' : '−'}{brlShort(Math.abs(saldo))}</span>}>
+        <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
           {Lado('pagar')}
           {Lado('receber')}
         </div>
-        <p className="border-t border-gray-100 px-3.5 py-2 text-[10px] text-gray-400 dark:border-[#303030]">Toque numa faixa ou categoria para ver os títulos. Laranja = a receber vencido (é cobrar).</p>
+        <p className="border-t border-gray-100 px-4 py-2 text-[11px] text-gray-400 dark:border-white/[0.06]">Toque numa faixa ou categoria para ver os títulos. Laranja = a receber vencido (é cobrar).</p>
       </Section>
       <ContasListaModal sel={lista} onClose={() => setLista(null)} />
     </>

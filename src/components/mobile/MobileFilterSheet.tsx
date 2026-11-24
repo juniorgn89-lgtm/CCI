@@ -14,7 +14,7 @@ interface MobileFilterSheetProps {
 
 const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
   <div className="space-y-1.5">
-    <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</p>
+    <p className="text-[12px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</p>
     <div className="flex flex-wrap items-center gap-2">{children}</div>
   </div>
 )
@@ -39,7 +39,7 @@ const MobileFilterSheet = ({ open, onOpenChange, hideCompanySelect }: MobileFilt
       <button
         type="button"
         onClick={() => onOpenChange(false)}
-        className="mt-6 w-full rounded-lg bg-[#1e3a5f] py-3 text-sm font-semibold text-white transition-colors hover:bg-[#162d4a] active:scale-[0.99]"
+        className="mt-6 w-full rounded-lg bg-[#0d9488] py-3 text-sm font-semibold text-white transition-colors hover:bg-[#162d4a] active:scale-[0.99]"
       >
         Aplicar
       </button>

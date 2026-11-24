@@ -82,31 +82,31 @@ const EstoqueMobile = () => {
   if (postos.length === 0) {
     return (
       <div className="space-y-3 pb-2">
-        <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Estoques</h1>
+        <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Estoques</h1>
         <EmptyCard title="Sem posto" desc="Nenhum posto disponível." />
       </div>
     )
   }
   if (isLoading) return (
     <div className="space-y-3 pb-2">
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Estoques</h1>
+      <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Estoques</h1>
       {postoTabs}
       <LoadingScreen message="Carregando estoque…" />
     </div>
   )
   if (productAnalytics.length === 0) return (
     <div className="space-y-3 pb-2">
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Estoques</h1>
+      <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Estoques</h1>
       {postoTabs}
       <EmptyCard title="Sem produtos" desc="Não há produtos de estoque pro posto selecionado." />
     </div>
   )
 
   const Row = ({ p, right, sub }: { p: ProductAnalyticsRow; right: React.ReactNode; sub: string }) => (
-    <div className="flex items-center gap-2 px-3.5 py-2.5">
+    <div className="flex items-center gap-2 px-4 py-3">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[12.5px] font-medium text-gray-900 dark:text-gray-100">{p.produtoNome}</p>
-        <p className="truncate text-[10.5px] text-gray-400 dark:text-gray-500">{sub}</p>
+        <p className="truncate text-[14px] font-medium text-gray-900 dark:text-gray-100">{p.produtoNome}</p>
+        <p className="truncate text-[12px] text-gray-400 dark:text-gray-500">{sub}</p>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-0.5">{right}</div>
     </div>
@@ -114,7 +114,7 @@ const EstoqueMobile = () => {
 
   return (
     <div className="space-y-3 pb-2">
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Estoques</h1>
+      <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Estoques</h1>
       {postoTabs}
 
       <div className="grid grid-cols-2 gap-2">
@@ -130,7 +130,7 @@ const EstoqueMobile = () => {
           <EmptyCard title="Tudo abastecido" desc="Nenhum produto crítico ou baixo pra repor." />
         ) : (
           <Section Icon={RefreshCw} title="Precisa repor" right={<Badge tone="rose">{repor.length}</Badge>} flush>
-            <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+            <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
               {repor.slice(0, 150).map((p) => (
                 <Row
                   key={p.produtoCodigo}
@@ -138,7 +138,7 @@ const EstoqueMobile = () => {
                   sub={`saldo ${fmtUn(p.saldoAtual)} · cobre ${fmtDias(p.diasCobertura)} · ${p.categoria}`}
                   right={
                     <>
-                      <span className="text-[12px] font-bold tabular-nums text-gray-900 dark:text-gray-100">
+                      <span className="text-[13px] font-bold tabular-nums text-gray-900 dark:text-gray-100">
                         {p.necessidadeUnidades > 0 ? `comprar ${fmtUn(p.necessidadeUnidades)}` : '—'}
                       </span>
                       <Badge tone={STATUS_TONE[p.necessidadeStatus] ?? 'navy'}>{STATUS_LABEL[p.necessidadeStatus] ?? p.necessidadeStatus}</Badge>
@@ -153,7 +153,7 @@ const EstoqueMobile = () => {
 
       {tab === 'estoque' && (
         <Section Icon={Boxes} title="Maior valor em estoque" flush>
-          <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+          <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
             {porValor.slice(0, 150).map((p) => (
               <Row
                 key={p.produtoCodigo}
@@ -161,8 +161,8 @@ const EstoqueMobile = () => {
                 sub={`${fmtUn(p.saldoAtual)} · ${p.categoria}`}
                 right={
                   <>
-                    <span className="text-[12.5px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brl(p.valorEstoque)}</span>
-                    <span className="text-[10px] text-gray-400 dark:text-gray-500">cobre {fmtDias(p.diasCobertura)}</span>
+                    <span className="text-[14px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brl(p.valorEstoque)}</span>
+                    <span className="text-[11px] text-gray-400 dark:text-gray-500">cobre {fmtDias(p.diasCobertura)}</span>
                   </>
                 }
               />
@@ -173,7 +173,7 @@ const EstoqueMobile = () => {
 
       {tab === 'giro' && (
         <Section Icon={RefreshCw} title="Menor giro (capital parado)" flush>
-          <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+          <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
             {parados.slice(0, 150).map((p) => (
               <Row
                 key={p.produtoCodigo}
@@ -181,8 +181,8 @@ const EstoqueMobile = () => {
                 sub={`saldo ${fmtUn(p.saldoAtual)} · ${brlShort(p.valorEstoque)} parado`}
                 right={
                   <>
-                    <span className="text-[12.5px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{p.giro.toFixed(2).replace('.', ',')}×</span>
-                    <span className="text-[10px] text-gray-400 dark:text-gray-500">giro 6m</span>
+                    <span className="text-[14px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{p.giro.toFixed(2).replace('.', ',')}×</span>
+                    <span className="text-[11px] text-gray-400 dark:text-gray-500">giro 6m</span>
                   </>
                 }
               />
@@ -191,7 +191,7 @@ const EstoqueMobile = () => {
         </Section>
       )}
 
-      <p className="px-1 text-center text-[10px] text-gray-400 dark:text-gray-500">
+      <p className="px-1 text-center text-[11px] text-gray-400 dark:text-gray-500">
         Cobertura calculada pra 30 dias · giro e médias sobre os últimos 6 meses.
       </p>
     </div>

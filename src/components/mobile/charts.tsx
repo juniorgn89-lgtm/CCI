@@ -10,11 +10,11 @@ import { ProgressBar } from '@/components/mobile/primitives'
 export const useChartColors = (): string[] => {
   const dark = useThemeStore((s) => s.dark)
   return dark
-    ? ['#60a5fa', '#3b82f6', '#2563eb', '#93c5fd', '#1e3a5f']
-    : ['#1e3a5f', '#2563eb', '#3b82f6', '#60a5fa', '#93c5fd']
+    ? ['#5eead4', '#2dd4bf', '#14b8a6', '#99f6e4', '#0d9488']
+    : ['#0f766e', '#0d9488', '#14b8a6', '#2dd4bf', '#99f6e4']
 }
 
-const gridColor = (dark: boolean) => (dark ? '#303030' : '#eef0f3')
+const gridColor = (dark: boolean) => (dark ? '#2f3b4f' : '#eef0f3')
 const axisColor = (dark: boolean) => (dark ? '#767676' : '#9ca3af')
 
 interface Datum { [k: string]: string | number }
@@ -87,7 +87,7 @@ interface HBarRankingProps<T> {
   color?: string
   max?: number
 }
-export function HBarRanking<T extends Record<string, unknown>>({ data, valueKey, labelKey, fmt, color = '#2563eb', max }: HBarRankingProps<T>) {
+export function HBarRanking<T extends Record<string, unknown>>({ data, valueKey, labelKey, fmt, color = '#0d9488', max }: HBarRankingProps<T>) {
   const mx = max ?? Math.max(...data.map((d) => Number(d[valueKey]) || 0), 0)
   return (
     <div className="flex flex-col gap-2.5">

@@ -49,14 +49,14 @@ const QualidadeMobile = () => {
   if (postos.length === 0) {
     return (
       <div className="space-y-3 pb-2">
-        <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Qualidade de Dados</h1>
+        <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Qualidade de Dados</h1>
         <EmptyCard title="Sem posto" desc="Nenhum posto disponível." />
       </div>
     )
   }
   if (q.isLoading) return (
     <div className="space-y-3 pb-2">
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Qualidade de Dados</h1>
+      <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Qualidade de Dados</h1>
       {postoTabs}
       <LoadingScreen message="Verificando os dados…" />
     </div>
@@ -74,19 +74,19 @@ const QualidadeMobile = () => {
   const IssueRow = (issue: QualidadeIssue) => {
     const sev = SEV[issue.severity]
     return (
-      <div key={issue.id} className={cn('border-l-[3px] px-3.5 py-2.5', sev.bar)}>
+      <div key={issue.id} className={cn('border-l-[3px] px-4 py-3', sev.bar)}>
         <div className="flex items-center justify-between gap-2">
-          <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-gray-900 dark:text-gray-100">{issue.label}</span>
+          <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-gray-900 dark:text-gray-100">{issue.label}</span>
           <Badge tone={sev.tone}>{formatNumber(issue.count)}</Badge>
         </div>
-        <p className="mt-0.5 text-[10.5px] leading-snug text-gray-400 dark:text-gray-500">{issue.description}</p>
+        <p className="mt-0.5 text-[12px] leading-snug text-gray-400 dark:text-gray-500">{issue.description}</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-3 pb-2">
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Qualidade de Dados</h1>
+      <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Qualidade de Dados</h1>
       {postoTabs}
 
       <div className="grid grid-cols-2 gap-2">
@@ -97,10 +97,10 @@ const QualidadeMobile = () => {
       </div>
 
       {q.totalIssues === 0 ? (
-        <div className="flex flex-col items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-8 text-center dark:border-emerald-900/40 dark:bg-emerald-950/20">
+        <div className="flex flex-col items-center gap-1.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-8 text-center dark:border-emerald-900/40 dark:bg-emerald-950/20">
           <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
-          <span className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">Tudo certo</span>
-          <span className="max-w-[230px] text-[11.5px] text-gray-500 dark:text-gray-400">Nenhuma inconsistência encontrada no período e posto selecionados.</span>
+          <span className="text-[14.5px] font-semibold text-gray-900 dark:text-gray-100">Tudo certo</span>
+          <span className="max-w-[230px] text-[12.5px] text-gray-500 dark:text-gray-400">Nenhuma inconsistência encontrada no período e posto selecionados.</span>
         </div>
       ) : (
         cats.map(({ key, label, Icon }) => {
@@ -109,7 +109,7 @@ const QualidadeMobile = () => {
           const total = issues.reduce((s, i) => s + i.count, 0)
           return (
             <Section key={key} Icon={Icon} title={label} right={<Badge tone="navy">{formatNumber(total)}</Badge>} flush>
-              <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+              <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
                 {issues.map(IssueRow)}
               </div>
             </Section>
@@ -117,7 +117,7 @@ const QualidadeMobile = () => {
         })
       )}
 
-      <p className="px-1 text-center text-[10px] text-gray-400 dark:text-gray-500">
+      <p className="px-1 text-center text-[11px] text-gray-400 dark:text-gray-500">
         Detalhe item a item e arquivamento de ocorrências disponíveis na versão desktop.
       </p>
     </div>

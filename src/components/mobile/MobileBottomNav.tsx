@@ -83,20 +83,20 @@ const MobileBottomNav = ({ items }: MobileBottomNavProps) => {
       </nav>
 
       <Sheet open={maisOpen} onOpenChange={setMaisOpen}>
-        <SheetContent side="bottom" className="max-h-[80vh] overflow-y-auto rounded-t-2xl">
+        <SheetContent side="bottom" className="max-h-[82vh] overflow-y-auto rounded-t-3xl border-0 bg-white px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] dark:bg-[#1e293b]">
           <div className="flex items-center justify-between pr-9">
-            <SheetTitle className="text-base font-bold">Módulos</SheetTitle>
+            <SheetTitle className="text-[19px] font-bold tracking-tight">Módulos</SheetTitle>
             <button
               type="button"
               onClick={() => setEdit((e) => !e)}
-              className="rounded-md px-2.5 py-1 text-xs font-semibold text-[#2563eb] hover:bg-blue-50 dark:text-[#60a5fa] dark:hover:bg-blue-950/30"
+              className="rounded-lg px-2.5 py-1.5 text-[13.5px] font-semibold text-teal-700 hover:bg-teal-50 dark:text-[#5eead4] dark:hover:bg-white/[0.06]"
             >
               {edit ? 'Concluir' : 'Editar barra'}
             </button>
           </div>
 
           {edit && (
-            <div className="mt-1 flex items-center justify-between rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+            <div className="mt-2 flex items-center justify-between rounded-xl bg-amber-50 px-3.5 py-2.5 text-[12.5px] text-amber-700 dark:bg-amber-400/10 dark:text-amber-300">
               <span>Fixe até 4 módulos na barra ({bar.length}/4).</span>
               <button type="button" onClick={reset} aria-label="Restaurar barra padrão" className="inline-flex items-center gap-1 font-semibold">
                 <RotateCcw className="h-3 w-3" /> Padrão
@@ -112,7 +112,7 @@ const MobileBottomNav = ({ items }: MobileBottomNavProps) => {
               if (groupItems.length === 0) return null
               return (
                 <div key={group.title}>
-                  <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{group.title}</p>
+                  <p className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-[#94a3b8]">{group.title}</p>
                   <div className="grid grid-cols-1 gap-1">
                     {groupItems.map((item) => {
                       const Icon = item.icon
@@ -128,20 +128,20 @@ const MobileBottomNav = ({ items }: MobileBottomNavProps) => {
                           }}
                           aria-current={isActive(item.path) ? 'page' : undefined}
                           className={cn(
-                            'flex min-h-[44px] items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors active:bg-gray-100 dark:active:bg-white/10',
+                            'flex min-h-[48px] items-center gap-3 rounded-xl px-3 text-[15px] transition-colors active:bg-gray-100 dark:active:bg-white/[0.08]',
                             isActive(item.path)
-                              ? 'bg-gray-100 font-semibold text-gray-900 dark:bg-white/10 dark:text-white'
-                              : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-white/5',
+                              ? 'bg-teal-50 font-semibold text-teal-800 dark:bg-teal-500/[0.12] dark:text-[#5eead4]'
+                              : 'text-gray-800 hover:bg-gray-50 dark:text-[#f1f5f9] dark:hover:bg-white/[0.04]',
                           )}
                         >
-                          <Icon className="h-5 w-5 shrink-0" />
+                          <Icon className={cn('h-5 w-5 shrink-0', isActive(item.path) ? '' : 'text-gray-500 dark:text-[#94a3b8]')} />
                           <span className="flex-1 text-left">{item.label}</span>
                           {edit && (
                             <span className={cn(
                               'flex h-5 w-5 items-center justify-center rounded-full border',
                               pinned
-                                ? 'border-[#2563eb] bg-[#2563eb] text-white dark:border-[#60a5fa] dark:bg-[#60a5fa]'
-                                : 'border-gray-300 text-transparent dark:border-gray-600',
+                                ? 'border-[#0d9488] bg-[#0d9488] text-white'
+                                : 'border-gray-300 text-transparent dark:border-[#3e4c63]',
                             )}>
                               <Check className="h-3 w-3" />
                             </span>

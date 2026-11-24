@@ -60,7 +60,7 @@ const ReabastecimentoMobile = () => {
 
   return (
     <div className="space-y-3 pb-2">
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Reabastecimento</h1>
+      <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Reabastecimento</h1>
 
       <div className="grid grid-cols-2 gap-2">
         <KpiCard label="Volume em tanque" tone="blue" Icon={Droplet} value={litersShort(resumo.volume)} sub={`${formatNumber(tanques.length)} tanques`} />
@@ -70,34 +70,34 @@ const ReabastecimentoMobile = () => {
       </div>
 
       {resumo.critico > 0 && (
-        <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[12px] text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
+        <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-300">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <span><span className="font-semibold">{resumo.critico} tanque{resumo.critico > 1 ? 's' : ''}</span> em nível crítico (&lt; 20% da capacidade). Reposição sugerida abaixo.</span>
         </div>
       )}
 
       <Section Icon={Fuel} title="Níveis de tanque" right={<Badge tone="navy">{tanques.length}</Badge>} flush>
-        <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+        <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
           {tanques.map((t) => {
             const cfg = NIVEL[t.nivel]
             return (
-              <div key={`${t.empresaCodigo}-${t.tanqueCodigo}`} className="px-3.5 py-2.5">
+              <div key={`${t.empresaCodigo}-${t.tanqueCodigo}`} className="px-4 py-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">{t.produtoNome}</p>
-                    <p className="truncate text-[10.5px] text-gray-400 dark:text-gray-500">
+                    <p className="truncate text-[14.5px] font-medium text-gray-900 dark:text-gray-100">{t.produtoNome}</p>
+                    <p className="truncate text-[12px] text-gray-400 dark:text-gray-500">
                       {!single1Posto ? `${t.empresaNome} · ` : ''}{t.tanqueNome}
                     </p>
                   </div>
                   <Badge tone={cfg.tone}>{cfg.label} · {Math.round(t.nivelPct)}%</Badge>
                 </div>
                 <div className="mt-1.5"><ProgressBar pct={t.nivelPct} color={cfg.bar} height={6} /></div>
-                <div className="mt-1 flex items-center justify-between text-[10.5px] tabular-nums text-gray-400 dark:text-gray-500">
+                <div className="mt-1 flex items-center justify-between text-[12px] tabular-nums text-gray-400 dark:text-gray-500">
                   <span>{liters(t.estoqueAtual)} / {liters(t.capacidade)}</span>
                   <span>{t.diasRestantes != null ? `cobre ${Math.round(t.diasRestantes)}d` : 'sem consumo'}</span>
                 </div>
                 {(t.necessidadeFimDoMes > 0 || t.ultimaCompra) && (
-                  <div className="mt-1 flex items-center justify-between text-[10.5px]">
+                  <div className="mt-1 flex items-center justify-between text-[12px]">
                     {t.necessidadeFimDoMes > 0
                       ? <span className="font-semibold text-blue-600 dark:text-blue-400">comprar {liters(t.necessidadeFimDoMes)}</span>
                       : <span className="text-gray-400 dark:text-gray-500">abastecido</span>}

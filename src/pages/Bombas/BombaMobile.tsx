@@ -59,20 +59,20 @@ const BombaMobile = () => {
 
   if (postos.length === 0) return (
     <div className="space-y-3 pb-2">
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Bombas</h1>
+      <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Bombas</h1>
       <EmptyCard title="Sem posto" desc="Nenhum posto disponível." />
     </div>
   )
   if (isLoading) return (
     <div className="space-y-3 pb-2">
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Bombas</h1>
+      <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Bombas</h1>
       {postoTabs}
       <LoadingScreen message="Carregando bombas…" />
     </div>
   )
   if (stats.ativas.length === 0) return (
     <div className="space-y-3 pb-2">
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Bombas</h1>
+      <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Bombas</h1>
       {postoTabs}
       <EmptyCard title="Sem bombeamento" desc="Nenhuma bomba com abastecimentos no período." />
     </div>
@@ -80,7 +80,7 @@ const BombaMobile = () => {
 
   return (
     <div className="space-y-3 pb-2">
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Bombas</h1>
+      <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Bombas</h1>
       {postoTabs}
 
       <div className="grid grid-cols-2 gap-2">
@@ -96,43 +96,43 @@ const BombaMobile = () => {
       </div>
 
       <Section Icon={Gauge} title="Ranking de bombas" right={<Badge tone="navy">{stats.ativas.length}</Badge>} flush>
-        <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+        <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
           {stats.ativas.map((b, i) => {
             const expanded = open === b.bombaCodigo
             return (
               <div key={b.bombaCodigo}>
-                <button type="button" onClick={() => setOpen(expanded ? null : b.bombaCodigo)} className="flex w-full items-center gap-2 px-3.5 py-2.5 text-left active:bg-gray-50 dark:active:bg-white/5">
-                  <span className="w-4 shrink-0 text-center text-[12px] font-bold text-gray-400 dark:text-gray-500">{i + 1}</span>
+                <button type="button" onClick={() => setOpen(expanded ? null : b.bombaCodigo)} className="flex w-full items-center gap-2 px-4 py-3 text-left active:bg-gray-50 dark:active:bg-white/5">
+                  <span className="w-4 shrink-0 text-center text-[13px] font-bold text-gray-400 dark:text-gray-500">{i + 1}</span>
                   <ChevronDown className={cn('h-4 w-4 shrink-0 text-gray-400 transition-transform', expanded && 'rotate-180')} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[12.5px] font-medium text-gray-900 dark:text-gray-100">{b.descricao}</p>
-                    <p className="truncate text-[10.5px] text-gray-400 dark:text-gray-500">
+                    <p className="truncate text-[14px] font-medium text-gray-900 dark:text-gray-100">{b.descricao}</p>
+                    <p className="truncate text-[12px] text-gray-400 dark:text-gray-500">
                       {b.combustiveis.join(' · ') || `${b.quantidadeBicos} bicos`} · {formatNumber(b.abastecimentos)} abast.
                     </p>
                     <div className="mt-1"><ProgressBar pct={stats.maxLitros > 0 ? (b.litrosVendidos / stats.maxLitros) * 100 : 0} /></div>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-0.5">
-                    <span className="text-[12.5px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{litersShort(b.litrosVendidos)}</span>
-                    <span className="text-[10px] tabular-nums text-gray-400 dark:text-gray-500">{brlShort(b.faturamento)}</span>
+                    <span className="text-[14px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{litersShort(b.litrosVendidos)}</span>
+                    <span className="text-[11px] tabular-nums text-gray-400 dark:text-gray-500">{brlShort(b.faturamento)}</span>
                   </div>
                 </button>
                 {expanded && (
-                  <div className="space-y-3 bg-gray-50 px-3.5 pb-3.5 pt-1 dark:bg-[#1c1c1c]">
+                  <div className="space-y-3 bg-gray-50 px-4 pb-3.5 pt-1 dark:bg-[#1c1c1c]">
                     {b.combustiveisDetalhes.length > 0 && (
                       <div>
-                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Por combustível</p>
+                        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Por combustível</p>
                         <div className="space-y-1.5">
                           {b.combustiveisDetalhes.map((c) => (
-                            <div key={c.nome} className="flex items-center justify-between gap-2 text-[11.5px]">
+                            <div key={c.nome} className="flex items-center justify-between gap-2 text-[12.5px]">
                               <span className="min-w-0 flex-1 truncate text-gray-700 dark:text-gray-300">{c.nome}</span>
-                              <span className="shrink-0 text-[10px] tabular-nums text-gray-400">{liters(c.litros)}</span>
+                              <span className="shrink-0 text-[11px] tabular-nums text-gray-400">{liters(c.litros)}</span>
                               <span className="shrink-0 font-semibold tabular-nums text-gray-900 dark:text-gray-100">{brl(c.faturamento)}</span>
                             </div>
                           ))}
                         </div>
                       </div>
                     )}
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11.5px]">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12.5px]">
                       <Detail label="Ilha" value={b.ilha ? String(b.ilha) : '—'} />
                       <Detail label="Bicos" value={String(b.quantidadeBicos)} />
                       <Detail label="Fabricante" value={b.fabricante || '—'} />

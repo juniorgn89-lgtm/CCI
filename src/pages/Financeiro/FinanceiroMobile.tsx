@@ -65,17 +65,17 @@ const TitulosList = <T extends { statusTag: string; diasAtraso: number }>({
         <EmptyCard title={vazio} desc="Nenhum título para este filtro." />
       ) : (
         <Section Icon={Landmark} title={`${filtered.length} ${filtered.length === 1 ? 'título' : 'títulos'}`} flush>
-          <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+          <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
             {filtered.slice(0, 200).map((r, i) => (
-              <div key={i} className="flex items-center gap-2 px-3.5 py-2.5">
+              <div key={i} className="flex items-center gap-2 px-4 py-3">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12.5px] font-medium text-gray-900 dark:text-gray-100">{nome(r)}</p>
-                  <p className="text-[10.5px] text-gray-400 dark:text-gray-500">
+                  <p className="truncate text-[14px] font-medium text-gray-900 dark:text-gray-100">{nome(r)}</p>
+                  <p className="text-[12px] text-gray-400 dark:text-gray-500">
                     venc. {fmtDia(dataDe(r))}{r.statusTag === 'vencido' && r.diasAtraso > 0 && ` · ${r.diasAtraso}d atraso`}
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-0.5">
-                  <span className="text-[12.5px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brl(valorDe(r))}</span>
+                  <span className="text-[14px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brl(valorDe(r))}</span>
                   <Badge tone={statusTone[r.statusTag] ?? 'navy'}>{statusLabel[r.statusTag] ?? r.statusTag}</Badge>
                 </div>
               </div>
@@ -106,18 +106,18 @@ const FinanceiroMobile = () => {
 
   return (
     <div className="space-y-3 pb-2">
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Financeiro</h1>
-      <div className="-mx-3.5 flex gap-1 overflow-x-auto border-b border-gray-200 px-3.5 [scrollbar-width:none] dark:border-[#3a3a3a]">
+      <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Financeiro</h1>
+      <div className="flex overflow-x-auto rounded-2xl border border-gray-200 bg-white px-1 [scrollbar-width:none] dark:border-[#2f3b4f] dark:bg-[#1e293b]">
         {TABS.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
             className={cn(
-              '-mb-px shrink-0 whitespace-nowrap border-b-2 px-1.5 pb-2.5 pt-3 text-[13px]',
+              'relative shrink-0 whitespace-nowrap px-3 py-3.5 text-[14.5px] transition-colors',
               tab === t.id
-                ? 'border-[#2563eb] font-semibold text-[#2563eb] dark:border-[#60a5fa] dark:text-[#60a5fa]'
-                : 'border-transparent font-medium text-gray-400 dark:text-gray-500',
+                ? 'font-semibold text-[#0f766e] after:absolute after:inset-x-2 after:bottom-0 after:h-[3px] after:rounded-full after:bg-[#0d9488] dark:text-[#5eead4] dark:after:bg-[#5eead4]/80'
+                : 'font-medium text-gray-500 dark:text-[#94a3b8]',
             )}
           >
             {t.label}
@@ -141,14 +141,14 @@ const FinanceiroMobile = () => {
           <Section Icon={AlertTriangle} title="Vencidos" accent="rose">
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg bg-rose-50 px-3 py-2 dark:bg-rose-950/20">
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">A receber</p>
+                <p className="text-[12px] text-gray-500 dark:text-gray-400">A receber</p>
                 <p className="text-[16px] font-bold tabular-nums text-rose-600 dark:text-rose-400">{brlShort(kpis.totalVencidosReceber)}</p>
-                <p className="text-[10px] text-gray-400">{kpis.countVencidosReceber} títulos</p>
+                <p className="text-[11px] text-gray-400">{kpis.countVencidosReceber} títulos</p>
               </div>
               <div className="rounded-lg bg-rose-50 px-3 py-2 dark:bg-rose-950/20">
-                <p className="text-[11px] text-gray-500 dark:text-gray-400">A pagar</p>
+                <p className="text-[12px] text-gray-500 dark:text-gray-400">A pagar</p>
                 <p className="text-[16px] font-bold tabular-nums text-rose-600 dark:text-rose-400">{brlShort(kpis.totalVencidosPagar)}</p>
-                <p className="text-[10px] text-gray-400">{kpis.countVencidosPagar} contas</p>
+                <p className="text-[11px] text-gray-400">{kpis.countVencidosPagar} contas</p>
               </div>
             </div>
           </Section>

@@ -7,7 +7,7 @@ type LucideIcon = ComponentType<LucideProps>
 /* ── Tons (chip de ícone + tint do card) — rgba funciona em light/dark ── */
 export type Tone = 'navy' | 'blue' | 'emerald' | 'rose' | 'amber' | 'indigo' | 'violet' | 'teal'
 const TONES: Record<Tone, { icon: string; chip: string; soft: string }> = {
-  navy: { icon: '#1e3a5f', chip: 'rgba(30,58,95,0.14)', soft: 'rgba(30,58,95,0.10)' },
+  navy: { icon: '#0d9488', chip: 'rgba(20,184,166,0.14)', soft: 'rgba(20,184,166,0.10)' },
   blue: { icon: '#2563eb', chip: 'rgba(37,99,235,0.16)', soft: 'rgba(37,99,235,0.12)' },
   emerald: { icon: '#059669', chip: 'rgba(16,185,129,0.16)', soft: 'rgba(16,185,129,0.12)' },
   rose: { icon: '#e11d48', chip: 'rgba(244,63,94,0.16)', soft: 'rgba(244,63,94,0.12)' },
@@ -18,6 +18,8 @@ const TONES: Record<Tone, { icon: string; chip: string; soft: string }> = {
 }
 
 const pct1 = (v: number) => `${v.toFixed(2).replace('.', ',')}%`
+
+const CARD = 'rounded-2xl border border-gray-200 bg-white dark:border-[#2f3b4f] dark:bg-[#1e293b]'
 
 /* ── DeltaBadge — seta + % vs <ref> ── */
 interface DeltaBadgeProps {
@@ -36,7 +38,7 @@ export const DeltaBadge = ({ value, label = 'mês ant.', invert = false, small =
     <span
       className={cn(
         'inline-flex items-center gap-1 font-semibold tabular-nums',
-        small ? 'text-[10px]' : 'text-[11px]',
+        small ? 'text-[11px]' : 'text-[12px]',
         good ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400',
       )}
     >
@@ -64,29 +66,22 @@ interface KpiCardProps {
 export const KpiCard = ({ label, value, sub, tone = 'navy', Icon, delta, deltaLabel, span2, big }: KpiCardProps) => {
   const t = TONES[tone]
   return (
-    <div
-      className={cn(
-        'rounded-xl border border-gray-200 bg-white shadow-sm dark:border-[#3a3a3a] dark:bg-[#242424]',
-        big ? 'p-3.5' : 'px-3 py-2.5',
-        span2 && 'col-span-2',
-      )}
-      style={{ backgroundImage: `linear-gradient(150deg, ${t.soft}, transparent 70%)` }}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-[11.5px] font-medium text-gray-500 dark:text-gray-400">{label}</span>
+    <div className={cn(CARD, big ? 'p-4' : 'px-3.5 py-3', span2 && 'col-span-2')}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#94a3b8]">{label}</span>
         {Icon && (
-          <span className="flex h-6 w-6 items-center justify-center rounded-[7px]" style={{ background: t.chip }}>
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: t.chip }}>
             <Icon className="h-3.5 w-3.5" style={{ color: t.icon }} />
           </span>
         )}
       </div>
       <div
-        className={cn('mt-1.5 font-bold tabular-nums leading-[1.05] tracking-[-0.01em] text-gray-900 dark:text-gray-100', big ? 'text-[26px]' : 'text-[19px]')}
+        className={cn('mt-2 whitespace-nowrap font-bold tabular-nums leading-[1.05] tracking-[-0.015em] text-gray-900 dark:text-[#f1f5f9]', big ? 'text-[28px]' : 'text-[20px]')}
       >
         {value}
       </div>
-      {delta !== undefined && delta !== null && <div className="mt-1"><DeltaBadge value={delta} label={deltaLabel} /></div>}
-      {sub && <div className="mt-0.5 text-[10.5px] text-gray-400 dark:text-gray-500">{sub}</div>}
+      {delta !== undefined && delta !== null && <div className="mt-1.5"><DeltaBadge value={delta} label={deltaLabel} /></div>}
+      {sub && <div className="mt-1 text-[12px] leading-snug text-gray-500 dark:text-[#64748b]">{sub}</div>}
     </div>
   )
 }
@@ -104,19 +99,19 @@ interface SectionProps {
 export const Section = ({ Icon, title, right, accent = 'navy', children, flush }: SectionProps) => {
   const t = TONES[accent]
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-[#3a3a3a] dark:bg-[#242424]">
-      <div className="flex items-center justify-between gap-2.5 border-b border-gray-100 px-3.5 py-2.5 dark:border-[#303030]">
+    <div className={cn(CARD, 'overflow-hidden')}>
+      <div className="flex items-center justify-between gap-2.5 border-b border-gray-100 px-4 py-3 dark:border-white/[0.06]">
         <div className="flex min-w-0 items-center gap-2.5">
           {Icon && (
-            <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg" style={{ background: t.chip }}>
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" style={{ background: t.chip }}>
               <Icon className="h-[15px] w-[15px]" style={{ color: t.icon }} />
             </span>
           )}
-          <span className="truncate text-[13.5px] font-semibold text-gray-900 dark:text-gray-100">{title}</span>
+          <span className="truncate text-[15px] font-semibold text-gray-900 dark:text-[#f1f5f9]">{title}</span>
         </div>
         {right && <div className="shrink-0">{right}</div>}
       </div>
-      <div className={flush ? '' : 'p-3'}>{children}</div>
+      <div className={flush ? '' : 'p-4'}>{children}</div>
     </div>
   )
 }
@@ -128,8 +123,8 @@ interface ProgressBarProps {
   color?: string
   height?: number
 }
-export const ProgressBar = ({ pct, color = '#3b82f6', height = 4 }: ProgressBarProps) => (
-  <div className="w-full overflow-hidden rounded-full bg-gray-100 dark:bg-[#303030]" style={{ height }}>
+export const ProgressBar = ({ pct, color = '#0d9488', height = 5 }: ProgressBarProps) => (
+  <div className="w-full overflow-hidden rounded-full bg-gray-100 dark:bg-[#172234]" style={{ height }}>
     <div className="h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, pct))}%`, background: color }} />
   </div>
 )
@@ -140,7 +135,7 @@ export const Badge = ({ children, tone = 'navy', soft = true }: BadgeProps) => {
   const t = TONES[tone]
   return (
     <span
-      className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10.5px] font-semibold tabular-nums"
+      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11.5px] font-semibold tabular-nums"
       style={{ background: soft ? t.chip : t.icon, color: soft ? t.icon : '#fff' }}
     >
       {children}
@@ -164,7 +159,7 @@ interface SegmentedProps {
   scroll?: boolean
 }
 export const Segmented = ({ options, value, onChange, scroll }: SegmentedProps) => (
-  <div className={cn('flex gap-1 rounded-[10px] bg-gray-100 p-[3px] dark:bg-[#303030]', scroll && 'overflow-x-auto [scrollbar-width:none]')}>
+  <div className={cn('flex gap-1 rounded-xl border border-gray-200 bg-gray-100 p-1 dark:border-[#2f3b4f] dark:bg-[#172234]', scroll && 'overflow-x-auto [scrollbar-width:none]')}>
     {options.map((o) => {
       const v = typeof o === 'string' ? o : o.value
       const lbl = typeof o === 'string' ? o : o.label
@@ -175,9 +170,9 @@ export const Segmented = ({ options, value, onChange, scroll }: SegmentedProps) 
           type="button"
           onClick={() => onChange(v)}
           className={cn(
-            'whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold transition-all',
+            'whitespace-nowrap rounded-lg px-3.5 py-2 text-[13.5px] font-semibold transition-all',
             scroll ? 'shrink-0' : 'flex-1',
-            active ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-[#2563eb]' : 'text-gray-400 dark:text-gray-500',
+            active ? 'bg-white text-gray-900 shadow-sm dark:bg-[#1e293b] dark:text-white' : 'text-gray-500 dark:text-[#64748b]',
           )}
         >
           {lbl}
@@ -188,10 +183,14 @@ export const Segmented = ({ options, value, onChange, scroll }: SegmentedProps) 
 )
 
 /* ── ScrollTabs (abas de tela com sublinhado) ── */
+const TABS_TRILHO = 'flex overflow-x-auto rounded-2xl border border-gray-200 bg-white px-1 [scrollbar-width:none] dark:border-[#2f3b4f] dark:bg-[#1e293b]'
+const TAB_BASE = 'relative shrink-0 whitespace-nowrap px-3 py-3.5 text-[14.5px] transition-colors'
+const TAB_ATIVA = "font-semibold text-[#0f766e] after:absolute after:inset-x-2 after:bottom-0 after:h-[3px] after:rounded-full after:bg-[#0d9488] dark:text-[#5eead4] dark:after:bg-[#5eead4]/80"
+const TAB_INATIVA = 'font-medium text-gray-500 dark:text-[#94a3b8]'
 interface ScrollTab { id: string; label: string }
 interface ScrollTabsProps { tabs: ScrollTab[]; value: string; onChange: (id: string) => void }
 export const ScrollTabs = ({ tabs, value, onChange }: ScrollTabsProps) => (
-  <div className="-mx-3.5 flex gap-1 overflow-x-auto border-b border-gray-200 px-3.5 [scrollbar-width:none] dark:border-[#3a3a3a]">
+  <div className={TABS_TRILHO}>
     {tabs.map((tb) => {
       const active = tb.id === value
       return (
@@ -200,10 +199,8 @@ export const ScrollTabs = ({ tabs, value, onChange }: ScrollTabsProps) => (
           type="button"
           onClick={() => onChange(tb.id)}
           className={cn(
-            '-mb-px shrink-0 whitespace-nowrap border-b-2 px-1.5 pb-2.5 pt-3 text-[13px]',
-            active
-              ? 'border-[#2563eb] font-semibold text-[#2563eb] dark:border-[#60a5fa] dark:text-[#60a5fa]'
-              : 'border-transparent font-medium text-gray-400 dark:text-gray-500',
+            TAB_BASE,
+            active ? TAB_ATIVA : TAB_INATIVA,
           )}
         >
           {tb.label}

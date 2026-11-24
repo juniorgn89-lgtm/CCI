@@ -100,8 +100,8 @@ const ProdutividadeMobile = () => {
   const wrap = (inner: ReactNode) => (
     <div className="space-y-3 pb-2">
       <div>
-        <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Produtividade</h1>
-        <p className="text-[11px] text-gray-400 dark:text-gray-500">Ranking por litros vendidos + score (números de combustível — visão do celular)</p>
+        <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Produtividade</h1>
+        <p className="text-[12px] text-gray-400 dark:text-gray-500">Ranking por litros vendidos + score (números de combustível — visão do celular)</p>
       </div>
       {postoTabs}
       {inner}
@@ -118,8 +118,8 @@ const ProdutividadeMobile = () => {
   return (
     <div className="space-y-3 pb-2">
       <div>
-        <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Produtividade</h1>
-        <p className="text-[11px] text-gray-400 dark:text-gray-500">Ranking por litros vendidos + score (números de combustível — visão do celular)</p>
+        <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Produtividade</h1>
+        <p className="text-[12px] text-gray-400 dark:text-gray-500">Ranking por litros vendidos + score (números de combustível — visão do celular)</p>
       </div>
       {postoTabs}
 
@@ -146,22 +146,22 @@ const ProdutividadeMobile = () => {
           </Section>
 
           <Section Icon={Users} title="Frentistas" flush>
-            <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+            <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
               {ranking.map((f, i) => (
-                <div key={f.codigo} className="px-3.5 py-2.5">
+                <div key={f.codigo} className="px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <span className="w-4 shrink-0 text-center text-[12px] font-bold text-gray-400 dark:text-gray-500">{i + 1}</span>
+                    <span className="w-4 shrink-0 text-center text-[13px] font-bold text-gray-400 dark:text-gray-500">{i + 1}</span>
                     <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-1.5 truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">
+                      <p className="flex items-center gap-1.5 truncate text-[14.5px] font-medium text-gray-900 dark:text-gray-100">
                         <span className="truncate">{f.nome}</span>
-                        {!f.ativo && <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[8.5px] font-semibold uppercase text-gray-400 dark:bg-[#303030] dark:text-gray-500">inativo</span>}
+                        {!f.ativo && <span className="shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-gray-400 dark:bg-[#172234] dark:text-gray-500">inativo</span>}
                       </p>
-                      <p className="text-[10.5px] tabular-nums text-gray-400 dark:text-gray-500">
+                      <p className="text-[12px] tabular-nums text-gray-400 dark:text-gray-500">
                         {formatNumber(f.atendimentos)} abast. · {brlShort(f.faturamento)} · tkt {brl(f.ticket)}
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-0.5">
-                      <span className="text-[13px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{liters(f.litros)}</span>
+                      <span className="text-[14.5px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{liters(f.litros)}</span>
                       {f.score != null && <Badge tone={scoreTone(f.score)}>{Math.round(f.score)}</Badge>}
                     </div>
                   </div>
@@ -173,7 +173,7 @@ const ProdutividadeMobile = () => {
             </div>
           </Section>
 
-          <p className="px-1 text-center text-[10px] text-gray-400 dark:text-gray-500">
+          <p className="px-1 text-center text-[11px] text-gray-400 dark:text-gray-500">
             Score 0–100 combina lucro, automotivo/litros, mix de aditivada, ticket médio, ticket de automotivos e nº de abastecimentos do período.
           </p>
         </>
@@ -188,20 +188,20 @@ const ProdutividadeMobile = () => {
                 { value: 'manual', label: 'Manual' },
               ]}
             />
-            <p className="mt-2 text-[10.5px] text-gray-400 dark:text-gray-500">
+            <p className="mt-2 text-[12px] text-gray-400 dark:text-gray-500">
               {manualMode ? 'Defina a meta de litros de cada frentista (salva neste aparelho).' : 'Meta = litros do mês anterior de cada frentista.'}
             </p>
           </Section>
 
           <Section Icon={Users} title="Metas por frentista" flush>
-            <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+            <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
               {metasRows.map((m) => (
-                <div key={m.codigo} className="px-3.5 py-2.5">
+                <div key={m.codigo} className="px-4 py-3">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">{m.nome}</span>
-                    {m.metaAtual > 0 ? <Badge tone={metaTone(m.pct)}>{m.pct.toFixed(2)}%</Badge> : <span className="text-[10px] text-gray-400">sem meta</span>}
+                    <span className="min-w-0 flex-1 truncate text-[14.5px] font-medium text-gray-900 dark:text-gray-100">{m.nome}</span>
+                    {m.metaAtual > 0 ? <Badge tone={metaTone(m.pct)}>{m.pct.toFixed(2)}%</Badge> : <span className="text-[11px] text-gray-400">sem meta</span>}
                   </div>
-                  <div className="mt-1 flex items-center justify-between gap-2 text-[11px] tabular-nums text-gray-500 dark:text-gray-400">
+                  <div className="mt-1 flex items-center justify-between gap-2 text-[12px] tabular-nums text-gray-500 dark:text-gray-400">
                     <span>realizado <strong className="text-gray-900 dark:text-gray-100">{liters(m.litros)}</strong></span>
                     {manualMode ? (
                       <span className="inline-flex items-center gap-1">
@@ -212,7 +212,7 @@ const ProdutividadeMobile = () => {
                           value={metas[m.codigo] ?? ''}
                           onChange={(e) => setMeta(m.codigo, Number(e.target.value) || 0)}
                           placeholder="0"
-                          className="w-20 rounded-md border border-gray-300 bg-white px-2 py-1 text-right text-[12px] text-gray-900 focus:border-[#2563eb] focus:outline-none dark:border-[#3a3a3a] dark:bg-[#242424] dark:text-gray-100"
+                          className="w-20 rounded-md border border-gray-300 bg-white px-2 py-1 text-right text-[13px] text-gray-900 focus:border-[#0d9488] focus:outline-none dark:border-[#2f3b4f] dark:bg-[#1e293b] dark:text-gray-100"
                         />
                         L
                       </span>

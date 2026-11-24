@@ -29,8 +29,8 @@ const ComplianceMobile = () => {
 
   const Header = (
     <div>
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Compliance ANP</h1>
-      <p className="mt-0.5 text-[12px] text-gray-500 dark:text-gray-400">Margem regulatória (placa − CMP) por posto e combustível.</p>
+      <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Compliance ANP</h1>
+      <p className="mt-0.5 text-[13px] text-gray-500 dark:text-gray-400">Margem regulatória (placa − CMP) por posto e combustível.</p>
     </div>
   )
 
@@ -47,14 +47,14 @@ const ComplianceMobile = () => {
       {Header}
 
       {/* Disclaimer — mesma postura do desktop (não é número oficial). */}
-      <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-[11px] leading-snug text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
+      <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-[12px] leading-snug text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         Estimativa (não é número oficial): placa = preço à vista da última troca; margem = placa − CMP do período.
       </p>
 
       {/* Resumo — panorama semaforizado (answer-first). */}
       <div className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-        <div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+        <div className="mb-2 flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
           <ShieldCheck className="h-3.5 w-3.5" /> Panorama · {resumo.total} {resumo.total === 1 ? 'célula' : 'células'}
         </div>
         <div className="grid grid-cols-4 gap-2">
@@ -62,7 +62,7 @@ const ComplianceMobile = () => {
             <div key={s} className="flex flex-col items-center gap-1 rounded-lg bg-gray-50 py-2 dark:bg-gray-800/40">
               <span className={cn('h-2.5 w-2.5 rounded-full', STATUS_META[s].dot)} />
               <span className="text-[16px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{resumo[s]}</span>
-              <span className="text-[9px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{STATUS_META[s].label}</span>
+              <span className="text-[10.5px] uppercase tracking-wide text-gray-400 dark:text-gray-500">{STATUS_META[s].label}</span>
             </div>
           ))}
         </div>
@@ -78,16 +78,16 @@ const ComplianceMobile = () => {
           )
         return (
           <Section key={posto.empresaCodigo} Icon={Fuel} title={posto.nome} flush>
-            <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+            <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
               {cells.map((c) => (
-                <div key={c.produtoCodigo} className="flex items-center gap-2 px-3.5 py-2.5">
+                <div key={c.produtoCodigo} className="flex items-center gap-2 px-4 py-3">
                   <span className={cn('h-2 w-2 shrink-0 rounded-full', c.status ? STATUS_META[c.status].dot : 'bg-gray-300 dark:bg-gray-600')} />
-                  <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-gray-900 dark:text-gray-100">{c.nome}</span>
+                  <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-gray-900 dark:text-gray-100">{c.nome}</span>
                   <div className="shrink-0 text-right">
-                    <div className="text-[13px] font-semibold tabular-nums text-gray-900 dark:text-gray-100">
+                    <div className="text-[14.5px] font-semibold tabular-nums text-gray-900 dark:text-gray-100">
                       {c.margem !== null ? `${formatCurrency(c.margem)}/L` : '—'}
                     </div>
-                    <div className="text-[10px] tabular-nums text-gray-400 dark:text-gray-500">
+                    <div className="text-[11px] tabular-nums text-gray-400 dark:text-gray-500">
                       {c.margemPct !== null ? `margem ${pct(c.margemPct)}` : 'sem placa/CMP'}
                     </div>
                   </div>
@@ -98,7 +98,7 @@ const ComplianceMobile = () => {
         )
       })}
 
-      <p className="px-1 text-center text-[10px] text-gray-400 dark:text-gray-500">
+      <p className="px-1 text-center text-[11px] text-gray-400 dark:text-gray-500">
         CMP, placa vigente, histórico 365d e justificativas de reajuste na versão desktop.
       </p>
     </div>

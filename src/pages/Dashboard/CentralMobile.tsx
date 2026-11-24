@@ -147,19 +147,19 @@ const CentralOverview = () => {
 
       <ProjecaoSection metrics={projMetrics} periodo={periodo} />
 
-      <Section Icon={Layers} title="Por setor" right={<span className="text-[10.5px] text-gray-400">toque p/ ver por posto</span>}>
+      <Section Icon={Layers} title="Por setor" right={<span className="text-[12px] text-gray-400">toque p/ ver por posto</span>}>
         <div className="space-y-2.5">
           {setores.map(({ id, nome, Icon, sub, s }) => (
             <button key={nome} type="button" onClick={() => setSetorSel(id)} className="flex w-full items-center gap-3 text-left active:opacity-70">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-[#303030]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-[#172234]">
                 <Icon className="h-[18px] w-[18px] text-gray-500 dark:text-gray-400" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-semibold text-gray-900 dark:text-gray-100">{nome}</p>
-                <p className="text-[11px] text-gray-400 dark:text-gray-500">{sub}</p>
+                <p className="truncate text-[14.5px] font-semibold text-gray-900 dark:text-gray-100">{nome}</p>
+                <p className="text-[12px] text-gray-400 dark:text-gray-500">{sub}</p>
               </div>
               <div className="flex flex-col items-end gap-0.5">
-                <span className="text-[13px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(s.faturamento)}</span>
+                <span className="text-[14.5px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(s.faturamento)}</span>
                 <MarginPill value={s.margem} />
               </div>
             </button>
@@ -168,18 +168,18 @@ const CentralOverview = () => {
       </Section>
 
       <Section Icon={Trophy} title="Ranking de postos" flush>
-        <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+        <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
           {agg.postos.map((p, i) => (
-            <button key={p.codigo} type="button" onClick={() => setPostoSel(p.codigo)} className="block w-full px-3.5 py-2.5 text-left active:bg-gray-50 dark:active:bg-white/5">
+            <button key={p.codigo} type="button" onClick={() => setPostoSel(p.codigo)} className="block w-full px-4 py-3 text-left active:bg-gray-50 dark:active:bg-white/5">
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-[13px] font-medium text-gray-800 dark:text-gray-200">
+                <span className="truncate text-[14.5px] font-medium text-gray-800 dark:text-gray-200">
                   <span className="mr-1.5 font-bold text-gray-400 dark:text-gray-500">{i + 1}</span>{p.nome}
                 </span>
                 <MarginPill value={p.margem} />
               </div>
               <div className="mt-1.5"><ProgressBar pct={agg.maxFat > 0 ? (p.fat / agg.maxFat) * 100 : 0} /></div>
               <div className="mt-1 flex items-center justify-between">
-                <span className="text-[12px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(p.fat)}</span>
+                <span className="text-[13px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(p.fat)}</span>
                 <DeltaBadge value={variacaoPct(p.fat, p.fatAA)} label={cmpLabel} small />
               </div>
             </button>
@@ -192,14 +192,14 @@ const CentralOverview = () => {
 
       {formasDonut.data.length > 0 && (
         <Section Icon={CreditCard} title="Formas de pagamento" accent="blue"
-          right={<span className="text-[11px] tabular-nums text-gray-400">{brlShort(formasDonut.total)}</span>}>
+          right={<span className="text-[12px] tabular-nums text-gray-400">{brlShort(formasDonut.total)}</span>}>
           <DonutMobile data={formasDonut.data} centerTop={brlShort(formasDonut.total)} centerSub="total" />
         </Section>
       )}
 
       {evolucao.length > 1 && (
         <Section Icon={TrendingUp} title="Evolução mensal" accent="navy"
-          right={<span className="text-[10.5px] text-gray-400">faturamento · 12m</span>}>
+          right={<span className="text-[12px] text-gray-400">faturamento · 12m</span>}>
           <AreaChartMobile data={evolucao} valueKey="fat" labelKey="label" height={160} />
         </Section>
       )}
@@ -232,7 +232,7 @@ const CentralMobile = () => {
   const tab = abas.some((t) => t.id === tabEscolhida) ? tabEscolhida : 'geral'
   return (
     <div className="space-y-3 pb-2">
-      <h1 className="text-[19px] font-bold text-gray-900 dark:text-gray-100">Central da Rede</h1>
+      <h1 className="text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Central da Rede</h1>
       <ScrollTabs tabs={abas} value={tab} onChange={setTab} />
       {tab === 'geral' ? (
         <CentralOverview />

@@ -8,7 +8,7 @@ import CaduMobile from '@/pages/Inteligencia/CaduMobile'
 const InteligenciaMobile = () => {
   return (
     <div className="flex h-full flex-col gap-3">
-      <h1 className="shrink-0 text-[19px] font-bold text-gray-900 dark:text-gray-100">Inteligência da Rede</h1>
+      <h1 className="shrink-0 text-[26px] font-bold leading-tight text-gray-900 dark:text-gray-100">Inteligência da Rede</h1>
       <div className="min-h-0 flex-1">
         <CaduMobile />
       </div>

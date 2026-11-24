@@ -210,12 +210,12 @@ const PistaTabMobile = () => {
 
       {data.categorias.length > 0 && (
         <Section Icon={Layers} title="Por categoria" flush>
-          <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+          <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
             {data.categorias.map((c) => (
-              <div key={c.nome} className="px-3.5 py-2.5">
+              <div key={c.nome} className="px-4 py-3">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-gray-800 dark:text-gray-200">{c.nome}</span>
-                  <span className="shrink-0 text-[13px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(c.faturamento)}</span>
+                  <span className="min-w-0 flex-1 truncate text-[14.5px] font-medium text-gray-800 dark:text-gray-200">{c.nome}</span>
+                  <span className="shrink-0 text-[14.5px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(c.faturamento)}</span>
                   <MarginPill value={c.margemPct} />
                 </div>
                 <div className="mt-1.5"><ProgressBar pct={data.maxCategoria > 0 ? (c.faturamento / data.maxCategoria) * 100 : 0} color="#4f46e5" /></div>
@@ -227,16 +227,16 @@ const PistaTabMobile = () => {
 
       {data.produtosVendidos.length > 0 && (
         <Section Icon={Trophy} title="Top produtos" flush>
-          <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+          <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
             {data.produtosVendidos.slice(0, 8).map((p, i) => (
-              <div key={p.produtoCodigo} className="flex items-center gap-2 px-3.5 py-2.5">
-                <span className="w-4 shrink-0 text-center text-[12px] font-bold text-gray-400 dark:text-gray-500">{i + 1}</span>
+              <div key={p.produtoCodigo} className="flex items-center gap-2 px-4 py-3">
+                <span className="w-4 shrink-0 text-center text-[13px] font-bold text-gray-400 dark:text-gray-500">{i + 1}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12.5px] font-medium text-gray-900 dark:text-gray-100">{p.nome}</p>
-                  <p className="text-[10.5px] text-gray-400 dark:text-gray-500">{formatNumber(p.quantidade)} un · {p.categoria}</p>
+                  <p className="truncate text-[14px] font-medium text-gray-900 dark:text-gray-100">{p.nome}</p>
+                  <p className="text-[12px] text-gray-400 dark:text-gray-500">{formatNumber(p.quantidade)} un · {p.categoria}</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-0.5">
-                  <span className="text-[12.5px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(p.faturamento)}</span>
+                  <span className="text-[14px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(p.faturamento)}</span>
                   <Badge tone="indigo">{pct(p.margemPct)}</Badge>
                 </div>
               </div>

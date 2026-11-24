@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.23',
+    data: '2026-11-24',
+    resumo: 'Celular com cartões, abas e menus mais claros e letras maiores.',
+    itens: [
+      {
+        icone: 'mobile',
+        titulo: 'Telas do celular mais fáceis de ler',
+        descricao: 'Cartões com cantos arredondados e borda fina, números maiores, abas com o sublinhado verde-petróleo na escolhida e textos um pouco maiores em todas as telas do celular. Os menus Mais e do perfil ficaram com linhas maiores, mais fáceis de tocar. No computador nada muda.',
+      },
+    ],
+  },
+  {
     versao: '1.2.22',
     data: '2026-11-24',
     resumo: 'Notificações com lidas e não lidas, visual novo no celular e o app para baixar direto da tela.',

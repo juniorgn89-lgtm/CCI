@@ -24,8 +24,8 @@ import { brlShort, brl, liters, litersShort, pct, periodoMes, variacaoPct } from
 // mesma linha dentro de meia coluna colidiam (ex.: "Faturamento R$ 3.670.080,64").
 const Detail = ({ label, value }: { label: string; value: string }) => (
   <div className="min-w-0 rounded-lg bg-white/70 px-2.5 py-1.5 dark:bg-white/[0.04]">
-    <p className="truncate text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</p>
-    <p className="mt-0.5 truncate text-[13px] font-semibold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
+    <p className="truncate text-[11px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">{label}</p>
+    <p className="mt-0.5 truncate text-[14.5px] font-semibold tabular-nums text-gray-900 dark:text-gray-100">{value}</p>
   </div>
 )
 
@@ -101,24 +101,24 @@ export const CombustivelTab = () => {
       </Section>
 
       {evolucao.length > 1 && (
-        <Section Icon={CalendarRange} title="Volume mensal" accent="blue" right={<span className="text-[10.5px] text-gray-400">litros · 12m</span>}>
+        <Section Icon={CalendarRange} title="Volume mensal" accent="blue" right={<span className="text-[12px] text-gray-400">litros · 12m</span>}>
           <BarChartMobile data={evolucao} valueKey="litros" labelKey="label" />
         </Section>
       )}
 
       <Section Icon={Droplet} title="Por combustível" flush>
-        <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+        <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
           {fuel.fuelTypeData.map((f) => {
             const open = expanded === f.produtoCodigo
             return (
               <div key={f.produtoCodigo}>
-                <button type="button" onClick={() => setExpanded(open ? null : f.produtoCodigo)} className="flex w-full items-center gap-2 px-3.5 py-2.5 text-left active:bg-gray-50 dark:active:bg-white/5">
+                <button type="button" onClick={() => setExpanded(open ? null : f.produtoCodigo)} className="flex w-full items-center gap-2 px-4 py-3 text-left active:bg-gray-50 dark:active:bg-white/5">
                   <ChevronDown className={cn('h-4 w-4 shrink-0 text-gray-400 transition-transform', open && 'rotate-180')} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-medium text-gray-900 dark:text-gray-100">{f.nome}</p>
-                    <p className="text-[11px] text-gray-400 dark:text-gray-500">{liters(f.litros)}</p>
+                    <p className="truncate text-[14.5px] font-medium text-gray-900 dark:text-gray-100">{f.nome}</p>
+                    <p className="text-[12px] text-gray-400 dark:text-gray-500">{liters(f.litros)}</p>
                   </div>
-                  <span className="text-[13px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(f.lucroBruto)}</span>
+                  <span className="text-[14.5px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(f.lucroBruto)}</span>
                   <MarginPill value={f.margem} />
                 </button>
                 {open && (
@@ -181,19 +181,19 @@ export const ConvenienciaTab = () => {
       )}
 
       {evolucao.length > 1 && (
-        <Section Icon={CalendarRange} title="Evolução mensal" accent="teal" right={<span className="text-[10.5px] text-gray-400">faturamento</span>}>
+        <Section Icon={CalendarRange} title="Evolução mensal" accent="teal" right={<span className="text-[12px] text-gray-400">faturamento</span>}>
           <AreaChartMobile data={evolucao} valueKey="fat" labelKey="label" height={150} />
         </Section>
       )}
 
       {groupTable.length > 0 && (
         <Section Icon={Layers} title="Por grupo" flush>
-          <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+          <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
             {groupTable.slice(0, 8).map((g) => (
-              <div key={g.grupoCodigo} className="px-3.5 py-2.5">
+              <div key={g.grupoCodigo} className="px-4 py-3">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-gray-800 dark:text-gray-200">{g.nome}</span>
-                  <span className="shrink-0 text-[13px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(g.faturamento)}</span>
+                  <span className="min-w-0 flex-1 truncate text-[14.5px] font-medium text-gray-800 dark:text-gray-200">{g.nome}</span>
+                  <span className="shrink-0 text-[14.5px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(g.faturamento)}</span>
                   <MarginPill value={g.margemPct} />
                 </div>
                 <div className="mt-1.5"><ProgressBar pct={maxGrupo > 0 ? (g.faturamento / maxGrupo) * 100 : 0} color="#0d9488" /></div>
@@ -205,16 +205,16 @@ export const ConvenienciaTab = () => {
 
       {topSellers.length > 0 && (
         <Section Icon={Trophy} title="Top produtos" flush>
-          <div className="divide-y divide-gray-100 dark:divide-[#303030]">
+          <div className="divide-y divide-gray-100 dark:divide-white/[0.06]">
             {topSellers.slice(0, 8).map((p, i) => (
-              <div key={p.produtoCodigo} className="flex items-center gap-2 px-3.5 py-2.5">
-                <span className="w-4 shrink-0 text-center text-[12px] font-bold text-gray-400 dark:text-gray-500">{i + 1}</span>
+              <div key={p.produtoCodigo} className="flex items-center gap-2 px-4 py-3">
+                <span className="w-4 shrink-0 text-center text-[13px] font-bold text-gray-400 dark:text-gray-500">{i + 1}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12.5px] font-medium text-gray-900 dark:text-gray-100">{p.nome}</p>
-                  <p className="text-[10.5px] text-gray-400 dark:text-gray-500">{formatNumber(p.quantidade)} un · {p.grupo}</p>
+                  <p className="truncate text-[14px] font-medium text-gray-900 dark:text-gray-100">{p.nome}</p>
+                  <p className="text-[12px] text-gray-400 dark:text-gray-500">{formatNumber(p.quantidade)} un · {p.grupo}</p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-0.5">
-                  <span className="text-[12.5px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(p.faturamento)}</span>
+                  <span className="text-[14px] font-bold tabular-nums text-gray-900 dark:text-gray-100">{brlShort(p.faturamento)}</span>
                   <Badge tone="teal">{pct(p.participacaoPct)}</Badge>
                 </div>
               </div>

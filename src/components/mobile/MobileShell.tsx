@@ -87,7 +87,7 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
   const filterResumo = `${postoResumo} · ${periodLabel(dataInicial, dataFinal)}`
 
   return (
-    <div className="flex h-[100dvh] flex-col bg-gray-50 dark:bg-gray-950">
+    <div className="flex h-[100dvh] flex-col bg-gray-50 dark:bg-[#0b1220]">
       {/* Topo (padrão CCI): branco no claro, ardósia #1e293b no escuro; separa pela cor. */}
       <header
         className="sticky top-0 z-30 shrink-0 bg-white dark:bg-[#1e293b]"
@@ -128,18 +128,18 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
         <button
           type="button"
           onClick={() => setFilterOpen(true)}
-          className="z-20 flex shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-4 py-2.5 text-left dark:border-gray-800 dark:bg-[#1c1c1c]"
+          className="z-20 flex shrink-0 items-center gap-2.5 border-b border-gray-200 bg-white px-4 py-3 text-left dark:border-white/[0.06] dark:bg-[#1e293b]"
         >
           <SlidersHorizontal className="h-4 w-4 shrink-0 text-gray-500 dark:text-gray-400" />
-          <span className="text-[9.5px] font-semibold uppercase tracking-wider text-gray-400">Filtros</span>
-          <span className="flex-1 truncate text-[12.5px] font-semibold text-gray-700 dark:text-gray-200">{filterResumo}</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-[#94a3b8]">Filtros</span>
+          <span className="flex-1 truncate text-[14px] font-semibold text-gray-800 dark:text-[#f1f5f9]">{filterResumo}</span>
           <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
         </button>
       )}
 
       {/* Conteúdo rolável — o padding-bottom limpa o bottom-nav (h-16) + a
           safe-area do aparelho, pra o último item nunca ficar sob a barra. */}
-      <main className="flex-1 overflow-y-auto px-3.5 pt-3.5 pb-[calc(4.75rem+env(safe-area-inset-bottom))]">
+      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))]">
         {telaPrincipal && <InstallAppBanner />}
         {children}
       </main>
@@ -149,24 +149,24 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
 
       {/* Perfil + configurações (básico) + apuração — abre ao tocar na logo. */}
       <Sheet open={profileOpen} onOpenChange={setProfileOpen}>
-        <SheetContent side="bottom" className="rounded-t-2xl">
+        <SheetContent side="bottom" className="rounded-t-3xl border-0 bg-white px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] dark:bg-[#1e293b]">
           <SheetTitle className="sr-only">Perfil e configurações</SheetTitle>
           {/* Identidade */}
           <div className="flex items-center gap-3 pb-2">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-teal-500 to-teal-700 text-sm font-semibold text-white">{initials}</span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{userName}</p>
-              <p className="truncate text-xs text-gray-500 dark:text-gray-400">{userEmail}</p>
+              <p className="truncate text-[15.5px] font-semibold text-gray-900 dark:text-[#f1f5f9]">{userName}</p>
+              <p className="truncate text-[12.5px] text-gray-500 dark:text-[#94a3b8]">{userEmail}</p>
             </div>
           </div>
 
-          <div className="mt-2 space-y-1 border-t border-gray-100 pt-2 dark:border-gray-800">
+          <div className="mt-2 space-y-0.5 border-t border-gray-100 pt-2 dark:border-white/[0.06]">
             <button
               type="button"
               onClick={() => go('/configuracoes')}
-              className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-sm text-gray-700 active:bg-gray-100 dark:text-gray-300 dark:active:bg-white/10"
+              className="flex min-h-[48px] w-full items-center gap-3 rounded-xl px-3 text-[15px] text-gray-800 active:bg-gray-100 dark:text-[#f1f5f9] dark:active:bg-white/[0.08]"
             >
-              <Settings className="h-5 w-5 shrink-0 text-gray-500" />
+              <Settings className="h-5 w-5 shrink-0 text-gray-500 dark:text-[#94a3b8]" />
               <span className="flex-1 text-left">Parâmetros</span>
               <ChevronRight className="h-4 w-4 text-gray-400" />
             </button>
@@ -175,9 +175,9 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
             <button
               type="button"
               onClick={() => go('/configuracoes#avisos')}
-              className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-sm text-gray-700 active:bg-gray-100 dark:text-gray-300 dark:active:bg-white/10"
+              className="flex min-h-[48px] w-full items-center gap-3 rounded-xl px-3 text-[15px] text-gray-800 active:bg-gray-100 dark:text-[#f1f5f9] dark:active:bg-white/[0.08]"
             >
-              <Bell className="h-5 w-5 shrink-0 text-gray-500" />
+              <Bell className="h-5 w-5 shrink-0 text-gray-500 dark:text-[#94a3b8]" />
               <span className="flex-1 text-left">Avisos no celular</span>
               <ChevronRight className="h-4 w-4 text-gray-400" />
             </button>
@@ -186,9 +186,9 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
               <button
                 type="button"
                 onClick={() => go('/meus-chamados')}
-                className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-sm text-gray-700 active:bg-gray-100 dark:text-gray-300 dark:active:bg-white/10"
+                className="flex min-h-[48px] w-full items-center gap-3 rounded-xl px-3 text-[15px] text-gray-800 active:bg-gray-100 dark:text-[#f1f5f9] dark:active:bg-white/[0.08]"
               >
-                <Bug className="h-5 w-5 shrink-0 text-gray-500" />
+                <Bug className="h-5 w-5 shrink-0 text-gray-500 dark:text-[#94a3b8]" />
                 <span className="flex-1 text-left">Meus chamados</span>
                 <ChevronRight className="h-4 w-4 text-gray-400" />
               </button>
@@ -198,9 +198,9 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
               <button
                 type="button"
                 onClick={() => go('/admin/apuracao')}
-                className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-sm text-gray-700 active:bg-gray-100 dark:text-gray-300 dark:active:bg-white/10"
+                className="flex min-h-[48px] w-full items-center gap-3 rounded-xl px-3 text-[15px] text-gray-800 active:bg-gray-100 dark:text-[#f1f5f9] dark:active:bg-white/[0.08]"
               >
-                <Database className="h-5 w-5 shrink-0 text-gray-500" />
+                <Database className="h-5 w-5 shrink-0 text-gray-500 dark:text-[#94a3b8]" />
                 <span className="flex-1 text-left">Apuração</span>
                 <ChevronRight className="h-4 w-4 text-gray-400" />
               </button>
@@ -209,7 +209,7 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
             <button
               type="button"
               onClick={() => { setProfileOpen(false); logout() }}
-              className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-sm text-red-600 active:bg-red-50 dark:text-red-400 dark:active:bg-red-950/30"
+              className="flex min-h-[48px] w-full items-center gap-3 rounded-xl px-3 text-[15px] text-red-600 active:bg-red-50 dark:text-[#fda4af] dark:active:bg-rose-500/10"
             >
               <LogOut className="h-5 w-5 shrink-0" />
               <span className="flex-1 text-left">Sair</span>
