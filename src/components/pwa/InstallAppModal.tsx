@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { X, Download } from 'lucide-react'
-import { getInstallPrompt, clearInstallPrompt, subscribeInstall } from '@/lib/pwaInstall'
+import { getInstallPrompt, clearInstallPrompt, subscribeInstall, appJaInstalado } from '@/lib/pwaInstall'
 
 /** Já está rodando como app instalado (tela de início / standalone)? */
 export const isStandalone = () =>
@@ -29,6 +29,9 @@ const InstallAppModal = ({ open, onClose, nome = 'Visor360' }: InstallAppModalPr
   // com o modal aberto, re-renderiza e dispara o prompt nativo no lugar dos passos.
   const [, tick] = useState(0)
   useEffect(() => subscribeInstall(() => tick((n) => n + 1)), [])
+  // Sem o pedido do navegador, pode ser que já esteja instalado: aí só orienta a abrir pelo ícone.
+  const [jaInstalado, setJaInstalado] = useState(false)
+  useEffect(() => { if (open) void appJaInstalado().then(setJaInstalado) }, [open])
 
   useEffect(() => {
     if (!open) { disparado.current = false; return }
@@ -86,6 +89,11 @@ const InstallAppModal = ({ open, onClose, nome = 'Visor360' }: InstallAppModalPr
           </div>
         </div>
         <div className="px-5 py-4">
+          {jaInstalado ? (
+            <p className="text-sm leading-relaxed text-gray-700 dark:text-gray-200">
+              O {nome} <strong>já está instalado</strong> neste aparelho. Feche o navegador e abra pelo ícone do {nome} na tela inicial.
+            </p>
+          ) : (
           <ol className="flex flex-col gap-3">
             {passos.map((p, i) => (
               <li key={i} className="flex items-start gap-3 text-sm leading-relaxed text-gray-700 dark:text-gray-200">
@@ -94,6 +102,7 @@ const InstallAppModal = ({ open, onClose, nome = 'Visor360' }: InstallAppModalPr
               </li>
             ))}
           </ol>
+          )}
           <button onClick={onClose} className="mt-5 w-full rounded-lg bg-[#1e3a5f] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#162d4a]">
             Entendi
           </button>

@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
 import { navGroups, type NavItem } from '@/components/layout/navConfig'
 import { useMobileBar } from '@/store/mobileBar'
+import { LinhaInstalar } from '@/components/pwa/InstallAppBanner'
 
 interface MobileBottomNavProps {
   /** Módulos que o usuário PODE ver (já filtrados por permissão no AppLayout). */
@@ -43,14 +44,16 @@ const MobileBottomNav = ({ items }: MobileBottomNavProps) => {
         onClick={() => navigate(item.path)}
         aria-current={active ? 'page' : undefined}
         className={cn(
-          'relative flex h-full flex-1 flex-col items-center justify-center gap-0.5 transition-transform active:scale-95',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#2563eb] dark:focus-visible:ring-[#60a5fa]',
-          active ? 'text-[#2563eb] dark:text-[#60a5fa]' : 'text-gray-500 dark:text-gray-400',
+          'relative flex h-full flex-1 flex-col items-center justify-center gap-1 text-white transition-transform active:scale-95',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/60',
+          !active && 'text-white/75',
         )}
       >
-        {active && <span className="absolute top-0 h-[3px] w-5 rounded-full bg-[#2563eb] dark:bg-[#60a5fa]" />}
-        <Icon className={cn('h-5 w-5 transition-transform', active && '-translate-y-px scale-105')} />
-        <span className="max-w-full truncate px-0.5 text-[10px] font-medium leading-none">{item.label}</span>
+        {/* Ativo: pílula branca atrás do ícone (padrão dos apps CCI). */}
+        <span className={cn('flex h-7 w-12 items-center justify-center rounded-full transition-colors', active && 'bg-white text-[#0f766e]')}>
+          <Icon className="h-5 w-5" />
+        </span>
+        <span className={cn('max-w-full truncate px-0.5 text-[10.5px] leading-none', active ? 'font-semibold' : 'font-medium')}>{item.label}</span>
       </button>
     )
   }
@@ -59,8 +62,9 @@ const MobileBottomNav = ({ items }: MobileBottomNavProps) => {
     <>
       <nav
         aria-label="Navegação principal"
-        className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch border-t border-gray-200 bg-white/95 backdrop-blur dark:border-gray-800 dark:bg-[#1c1c1c]/95"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        className="fixed inset-x-0 bottom-0 z-40 flex items-stretch bg-[#0f766e]"
+        // Petróleo nos dois temas; a cor da barra do Android segue (theme-color no MobileShell).
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)', height: 'calc(4rem + env(safe-area-inset-bottom))', backgroundColor: '#0f766e' }}
       >
         {effectiveBar.map((item) => (
           <NavBtn key={item.path} item={item} />
@@ -71,10 +75,10 @@ const MobileBottomNav = ({ items }: MobileBottomNavProps) => {
           onContextMenu={(e) => { e.preventDefault(); openMais(true) }}
           aria-label="Mais módulos"
           aria-haspopup="dialog"
-          className="flex h-full flex-1 flex-col items-center justify-center gap-0.5 text-gray-500 transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#2563eb] dark:text-gray-400 dark:focus-visible:ring-[#60a5fa]"
+          className="flex h-full flex-1 flex-col items-center justify-center gap-1 text-white/75 transition-transform active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/60"
         >
-          <MoreHorizontal className="h-5 w-5" />
-          <span className="text-[10px] font-medium leading-none">Mais</span>
+          <span className="flex h-7 w-12 items-center justify-center rounded-full"><MoreHorizontal className="h-5 w-5" /></span>
+          <span className="text-[10.5px] font-medium leading-none">Mais</span>
         </button>
       </nav>
 
@@ -99,6 +103,8 @@ const MobileBottomNav = ({ items }: MobileBottomNavProps) => {
               </button>
             </div>
           )}
+
+          {!edit && <div className="mt-2"><LinhaInstalar /></div>}
 
           <div className="mt-3 space-y-4 pb-2">
             {navGroups.map((group) => {

@@ -53,10 +53,12 @@ export default defineConfig({
         name: 'Visor360 - Gestão de Postos',
         short_name: 'Visor360',
         description: 'Dashboard analítico para redes de postos de combustível',
-        theme_color: '#1e3a5f',
+        // Petróleo: o Android pinta as barras do sistema com esta cor (gravada NA INSTALAÇÃO).
+        theme_color: '#0f766e',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'any',
+        id: '/',
         start_url: '/',
         scope: '/',
         // Quando o navegador entrega um link ao app instalado, reaproveita a

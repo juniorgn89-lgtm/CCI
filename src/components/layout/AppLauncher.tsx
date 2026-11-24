@@ -45,7 +45,7 @@ const AppLauncher = ({ variant = 'desktop' }: AppLauncherProps) => {
               'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors',
               variant === 'desktop'
                 ? 'text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300'
-                : 'text-white/85 hover:bg-white/10 hover:text-white',
+                : 'h-9 w-9 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10',
             )}
           >
             <Grip className="h-[18px] w-[18px]" />

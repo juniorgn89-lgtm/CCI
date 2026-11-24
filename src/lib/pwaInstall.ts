@@ -38,3 +38,24 @@ export const subscribeInstall = (fn: () => void) => {
     subs.delete(fn)
   }
 }
+
+/** Já está rodando como app instalado (tela de início / standalone)? */
+export const rodandoInstalado = () =>
+  typeof window !== 'undefined' &&
+  (window.matchMedia?.('(display-mode: standalone)').matches ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true)
+
+/**
+ * O Visor360 já está instalado neste aparelho? (Chrome/Edge, via
+ * related_applications do manifest). O manifest lista também os outros apps da
+ * suíte, então filtra pelo endereço do Visor. false = não está ou não dá pra saber.
+ */
+export async function appJaInstalado(): Promise<boolean> {
+  try {
+    const nav = navigator as unknown as { getInstalledRelatedApps?: () => Promise<{ platform: string; url?: string }[]> }
+    const apps = await nav.getInstalledRelatedApps?.()
+    return !!apps?.some((a) => a.platform === 'webapp' && (!a.url || a.url.includes('visor360')))
+  } catch {
+    return false
+  }
+}

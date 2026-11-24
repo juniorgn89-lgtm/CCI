@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { SlidersHorizontal, ChevronDown, Sun, Moon, Settings, Database, LogOut, ChevronRight, Bug, Bell } from 'lucide-react'
+import { SlidersHorizontal, ChevronDown, Sun, Moon, Settings, Database, LogOut, ChevronRight, Bug, Bell, Network } from 'lucide-react'
 import { useThemeStore } from '@/store/theme'
 import { useTenantStore } from '@/store/tenant'
 import { useFilterStore } from '@/store/filters'
@@ -54,6 +54,15 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
   const [filterOpen, setFilterOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
 
+  // Android pinta as barras do sistema com o theme-color: segue a barra inferior
+  // (petróleo), senão sobra uma faixa de outra cor embaixo do menu.
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]')
+    const original = meta?.getAttribute('content')
+    meta?.setAttribute('content', '#0f766e')
+    return () => { if (meta && original) meta.setAttribute('content', original) }
+  }, [])
+
   const userName = fullName || (user?.user_metadata?.full_name as string | undefined) || 'Usuário'
   const userEmail = user?.email ?? '—'
   const initials = userName.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join('').toUpperCase() || '?'
@@ -67,9 +76,9 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
 
   // Nome da rede mascarado no Modo Demonstração.
   const redeNome = useRedeNomeExibicao(rede?.nome)
-  const subtitle = isCentral
-    ? (redeNome ? `Rede · ${redeNome}` : 'Visão consolidada da rede')
-    : (redeNome ?? 'Gestão de postos')
+  const subtitle = isCentral ? 'Visor360 · Central da rede' : 'Visor360 · Gestão de postos'
+  // Convite "baixe o app" só no alto das telas principais (não em detalhe/formulário).
+  const telaPrincipal = items.some((i) => i.path === pathname)
 
   const empresaNome = useEmpresaNome()
   const postoResumo = empresaCodigos.length === 1
@@ -79,44 +88,38 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
 
   return (
     <div className="flex h-[100dvh] flex-col bg-gray-50 dark:bg-gray-950">
-      {/* Header navy */}
+      {/* Topo (padrão CCI): branco no claro, ardósia #1e293b no escuro; separa pela cor. */}
       <header
-        className="z-30 shrink-0 bg-[#1e3a5f] text-white dark:bg-[#131316]"
+        className="sticky top-0 z-30 shrink-0 bg-white dark:bg-[#1e293b]"
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
-        <div className="flex h-14 items-center gap-2.5 px-4">
-          {/* Logo → abre perfil + configurações + apuração */}
+        <div className="flex h-[60px] items-center gap-1.5 pl-4 pr-2.5">
+          {/* Rede → abre perfil + configurações + apuração */}
           <button
             type="button"
             onClick={() => setProfileOpen(true)}
             aria-label="Perfil e configurações"
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg text-left transition-opacity active:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
+            className="mr-1 flex min-w-0 flex-1 items-center gap-2.5 rounded-lg text-left transition-opacity active:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60"
           >
-            <img src="/brand/visor360-icon-512.png" alt="Visor360" className="h-9 w-9 shrink-0 object-contain" />
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 text-white">
+              <Network className="h-[18px] w-[18px]" />
+            </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-bold leading-tight">Visor<span className="text-[#14b8a6]">360</span></span>
-              <span className="block truncate text-[11px] leading-tight text-white/70">{subtitle}</span>
+              <span className="block truncate text-[15px] font-semibold leading-tight text-gray-900 dark:text-gray-100">{redeNome ?? 'Visor360'}</span>
+              <span className="block truncate text-[11.5px] leading-tight text-gray-500 dark:text-gray-400">{subtitle}</span>
             </span>
           </button>
-          {/* Launcher da suíte CCI (grade ⋮⋮⋮) — abre os outros apps. */}
-          <SinoNotificacoes variant="mobile" />
-          <AppLauncher variant="mobile" />
-          {/* Pill "Tempo real" */}
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#4ade80] opacity-75 motion-reduce:animate-none" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#4ade80]" />
-            </span>
-            Tempo real
-          </span>
           <button
             type="button"
             onClick={toggleTheme}
-            aria-label="Alternar tema"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/90 transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+            aria-label={dark ? 'Usar tema claro' : 'Usar tema escuro'}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/60 dark:hover:bg-white/10"
           >
-            {dark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+            {dark ? <Sun className="h-[18px] w-[18px] text-amber-400" /> : <Moon className="h-[18px] w-[18px]" />}
           </button>
+          <SinoNotificacoes variant="mobile" />
+          {/* Launcher da suíte CCI (grade ⋮⋮⋮) — abre os outros apps. */}
+          <AppLauncher variant="mobile" />
         </div>
       </header>
 
@@ -137,7 +140,7 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
       {/* Conteúdo rolável — o padding-bottom limpa o bottom-nav (h-16) + a
           safe-area do aparelho, pra o último item nunca ficar sob a barra. */}
       <main className="flex-1 overflow-y-auto px-3.5 pt-3.5 pb-[calc(4.75rem+env(safe-area-inset-bottom))]">
-        <InstallAppBanner />
+        {telaPrincipal && <InstallAppBanner />}
         {children}
       </main>
 
@@ -150,7 +153,7 @@ const MobileShell = ({ items, showFilters, children }: MobileShellProps) => {
           <SheetTitle className="sr-only">Perfil e configurações</SheetTitle>
           {/* Identidade */}
           <div className="flex items-center gap-3 pb-2">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1e3a5f] text-sm font-semibold text-white">{initials}</span>
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-teal-500 to-teal-700 text-sm font-semibold text-white">{initials}</span>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{userName}</p>
               <p className="truncate text-xs text-gray-500 dark:text-gray-400">{userEmail}</p>

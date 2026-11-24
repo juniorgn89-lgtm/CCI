@@ -1,140 +1,252 @@
 import { useCallback, useEffect, useRef, useState, type ComponentType } from 'react'
-import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { Bell, BellRing, ShoppingCart, Undo2, AlarmClock, CalendarClock, Sparkles, Settings2, Loader2 } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { useNavigate } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Bell, BellRing, AlertTriangle, Info, CheckCheck, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/store/auth'
 import { useTenantStore } from '@/store/tenant'
+import { useFilterStore } from '@/store/filters'
+import { useNotificationStore, type AlertCategory, type AppAlert } from '@/store/notifications'
 import { RELEASE_NOTES } from '@/releaseNotes'
 import { NovidadesModal } from '@/components/feedback/Novidades'
 import { estado, ligar, desligar, precisaInstalar, type EstadoPush } from '@/lib/push'
 
 /**
- * Sino da barra de topo (mesmo desenho do NotaOK): o que está esperando a
- * pessoa agora (pelo papel dela), as novidades da versão e, no rodapé, o
- * "Receber no celular" deste aparelho. As contas seguem as mesmas regras do
- * resumo da manhã (docs/supabase-notificacoes.sql).
+ * Sino do topo — histórico de avisos da pessoa (padrão dos apps CCI, igual ao NotaOK).
+ *
+ * Junta três fontes:
+ *  1. tabela `notificacoes` (supabase/migrations/20261124000001_notificacoes_historico.sql):
+ *     pedidos, notas devolvidas, tarefas — gravada no evento, lido/não lido vale
+ *     entre aparelhos; atualiza em tempo real, a cada 2 min e ao voltar pra aba;
+ *  2. alertas calculados no app (estoque, financeiro, combustível, bombas — useAlertGenerator);
+ *  3. "Novidades da versão" (não lida até abrir).
+ *
+ * Celular (≤639px): TELA CHEIA via portal, trava a rolagem de trás. Computador:
+ * painel de 400px no sino. Fecha no X, no Esc e (computador) clicando fora.
  */
 
-const CHAVE_VISTA = 'visor360.sino.versao' // última versão cujas novidades a pessoa já viu no sino
+const CHAVE_VISTA = 'visor360.sino.versao' // última versão cujas novidades a pessoa já viu
 const lerVista = () => { try { return localStorage.getItem(CHAVE_VISTA) ?? '' } catch { return '' } }
+const gravarVista = (v: string) => { try { localStorage.setItem(CHAVE_VISTA, v) } catch { /* ignore */ } }
 const dataBR = (iso: string) => iso.split('-').reverse().join('/')
-const fmt = (n: number) => n.toLocaleString('pt-BR')
-const hojeLocal = () => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+const tempoRelativo = (iso: string) => {
+  const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000)
+  if (min < 1) return 'agora'
+  if (min < 60) return `${min}min`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `${h}h`
+  const d = Math.floor(h / 24)
+  if (d < 7) return `${d}d`
+  return new Date(iso).toLocaleDateString('pt-BR')
 }
 
-interface Pendencia {
-  id: string
-  Icone: ComponentType<{ className?: string }>
+const ROTA_ALERTA: Record<AlertCategory, string> = {
+  estoque: '/estoques', financeiro: '/financeiro', combustivel: '/dashboard?tab=combustivel', bombas: '/operacao',
+}
+const NOME_ALERTA: Record<AlertCategory, string> = {
+  estoque: 'Estoque', financeiro: 'Financeiro', combustivel: 'Combustível', bombas: 'Bombas',
+}
+
+interface NotificacaoRow {
+  id: number
+  tipo: string
   titulo: string
-  texto: string
-  href: string
-  tom?: 'alerta'
+  texto: string | null
+  url: string | null
+  criada_em: string
+  lida_em: string | null
 }
 
-const usePendencias = (ativo: boolean) => {
-  const rede = useTenantStore((s) => s.rede)
+/** Histórico da pessoa na rede aberta. Sem a tabela (migration não rodada) = lista vazia. */
+const useHistorico = () => {
+  const qc = useQueryClient()
   const userId = useAuthStore((s) => s.user?.id ?? null)
-  const podeLiberar = useAuthStore((s) => s.canLiberarCompras)
-  const compras = !!rede?.compras_habilitado
-  const tarefas = !!rede?.gestao_habilitado
+  const redeId = useTenantStore((s) => s.rede?.id ?? null)
+  const chave = ['sino-notificacoes', userId, redeId]
 
-  return useQuery({
-    queryKey: ['sino-pendencias', rede?.id, userId, podeLiberar, compras, tarefas],
-    enabled: ativo && !!supabase && !!rede?.id && !!userId && (compras || tarefas),
+  const q = useQuery({
+    queryKey: chave,
+    enabled: !!userId && !!supabase,
     refetchInterval: 2 * 60_000,
     refetchOnWindowFocus: true,
-    queryFn: async (): Promise<Pendencia[]> => {
-      const sb = supabase!
-      const redeId = rede!.id
-      const conta = async (q: PromiseLike<{ count: number | null; error: unknown }>) => {
-        const { count, error } = await q
-        return error ? 0 : count ?? 0
-      }
-      const agora = new Date().toISOString()
-
-      const [aLiberar, devolvidas, atrasadas, vencemHoje] = await Promise.all([
-        compras && podeLiberar
-          ? conta(sb.from('compras_pedidos').select('id', { count: 'exact', head: true }).eq('rede_id', redeId).eq('status', 'aguardando'))
-          : 0,
-        compras
-          ? (async () => {
-              const { data, error } = await sb.from('compras_pedido_notas').select('pedido_id').eq('rede_id', redeId).eq('situacao', 'devolvida')
-              if (error || !data?.length) return 0
-              const ids = [...new Set((data as { pedido_id: string }[]).map((n) => n.pedido_id))]
-              if (podeLiberar) return ids.length
-              // Quem só pede vê as devolvidas dos pedidos dele.
-              return conta(sb.from('compras_pedidos').select('id', { count: 'exact', head: true }).in('id', ids).eq('solicitante_id', userId!))
-            })()
-          : 0,
-        tarefas
-          ? conta(sb.from('gestao_tarefas').select('id', { count: 'exact', head: true }).eq('rede_id', redeId).eq('responsavel_id', userId!)
-              .in('status', ['a_fazer', 'em_andamento']).lt('vence_em', agora))
-          : 0,
-        tarefas
-          ? conta(sb.from('gestao_tarefas').select('id', { count: 'exact', head: true }).eq('rede_id', redeId).eq('responsavel_id', userId!)
-              .in('status', ['a_fazer', 'em_andamento']).gte('vence_em', agora).eq('vence_dia', hojeLocal()))
-          : 0,
-      ])
-
-      const itens: (Pendencia | false)[] = [
-        aLiberar > 0 && { id: 'liberar', Icone: ShoppingCart, titulo: 'Pedidos aguardando liberação', href: '/compras',
-          texto: aLiberar === 1 ? '1 pedido de compra esperando você liberar ou recusar.' : `${fmt(aLiberar)} pedidos de compra esperando você liberar ou recusar.` },
-        devolvidas > 0 && { id: 'devolvidas', Icone: Undo2, tom: 'alerta', titulo: 'Nota devolvida para correção', href: '/compras',
-          texto: devolvidas === 1 ? 'A nota de 1 pedido voltou do NotaOK para corrigir.' : `As notas de ${fmt(devolvidas)} pedidos voltaram do NotaOK para corrigir.` },
-        atrasadas > 0 && { id: 'atrasadas', Icone: AlarmClock, tom: 'alerta', titulo: 'Tarefas atrasadas', href: '/gestao?tab=tarefas',
-          texto: atrasadas === 1 ? '1 tarefa sua passou do prazo.' : `${fmt(atrasadas)} tarefas suas passaram do prazo.` },
-        vencemHoje > 0 && { id: 'hoje', Icone: CalendarClock, titulo: 'Tarefas que vencem hoje', href: '/gestao?tab=tarefas',
-          texto: vencemHoje === 1 ? '1 tarefa sua vence hoje.' : `${fmt(vencemHoje)} tarefas suas vencem hoje.` },
-      ]
-      return itens.filter((i): i is Pendencia => !!i)
+    queryFn: async (): Promise<NotificacaoRow[]> => {
+      let req = supabase!.from('notificacoes')
+        .select('id, tipo, titulo, texto, url, criada_em, lida_em')
+        .eq('user_id', userId!)
+        .order('criada_em', { ascending: false })
+        .limit(60)
+      if (redeId) req = req.or(`rede_id.eq.${redeId},rede_id.is.null`)
+      const { data, error } = await req
+      return error ? [] : ((data ?? []) as NotificacaoRow[])
     },
   })
+
+  // Tempo real: chegou/mudou aviso desta pessoa → recarrega.
+  useEffect(() => {
+    if (!userId || !supabase) return undefined
+    const sb = supabase
+    const canal = sb.channel(`notificacoes-${userId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notificacoes', filter: `user_id=eq.${userId}` },
+        () => { void qc.invalidateQueries({ queryKey: ['sino-notificacoes', userId] }) })
+      .subscribe()
+    return () => { void sb.removeChannel(canal) }
+  }, [userId, qc])
+
+  const marcarLida = async (id: number) => {
+    qc.setQueryData<NotificacaoRow[]>(chave, (l) => l?.map((n) => (n.id === id && !n.lida_em ? { ...n, lida_em: new Date().toISOString() } : n)))
+    await supabase?.rpc('notificacoes_marcar_lida', { p_id: id })
+  }
+  const marcarTodas = async () => {
+    const agora = new Date().toISOString()
+    qc.setQueryData<NotificacaoRow[]>(chave, (l) => l?.map((n) => (n.lida_em ? n : { ...n, lida_em: agora })))
+    await supabase?.rpc('notificacoes_marcar_todas', { p_rede: redeId })
+  }
+  return { itens: q.data, carregando: q.isLoading, recarregar: q.refetch, marcarLida, marcarTodas }
 }
 
+const QUERY_CELULAR = '(max-width: 639px)'
+const useCelular = () => {
+  const [cel, setCel] = useState(() => window.matchMedia?.(QUERY_CELULAR).matches ?? false)
+  useEffect(() => {
+    const mq = window.matchMedia?.(QUERY_CELULAR)
+    if (!mq) return undefined
+    const f = () => setCel(mq.matches)
+    mq.addEventListener('change', f)
+    return () => mq.removeEventListener('change', f)
+  }, [])
+  return cel
+}
+
+const ehAlerta = (n: NotificacaoRow) => n.tipo === 'nota_devolvida' || (n.tipo === 'pedido_decidido' && /recusado/i.test(n.titulo))
+
 interface Props {
-  /** desktop = barra branca/escura do Header; mobile = cabeçalho navy do app. */
+  /** desktop = barra do Header; mobile = topo do app no celular. */
   variant?: 'desktop' | 'mobile'
 }
 
 const SinoNotificacoes = ({ variant = 'desktop' }: Props) => {
+  const navigate = useNavigate()
   const userId = useAuthStore((s) => s.user?.id ?? null)
+  const setEmpresas = useFilterStore((s) => s.setEmpresas)
+  const { alerts, markAsRead, markAllAsRead } = useNotificationStore()
+  const { itens, carregando, recarregar, marcarLida, marcarTodas } = useHistorico()
+  const celular = useCelular()
   const [aberto, setAberto] = useState(false)
   const [novidades, setNovidades] = useState(false)
   const [vista, setVista] = useState(lerVista)
   const ref = useRef<HTMLDivElement>(null)
-  const { data: pendencias, isLoading, refetch } = usePendencias(!!userId)
-  const ultima = RELEASE_NOTES[0]
 
-  // Abrir o sino conta como "vi as novidades": o ponto some ao fechar.
-  const fechar = useCallback(() => {
-    setAberto(false)
-    if (ultima) setVista(ultima.versao)
-  }, [ultima])
+  const fechar = useCallback(() => setAberto(false), [])
 
+  // Computador: fecha ao clicar fora; Esc nos dois. Celular: trava a rolagem de trás.
   useEffect(() => {
     if (!aberto) return undefined
-    const onDown = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) fechar() }
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') fechar() }
-    document.addEventListener('mousedown', onDown)
+    const onDown = (e: MouseEvent) => { if (!celular && ref.current && !ref.current.contains(e.target as Node)) fechar() }
     document.addEventListener('keydown', onKey)
-    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
-  }, [aberto, fechar])
+    document.addEventListener('mousedown', onDown)
+    const overflow = document.body.style.overflow
+    if (celular) document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.removeEventListener('mousedown', onDown)
+      document.body.style.overflow = overflow
+    }
+  }, [aberto, celular, fechar])
 
   if (!userId) return null
 
+  const ultima = RELEASE_NOTES[0]
   const novidadeNova = !!ultima && vista !== ultima.versao
-  const lista = pendencias ?? []
-  const avisos = lista.length + (novidadeNova ? 1 : 0)
-  const alternar = () => {
-    if (aberto) { fechar(); return }
-    setAberto(true)
-    void refetch()
-    if (ultima) { try { localStorage.setItem(CHAVE_VISTA, ultima.versao) } catch { /* ignore */ } }
+  const lista = itens ?? []
+  const naoLidas = lista.filter((n) => !n.lida_em).length + alerts.filter((a) => !a.read).length + (novidadeNova ? 1 : 0)
+
+  const verNovidade = () => { if (ultima) { gravarVista(ultima.versao); setVista(ultima.versao) } }
+  const alternar = () => { if (!aberto) void recarregar(); setAberto((v) => !v) }
+  const tocar = (n: NotificacaoRow) => {
+    if (!n.lida_em) void marcarLida(n.id)
+    fechar()
+    if (n.url) navigate(n.url)
   }
+  const tocarAlerta = (a: AppAlert) => {
+    markAsRead(a.id)
+    fechar()
+    if (a.empresaCodigo) setEmpresas([a.empresaCodigo])
+    navigate(ROTA_ALERTA[a.category])
+  }
+  const tocarNovidade = () => { verNovidade(); fechar(); setNovidades(true) }
+  const todas = () => { void marcarTodas(); markAllAsRead(); verNovidade() }
+
+  const vazio = !carregando && !lista.length && !alerts.length && !ultima
+
+  const painel = (
+    <div
+      role="dialog"
+      aria-label="Notificações"
+      className={celular
+        ? 'fixed inset-0 z-[70] flex flex-col bg-white pt-[env(safe-area-inset-top)] dark:bg-[#1e293b]'
+        : 'absolute right-0 top-11 z-50 flex max-h-[78vh] w-[400px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-2xl dark:border-gray-700 dark:bg-gray-900'}
+    >
+      {/* Cabeçalho */}
+      <div className={cn('flex shrink-0 items-start gap-2', celular ? 'px-4 pb-3.5 pt-5' : 'px-4 pb-3 pt-4')}>
+        <div className="min-w-0 flex-1">
+          <p role="heading" aria-level={2} className={cn('font-bold tracking-tight text-gray-900 dark:text-gray-100', celular ? 'text-[19px] leading-tight' : 'text-[17px]')}>
+            Notificações
+          </p>
+          <p className={cn('text-gray-500', celular ? 'mt-1 text-[12.5px] dark:text-[#64748b]' : 'mt-0.5 text-[12px] dark:text-gray-400')}>
+            {carregando ? 'Carregando…' : naoLidas ? `${naoLidas} não ${naoLidas === 1 ? 'lida' : 'lidas'}` : 'Tudo em dia'}
+          </p>
+        </div>
+        {naoLidas > 0 && (
+          <button
+            type="button"
+            onClick={todas}
+            className={cn(
+              'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg px-2 font-medium text-teal-700 hover:bg-gray-100 dark:text-[#5eead4]/90 dark:hover:bg-white/[0.06]',
+              celular ? 'text-[14.5px]' : 'text-[12.5px]',
+            )}
+          >
+            <CheckCheck className={celular ? 'h-4 w-4' : 'h-3.5 w-3.5'} /> Marcar todas
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={fechar}
+          aria-label="Fechar"
+          className="-mr-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-[#94a3b8] dark:hover:bg-white/[0.06]"
+        >
+          <X className={celular ? 'h-5 w-5' : 'h-4 w-4'} />
+        </button>
+      </div>
+
+      {/* Lista */}
+      <div className={cn(
+        'min-h-0 flex-1 overflow-y-auto overscroll-contain border-t',
+        celular
+          ? 'divide-y divide-gray-100 border-gray-100 bg-white dark:divide-white/[0.05] dark:border-white/[0.06] dark:bg-[#192436]'
+          : 'divide-y divide-gray-100 border-gray-100 dark:divide-gray-800 dark:border-gray-800',
+      )}>
+        {vazio && <p className="py-16 text-center text-sm text-gray-500">Nenhuma notificação.</p>}
+        {lista.map((n) => (
+          <Item key={n.id} celular={celular} Icone={ehAlerta(n) ? AlertTriangle : Info} alerta={ehAlerta(n)}
+            titulo={n.titulo} texto={n.texto} quando={tempoRelativo(n.criada_em)} naoLida={!n.lida_em} onClick={() => tocar(n)} />
+        ))}
+        {alerts.map((a) => (
+          <Item key={a.id} celular={celular} Icone={a.severity === 'info' ? Info : AlertTriangle} alerta={a.severity !== 'info'}
+            titulo={a.title} texto={a.description} quando={NOME_ALERTA[a.category]} naoLida={!a.read} onClick={() => tocarAlerta(a)} />
+        ))}
+        {ultima && (
+          <Item celular={celular} Icone={Info} titulo={`Novidades da versão ${ultima.versao}`} texto={ultima.resumo}
+            quando={dataBR(ultima.data)} naoLida={novidadeNova} onClick={tocarNovidade} />
+        )}
+      </div>
+
+      <ReceberNoDispositivo celular={celular} userId={userId} />
+    </div>
+  )
 
   return (
     <div ref={ref} className="relative">
@@ -143,108 +255,67 @@ const SinoNotificacoes = ({ variant = 'desktop' }: Props) => {
         onClick={alternar}
         aria-haspopup="dialog"
         aria-expanded={aberto}
-        aria-label={avisos ? `Notificações (${avisos})` : 'Notificações'}
+        aria-label={naoLidas ? `Notificações (${naoLidas} não ${naoLidas === 1 ? 'lida' : 'lidas'})` : 'Notificações'}
         className={cn(
           'relative flex shrink-0 items-center justify-center rounded-lg transition-colors',
           variant === 'mobile'
-            ? 'h-9 w-9 text-white/90 hover:bg-white/10 active:bg-white/15'
+            ? 'h-9 w-9 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/10'
             : 'h-8 w-8 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300',
           aberto && variant === 'desktop' && 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-200',
         )}
       >
         <Bell className={variant === 'mobile' ? 'h-5 w-5' : 'h-4 w-4'} />
-        {avisos > 0 && (
-          <span className="absolute right-0.5 top-0.5 flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white tabular-nums">
-            {avisos > 9 ? '9+' : avisos}
+        {naoLidas > 0 && (
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold tabular-nums text-white">
+            {naoLidas > 9 ? '9+' : naoLidas}
           </span>
         )}
       </button>
-
-      {aberto && (
-        <div
-          role="dialog"
-          aria-label="Notificações"
-          className={cn(
-            'z-50 flex max-h-[75dvh] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-2xl dark:border-gray-700 dark:bg-gray-900',
-            'fixed left-3 right-3 top-14 sm:absolute sm:left-auto sm:right-0 sm:top-11 sm:w-[380px]',
-          )}
-        >
-          <div className="border-b border-gray-100 px-4 pb-3 pt-4 dark:border-gray-800">
-            <p className="text-[15px] font-semibold text-gray-900 dark:text-gray-100">Notificações</p>
-            <p className="mt-0.5 text-[12px] text-gray-500 dark:text-gray-400">
-              {isLoading ? 'Carregando…' : lista.length ? (lista.length === 1 ? '1 pendência' : `${lista.length} pendências`) : 'Tudo em dia'}
-            </p>
-          </div>
-
-          <div className="flex-1 divide-y divide-gray-100 overflow-y-auto dark:divide-gray-800">
-            {lista.map((p) => (
-              <Item key={p.id} Icone={p.Icone} titulo={p.titulo} texto={p.texto} tom={p.tom} to={p.href} onClick={fechar} />
-            ))}
-            {ultima && (
-              <Item
-                Icone={Sparkles}
-                titulo={`Novidades da versão ${ultima.versao}`}
-                data={dataBR(ultima.data)}
-                texto={ultima.resumo}
-                novo={novidadeNova}
-                onClick={() => { fechar(); setNovidades(true) }}
-              />
-            )}
-          </div>
-
-          <ReceberNoCelular userId={userId} onConfigurar={fechar} />
-        </div>
-      )}
-
+      {aberto && (celular ? createPortal(painel, document.body) : painel)}
       <NovidadesModal open={novidades} onClose={() => setNovidades(false)} releases={RELEASE_NOTES} />
     </div>
   )
 }
 
 interface ItemProps {
+  celular: boolean
   Icone: ComponentType<{ className?: string }>
+  alerta?: boolean
   titulo: string
-  texto: string
-  data?: string
-  tom?: 'alerta'
-  novo?: boolean
-  to?: string
+  texto?: string | null
+  quando: string
+  naoLida: boolean
   onClick: () => void
 }
 
-const Item = ({ Icone, titulo, texto, data, tom, novo, to, onClick }: ItemProps) => {
-  const corpo = (
-    <>
-      <span className={cn(
-        'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-        tom === 'alerta'
-          ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400'
-          : 'bg-teal-50 text-teal-700 dark:bg-teal-500/10 dark:text-teal-300',
-      )}>
-        <Icone className="h-4 w-4" />
+const Item = ({ celular, Icone, alerta, titulo, texto, quando, naoLida, onClick }: ItemProps) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={cn(
+      'flex w-full items-start gap-3.5 px-4 text-left transition-colors',
+      celular ? 'py-[18px]' : 'py-3',
+      naoLida ? 'bg-teal-500/[0.08] hover:bg-teal-500/[0.12]' : 'hover:bg-gray-50 dark:hover:bg-white/[0.04]',
+    )}
+  >
+    <span className={cn(
+      'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
+      alerta ? 'bg-amber-400/15 text-amber-600 dark:text-amber-400' : 'bg-teal-500/[0.12] text-teal-600 dark:text-teal-500',
+    )}>
+      <Icone className="h-3.5 w-3.5" />
+    </span>
+    <span className="min-w-0 flex-1">
+      <span className="flex items-baseline gap-3">
+        <span className={cn('min-w-0 flex-1 font-medium text-gray-900 dark:text-gray-100', celular ? 'text-[15.5px] leading-snug dark:text-[#f1f5f9]' : 'text-[13.5px]')}>{titulo}</span>
+        <span className={cn('shrink-0 tabular-nums text-gray-400', celular ? 'text-[12.5px] dark:text-[#64748b]' : 'text-[11px] dark:text-gray-500')}>{quando}</span>
+        {naoLida && <span className="h-2 w-2 shrink-0 self-center rounded-full bg-[#0d9488]" />}
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-baseline gap-2">
-          <span className="min-w-0 flex-1 text-[14px] font-medium text-gray-900 dark:text-gray-100">{titulo}</span>
-          {novo && <span className="h-2 w-2 shrink-0 rounded-full bg-teal-500" />}
-          {data && <span className="shrink-0 text-[11.5px] tabular-nums text-gray-400">{data}</span>}
-        </span>
-        <span className="mt-0.5 block text-[12.5px] leading-snug text-gray-600 dark:text-gray-400">{texto}</span>
-      </span>
-    </>
-  )
-  const classe = 'flex w-full items-start gap-3.5 px-4 py-3.5 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-800'
-  return to
-    ? <Link to={to} onClick={onClick} className={classe}>{corpo}</Link>
-    : <button type="button" onClick={onClick} className={classe}>{corpo}</button>
-}
-
-const SUB: Record<EstadoPush, string> = {
-  ligada: 'Ligado neste aparelho',
-  desligada: 'Desligado neste aparelho',
-  bloqueada: 'Bloqueado no navegador (cadeado › Notificações)',
-  indisponivel: 'Este navegador não recebe avisos',
-}
+      {texto && (
+        <span className={cn('mt-1 block leading-snug text-gray-600', celular ? 'text-[14.5px] dark:text-[#94a3b8]' : 'text-[12.5px] dark:text-gray-400')}>{texto}</span>
+      )}
+    </span>
+  </button>
+)
 
 /** "Receber no celular" no telefone; no PC, o nome do sistema (Windows, Mac...). */
 const ondeReceber = () => {
@@ -254,10 +325,17 @@ const ondeReceber = () => {
   if (/Windows/.test(ua)) return 'no Windows'
   if (/Macintosh|Mac OS X/.test(ua)) return 'no Mac'
   if (/CrOS/.test(ua)) return 'no Chromebook'
-  return 'neste computador'
+  return 'neste dispositivo'
 }
 
-const ReceberNoCelular = ({ userId, onConfigurar }: { userId: string; onConfigurar: () => void }) => {
+const SUB: Record<EstadoPush, string> = {
+  ligada: 'Ativo neste dispositivo',
+  desligada: 'Desligado neste dispositivo',
+  bloqueada: 'Bloqueado no navegador',
+  indisponivel: 'Este navegador não recebe avisos',
+}
+
+const ReceberNoDispositivo = ({ celular, userId }: { celular: boolean; userId: string }) => {
   const [est, setEst] = useState<EstadoPush | null>(null)
   const [ocupado, setOcupado] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
@@ -265,10 +343,10 @@ const ReceberNoCelular = ({ userId, onConfigurar }: { userId: string; onConfigur
   useEffect(() => { void estado(userId).then(setEst) }, [userId])
 
   if (est == null) return null
-  const titulo = `Receber ${ondeReceber()}`
   const iphone = est === 'indisponivel' && precisaInstalar()
+  if (est === 'indisponivel' && !iphone) return null
   const ligada = est === 'ligada'
-  const travado = est === 'bloqueada' || (est === 'indisponivel' && !iphone) || iphone
+  const titulo = `Receber ${ondeReceber()}`
 
   const alternar = async () => {
     setOcupado(true)
@@ -280,38 +358,31 @@ const ReceberNoCelular = ({ userId, onConfigurar }: { userId: string; onConfigur
   }
 
   return (
-    <div className="shrink-0 border-t border-gray-100 bg-gray-50/70 dark:border-gray-800 dark:bg-black/20">
-      <div className="flex items-center gap-3 px-4 py-3">
-        <BellRing className={cn('h-5 w-5 shrink-0', ligada ? 'text-teal-600 dark:text-teal-300' : 'text-gray-400')} />
-        <span className="min-w-0 flex-1">
-          <span className="block text-[14px] font-medium text-gray-900 dark:text-gray-100">{titulo}</span>
-          <span className="block text-[11.5px] text-gray-500 dark:text-gray-400">{iphone ? 'No iPhone: instale o Visor360 na Tela de Início' : SUB[est]}</span>
-        </span>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={ligada}
-          aria-label={titulo}
-          disabled={ocupado || travado}
-          onClick={() => void alternar()}
-          className={cn(
-            'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0 transition-colors disabled:opacity-50',
-            ligada ? 'bg-[#1e3a5f] dark:bg-teal-600' : 'bg-gray-300 dark:bg-gray-700',
-          )}
-        >
-          <span className={cn('absolute left-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-white shadow transition-transform', ligada ? 'translate-x-5' : 'translate-x-0')}>
-            {ocupado && <Loader2 className="h-3 w-3 animate-spin text-gray-400" />}
-          </span>
-        </button>
-      </div>
-      {erro && <p className="px-4 pb-2 text-[11.5px] text-red-600 dark:text-red-400">{erro}</p>}
-      <Link
-        to="/configuracoes#avisos"
-        onClick={onConfigurar}
-        className="flex items-center gap-1.5 border-t border-gray-100 px-4 py-2.5 text-[12px] font-medium text-gray-500 hover:text-gray-800 dark:border-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
+    <div className={cn(
+      'shrink-0 border-t',
+      celular
+        ? 'border-gray-100 bg-gray-100 pb-[env(safe-area-inset-bottom)] dark:border-white/[0.06] dark:bg-[#121a2d]'
+        : 'border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-black/20',
+    )}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={ligada}
+        aria-label={titulo}
+        onClick={() => void alternar()}
+        disabled={ocupado || iphone || est === 'bloqueada'}
+        className={cn('flex w-full items-center gap-3.5 px-4 text-left disabled:opacity-70', celular ? 'py-3.5' : 'py-3')}
       >
-        <Settings2 className="h-3.5 w-3.5" /> Escolher o que receber
-      </Link>
+        <BellRing className={cn('shrink-0', ligada ? 'text-teal-600 dark:text-teal-500' : 'text-gray-400 dark:text-[#64748b]', celular ? 'h-[18px] w-[18px]' : 'h-5 w-5')} />
+        <span className="min-w-0 flex-1">
+          <span className={cn('block font-medium text-gray-900 dark:text-gray-100', celular ? 'text-[14.5px]' : 'text-[13.5px]')}>{titulo}</span>
+          <span className="block text-[11.5px] text-gray-500 dark:text-[#64748b]">{iphone ? 'No iPhone: instale o app na Tela de Início' : SUB[est]}</span>
+        </span>
+        <span aria-hidden className={cn('relative h-6 w-11 shrink-0 rounded-full transition-colors', ligada ? 'bg-[#0f766e]' : 'bg-gray-300 dark:bg-[#3e4c63]')}>
+          <span className={cn('absolute top-1 h-4 w-4 rounded-full shadow transition-all', ligada ? 'left-6 bg-white dark:bg-[#1e293b]' : 'left-1 bg-white')} />
+        </span>
+      </button>
+      {erro && <p className="px-4 pb-2 text-[11.5px] text-red-600 dark:text-red-400">{erro}</p>}
     </div>
   )
 }

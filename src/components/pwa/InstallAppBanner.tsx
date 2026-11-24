@@ -1,88 +1,75 @@
-import { useEffect, useState } from 'react'
-import { Download, X, Share, Plus } from 'lucide-react'
-import { getInstallPrompt, clearInstallPrompt, subscribeInstall } from '@/lib/pwaInstall'
-
-const KEY = 'visor360.installBannerDismissed'
-
-/** Já está rodando como app instalado (tela de início / standalone)? */
-const isStandalone = () =>
-  window.matchMedia?.('(display-mode: standalone)').matches ||
-  (navigator as unknown as { standalone?: boolean }).standalone === true
-
-const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent)
+import { useState } from 'react'
+import { Download, Smartphone, X } from 'lucide-react'
+import { useInstalarApp } from '@/components/pwa/useInstalarApp'
 
 /**
- * Convite pra instalar o Visor no celular como app (PWA — adicionar à tela de
- * início), SEM passar por loja. No Android/Chrome usa o `beforeinstallprompt`
- * (botão "Instalar" nativo); no iOS/Safari, que não expõe esse evento, mostra o
- * passo a passo manual (Compartilhar → Adicionar à Tela de Início).
- *
- * Dispensável (lembra a escolha em localStorage) e some quando já instalado.
+ * "Baixe o app" dentro do Visor, depois do login (mesmo desenho do NotaOK).
+ * Quando a pessoa usa pelo NAVEGADOR do celular (não pelo app instalado),
+ * aparece o convite no alto das telas principais e a linha "Baixar o app" no
+ * Mais. Android/Chrome com o pedido do navegador: abre a janela "Instalar"
+ * (precisa do toque). iPhone ou sem o pedido: passo a passo (InstallAppModal).
+ * Instalado, tudo some.
  */
+
+const CHAVE_CONVITE = 'visor360.instalarConvite' // adiado até (timestamp)
+const DIAS_ADIADO = 3
+const adiadoAte = () => { try { return Number(localStorage.getItem(CHAVE_CONVITE)) || 0 } catch { return 0 } }
+/** Convite no alto das telas principais (só no navegador do celular). */
 const InstallAppBanner = () => {
-  const [prompt, setPrompt] = useState(getInstallPrompt())
-  const [dismissed, setDismissed] = useState(() => {
-    try { return localStorage.getItem(KEY) === '1' } catch { return false }
-  })
-  const [iosHelp, setIosHelp] = useState(false)
+  const { noNavegador, baixar, dialogo } = useInstalarApp()
+  const [oculto, setOculto] = useState(() => adiadoAte() > Date.now())
+  if (!noNavegador || oculto) return dialogo
 
-  useEffect(() => subscribeInstall(() => setPrompt(getInstallPrompt())), [])
-
-  if (dismissed || isStandalone()) return null
-  const ios = isIOS()
-  // Aparece se: Android com prompt disponível OU iOS (instruções). Fora disso,
-  // o navegador não suporta instalar — não mostra nada.
-  if (!prompt && !ios) return null
-
-  const fechar = () => {
-    setDismissed(true)
-    try { localStorage.setItem(KEY, '1') } catch { /* ignore */ }
-  }
-
-  const instalar = async () => {
-    if (!prompt) { setIosHelp(true); return }
-    await prompt.prompt()
-    const { outcome } = await prompt.userChoice
-    clearInstallPrompt()
-    if (outcome === 'accepted') fechar()
+  const adiar = () => {
+    try { localStorage.setItem(CHAVE_CONVITE, String(Date.now() + DIAS_ADIADO * 864e5)) } catch { /* ignore */ }
+    setOculto(true)
   }
 
   return (
-    <div className="mb-3 overflow-hidden rounded-xl border border-[#14b8a6]/40 bg-gradient-to-br from-[#0f766e] to-[#115e59] text-white shadow-sm">
-      <div className="flex items-center gap-3 p-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white/15 text-lg">📲</span>
+    <>
+      <div className="mb-3.5 flex items-center gap-3 rounded-2xl border border-teal-600/30 bg-teal-50 px-3.5 py-3 dark:bg-teal-500/[0.12]">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-teal-700 text-white">
+          <Smartphone className="h-[18px] w-[18px]" />
+        </span>
         <div className="min-w-0 flex-1">
-          <p className="text-[13.5px] font-semibold leading-tight">Instale o Visor360 no celular</p>
-          <p className="text-[11.5px] leading-snug text-white/80">Tela cheia e acesso rápido — direto da tela de início, sem loja.</p>
+          <p className="text-sm font-semibold leading-tight text-gray-900 dark:text-gray-100">Você está no navegador</p>
+          <p className="mt-0.5 text-[12px] leading-snug text-gray-600 dark:text-gray-400">
+            Baixe o app do Visor360: abre direto da tela inicial, em tela cheia, e recebe os avisos.
+          </p>
         </div>
-        {prompt ? (
-          <button
-            onClick={instalar}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-[13px] font-semibold text-[#0f766e] active:opacity-80"
-          >
-            <Download className="h-4 w-4" /> Instalar
-          </button>
-        ) : (
-          <button
-            onClick={() => setIosHelp((v) => !v)}
-            className="shrink-0 rounded-lg bg-white/15 px-3 py-2 text-[13px] font-semibold active:opacity-80"
-          >
-            Como instalar
-          </button>
-        )}
-        <button onClick={fechar} aria-label="Dispensar" className="shrink-0 rounded-md p-1 text-white/70 active:text-white">
+        <button
+          type="button"
+          onClick={() => void baixar()}
+          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-[13px] font-semibold text-white active:bg-teal-700"
+        >
+          <Download className="h-4 w-4" /> Baixar
+        </button>
+        <button type="button" onClick={adiar} aria-label="Agora não" className="-mr-1 shrink-0 rounded-lg p-1.5 text-gray-400 active:bg-black/5 dark:active:bg-white/10">
           <X className="h-4 w-4" />
         </button>
       </div>
+      {dialogo}
+    </>
+  )
+}
 
-      {ios && iosHelp && (
-        <div className="border-t border-white/15 bg-black/10 px-3 py-2.5 text-[12px] leading-relaxed text-white/90">
-          No Safari, toque em{' '}
-          <Share className="inline h-3.5 w-3.5 align-text-bottom" /> <strong>Compartilhar</strong> e escolha{' '}
-          <Plus className="inline h-3.5 w-3.5 align-text-bottom" /> <strong>Adicionar à Tela de Início</strong>.
-        </div>
-      )}
-    </div>
+/** Linha "Baixar o app" no Mais do celular (some com o app instalado). */
+export const LinhaInstalar = ({ onClick }: { onClick?: () => void }) => {
+  const { noNavegador, baixar, dialogo } = useInstalarApp()
+  if (!noNavegador) return dialogo
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => { onClick?.(); void baixar() }}
+        className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-gray-700 active:bg-gray-100 dark:text-gray-300 dark:active:bg-white/10"
+      >
+        <Download className="h-5 w-5 shrink-0 text-teal-600 dark:text-teal-300" />
+        <span className="flex-1 text-left">Baixar o app</span>
+        <span className="text-xs text-gray-400">você está no navegador</span>
+      </button>
+      {dialogo}
+    </>
   )
 }
 

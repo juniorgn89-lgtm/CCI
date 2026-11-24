@@ -33,6 +33,28 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.22',
+    data: '2026-11-24',
+    resumo: 'Notificações com lidas e não lidas, visual novo no celular e o app para baixar direto da tela.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Notificações que ficam guardadas',
+        descricao: 'O sino agora guarda os avisos: pedido para liberar, pedido liberado ou recusado, nota devolvida com o motivo e tarefa nova, junto com os alertas de estoque, financeiro, combustível e bombas. O que você já viu fica marcado como lido em todos os seus aparelhos, e "Marcar todas" limpa de uma vez. No celular, abre em tela cheia.',
+      },
+      {
+        icone: 'mobile',
+        titulo: 'Visual novo no celular',
+        descricao: 'No celular, o Visor ganhou as cores e as letras dos outros apps da CCI: topo limpo com o nome da rede, barra de baixo em verde-petróleo e, no escuro, tons de azul-ardósia. No computador continua como era.',
+      },
+      {
+        icone: 'apps',
+        titulo: 'Baixe o app no celular',
+        descricao: 'Quem usa pelo navegador do celular vê o convite "Baixar": o Visor360 vai para a tela inicial, abre em tela cheia e recebe os avisos. No iPhone, o passo a passo aparece na tela. Também fica em Mais › Baixar o app.',
+      },
+    ],
+  },
+  {
     versao: '1.2.21',
     data: '2026-11-23',
     resumo: 'Sino de notificações no topo e um modo escuro novo no celular.',
