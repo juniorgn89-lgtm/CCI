@@ -17,6 +17,8 @@ export type NovidadeIcone = 'apps' | 'demo' | 'ia' | 'mobile' | 'atualizacao' | 
 
 export interface Novidade {
   icone: NovidadeIcone
+  /** Agrupa na tela de atualização: Novidades / Melhorias / Correções (padrão: novidade). */
+  tipo?: 'novidade' | 'melhoria' | 'correcao'
   titulo: string
   descricao: string
 }
@@ -32,6 +34,19 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    versao: '1.2.39',
+    data: '2026-11-25',
+    resumo: 'Ajustes no sistema.',
+    itens: [
+      {
+        icone: 'atualizacao',
+        tipo: 'melhoria',
+        titulo: 'Ajustes no sistema',
+        descricao: 'A tela de atualização ficou no novo padrão da CCI: mostra a versão, o andamento e o que mudou separado em novidades, melhorias e correções.',
+      },
+    ],
+  },
   {
     versao: '1.2.38',
     data: '2026-11-25',

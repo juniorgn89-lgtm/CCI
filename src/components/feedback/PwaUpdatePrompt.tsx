@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
-import { RefreshCw, X, Check } from 'lucide-react'
+import { RefreshCw, X, Check, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
 import { RELEASE_NOTES, type ReleaseNote } from '@/releaseNotes'
-import { NovidadesLista, NovidadesModal, novidadesDesde } from '@/components/feedback/Novidades'
+import { NovidadesLista, NovidadesModal, novidadesDesde, SeloVersao, IconeApp } from '@/components/feedback/Novidades'
 
 // Checa por nova versão de tempos em tempos (além do check no load). Importante
 // pro PWA instalado no celular, que pode ficar aberto por horas sem recarregar.
@@ -78,25 +78,23 @@ const PwaUpdatePrompt = () => {
         open={posAtualizacao !== null}
         onClose={() => setPosAtualizacao(null)}
         releases={posAtualizacao ?? []}
-        titulo="Visor360 atualizado"
+        titulo="O Visor360 foi atualizado"
       />
 
       {instalando && <AtualizacaoOverlay aplicar={() => void updateServiceWorker(true)} />}
 
       {needRefresh && !instalando && (
         <div className="fixed inset-x-0 bottom-0 z-[100] flex justify-center px-3 pb-[calc(env(safe-area-inset-bottom)+12px)] pt-3">
-          <div className="flex w-full max-w-md items-center gap-3 rounded-xl border border-white/10 bg-[#1e3a5f] px-4 py-3 text-white shadow-2xl">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10">
-              <RefreshCw className="h-[18px] w-[18px]" />
-            </div>
+          <div className="flex w-full max-w-lg items-center gap-3 rounded-2xl border border-white/10 bg-[#1e293b] px-4 py-3 text-white shadow-2xl">
+            <IconeApp className="h-10 w-10" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold leading-tight">Nova versão disponível</p>
-              <p className="text-[11.5px] leading-snug text-white/70">Atualize e veja o que mudou.</p>
+              <p className="text-[14px] font-semibold leading-tight">Nova versão disponível</p>
+              <p className="text-[12px] leading-snug text-[#94a3b8]">Atualize e veja o que mudou.</p>
             </div>
             <button
               type="button"
               onClick={() => setInstalando(true)}
-              className="shrink-0 rounded-lg bg-[#2563eb] px-3 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#1d4ed8] active:scale-95"
+              className="shrink-0 rounded-lg bg-[#115e59] px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[#0f766e] active:scale-95"
             >
               Atualizar
             </button>
@@ -104,7 +102,7 @@ const PwaUpdatePrompt = () => {
               type="button"
               aria-label="Depois"
               onClick={() => setNeedRefresh(false)}
-              className="shrink-0 rounded-md p-1.5 text-white/50 transition-colors hover:bg-white/10 hover:text-white/80"
+              className="shrink-0 rounded-md p-1.5 text-[#64748b] transition-colors hover:bg-white/10 hover:text-white/80"
             >
               <X className="h-4 w-4" />
             </button>
@@ -228,85 +226,84 @@ const AtualizacaoOverlay = ({ aplicar }: { aplicar: () => void }) => {
       role="dialog"
       aria-modal="true"
       aria-label="Atualizando o Visor360"
-      className="fixed inset-0 z-[200] overflow-y-auto bg-gradient-to-b from-[#0b1526] via-[#16293f] to-[#1e3a5f] text-white"
+      className="fixed inset-0 z-[200] overflow-y-auto bg-[#0b1220] text-[#f1f5f9]"
     >
-      <div className="mx-auto flex min-h-full w-full max-w-md flex-col items-center px-6 pb-10 pt-14 sm:justify-center sm:pt-10">
-        {/* Logo com halo pulsando */}
-        <div className="relative mb-6 flex h-24 w-24 items-center justify-center">
-          <span className="absolute inset-0 rounded-[28px] bg-white/10 motion-safe:animate-ping [animation-duration:2.4s]" />
-          <span className="absolute inset-2 rounded-3xl bg-white/5" />
-          <img src="/brand/visor360-icon-192.png" alt="" className="relative h-16 w-16 rounded-2xl shadow-2xl" />
-        </div>
-
-        <h1 className="text-center text-[22px] font-bold tracking-[-0.01em]">Atualizando o Visor360</h1>
-        <p className="mt-1 text-center text-[13px] text-white/60">
-          {versaoNova ? `Versão ${versaoNova}` : 'Nova versão'}
-          <span className="mx-1.5 text-white/30">·</span>
-          você está na {__APP_VERSION__}
-        </p>
-
-        {/* Progresso */}
-        <div className="mt-7 w-full">
-          <div className="mb-2 flex items-center justify-between text-[12.5px]">
-            <span className="flex items-center gap-2 font-medium text-white/85">
-              {fase === 'pronto'
-                ? <Check className="h-3.5 w-3.5 text-emerald-300" />
-                : <RefreshCw className={fase === 'reiniciando' ? 'h-3.5 w-3.5' : 'h-3.5 w-3.5 motion-safe:animate-spin [animation-duration:1.6s]'} />}
-              {ROTULO[fase]}
-            </span>
-            <span className="tabular-nums text-white/60">{progresso}%</span>
-          </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/15">
-            <div
-              className="h-full rounded-full bg-[#FCB619] transition-[width] duration-500 ease-out"
-              style={{ width: `${progresso}%` }}
-            />
-          </div>
-        </div>
-
-        {/* O que há de novo */}
-        <div className="mt-8 w-full rounded-2xl border border-white/10 bg-white/[0.06] p-5 backdrop-blur-sm">
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-[#FCB619]">O que há de novo</p>
-          {releases === null ? (
-            <div className="space-y-3 pt-2 motion-safe:animate-pulse">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <span className="h-9 w-9 shrink-0 rounded-xl bg-white/10" />
-                  <div className="flex-1 space-y-1.5 pt-1">
-                    <span className="block h-3 w-2/3 rounded bg-white/10" />
-                    <span className="block h-2.5 w-full rounded bg-white/[0.07]" />
-                  </div>
-                </div>
-              ))}
+      <div className="mx-auto flex min-h-full w-full max-w-[500px] flex-col px-4 pb-10 pt-12 sm:justify-center sm:pt-10">
+        <div className="overflow-hidden rounded-2xl border border-[#2f3b4f] bg-[#1e293b] shadow-2xl">
+          {/* Cabeçalho: ícone, título e versão */}
+          <div className="px-6 pb-5 pt-6">
+            <div className="flex items-center gap-4">
+              <span className="relative">
+                {fase !== 'pronto' && <span className="absolute -inset-1 rounded-2xl bg-teal-500/20 motion-safe:animate-ping [animation-duration:2.4s]" />}
+                <IconeApp className="relative h-12 w-12" />
+              </span>
+              <div className="min-w-0">
+                <h1 className="text-[19px] font-bold leading-tight">{fase === 'pronto' || fase === 'reiniciando' ? 'Atualização pronta' : 'Atualizando o Visor360'}</h1>
+                <span className="mt-1.5 inline-flex items-center gap-2">
+                  {versaoNova ? <SeloVersao versao={versaoNova} /> : <span className="text-[12.5px] text-[#94a3b8]">Nova versão</span>}
+                  <span className="text-[12.5px] text-[#64748b]">você está na {__APP_VERSION__}</span>
+                </span>
+              </div>
             </div>
-          ) : (
-            <>
-              {releases.length === 0 && <p className="text-[13px] leading-snug text-white/75">Esta atualização traz só ajustes e correções. Nada novo para ler: é só reiniciar.</p>}
-              {releases[0] && <p className="mb-4 text-[13px] leading-snug text-white/75">{releases[0].resumo}</p>}
-              <NovidadesLista itens={itens} tom="escuro" />
-            </>
-          )}
-        </div>
 
-        {/* OK: aparece quando a instalação termina; até lá o usuário lê com calma. */}
-        <button
-          type="button"
-          onClick={() => reiniciarRef.current()}
-          disabled={fase !== 'pronto'}
-          className={cn(
-            'mt-6 inline-flex h-11 w-full max-w-xs items-center justify-center gap-2 rounded-xl text-sm font-bold transition-all',
-            fase === 'pronto'
-              ? 'bg-[#FCB619] text-[#1e3a5f] shadow-lg shadow-black/20 hover:bg-[#ffc733] active:scale-[0.98]'
-              : 'cursor-default bg-white/10 text-white/40',
-          )}
-        >
-          {fase === 'reiniciando' ? 'Reiniciando…' : fase === 'pronto' ? 'OK, reiniciar agora' : 'Instalando…'}
-        </button>
-        <p className="mt-3 text-center text-[11.5px] text-white/45">
-          {fase === 'pronto'
-            ? 'Leia com calma. O app só reinicia quando você tocar em OK.'
-            : 'Não feche o app enquanto a atualização é instalada.'}
-        </p>
+            {/* Progresso */}
+            <div className="mt-5">
+              <div className="mb-2 flex items-center justify-between text-[12.5px]">
+                <span className="flex items-center gap-2 font-medium text-[#cbd5e1]">
+                  {fase === 'pronto'
+                    ? <Check className="h-3.5 w-3.5 text-teal-300" />
+                    : <RefreshCw className={fase === 'reiniciando' ? 'h-3.5 w-3.5' : 'h-3.5 w-3.5 motion-safe:animate-spin [animation-duration:1.6s]'} />}
+                  {ROTULO[fase]}
+                </span>
+                <span className="tabular-nums text-[#94a3b8]">{progresso}%</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#0f172a]">
+                <div className="h-full rounded-full bg-teal-500 transition-[width] duration-500 ease-out" style={{ width: `${progresso}%` }} />
+              </div>
+            </div>
+          </div>
+
+          {/* O que há de novo, agrupado por tipo */}
+          <div className="border-t border-[#2f3b4f] px-6 py-5">
+            {releases === null ? (
+              <div className="space-y-2 motion-safe:animate-pulse">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="flex items-start gap-3 rounded-xl border border-[#2f3b4f] bg-[#172033] p-3.5">
+                    <span className="h-9 w-9 shrink-0 rounded-lg bg-white/10" />
+                    <div className="flex-1 space-y-1.5 pt-1">
+                      <span className="block h-3 w-2/3 rounded bg-white/10" />
+                      <span className="block h-2.5 w-full rounded bg-white/[0.07]" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
+                {releases.length === 0 && <p className="text-[14px] leading-snug text-[#cbd5e1]">Esta atualização traz só ajustes e correções. Nada novo para ler: é só reiniciar.</p>}
+                {releases[0] && <p className="mb-4 text-[14px] leading-snug text-[#cbd5e1]">{releases[0].resumo}</p>}
+                <NovidadesLista itens={itens} tom="escuro" />
+              </>
+            )}
+          </div>
+
+          {/* Continuar: libera quando a instalação termina; até lá o usuário lê com calma. */}
+          <div className="border-t border-[#2f3b4f] px-6 py-4">
+            <button
+              type="button"
+              onClick={() => reiniciarRef.current()}
+              disabled={fase !== 'pronto'}
+              className={cn(
+                'inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[15px] font-semibold transition-all',
+                fase === 'pronto' ? 'bg-[#115e59] text-white hover:bg-[#0f766e] active:scale-[0.99]' : 'cursor-default bg-white/[0.06] text-white/40',
+              )}
+            >
+              {fase === 'reiniciando' ? 'Reiniciando…' : fase === 'pronto' ? <>Continuar <ArrowRight className="h-4 w-4" /></> : 'Instalando…'}
+            </button>
+            <p className="mt-2.5 text-center text-[11.5px] text-[#64748b]">
+              {fase === 'pronto' ? 'Leia com calma. O app só reinicia quando você tocar em Continuar.' : 'Não feche o app enquanto a atualização é instalada.'}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   )
