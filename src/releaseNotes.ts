@@ -34,58 +34,13 @@ export interface ReleaseNote {
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
     versao: '1.2.30',
-    data: '2026-11-24',
-    resumo: 'Modo escuro novo no computador, igual aos outros apps da CCI, e o resumo de ontem mais direto.',
+    data: '2026-11-25',
+    resumo: 'Ajustes no sistema.',
     itens: [
       {
-        icone: 'relatorio',
-        titulo: 'Visão Financeira nova',
-        descricao: 'A primeira tela do Financeiro virou a Visão Financeira: saldo das contas como está no sistema, quanto entra e sai em 30 dias, fluxo de caixa por semana (6 passadas e 6 pela frente), a lista das contas, o que entra e o que sai por prazo e as vendas por setor contra as contas pagas no mês. As primeiras telas dos módulos agora se chamam pelo assunto: Visão Financeira, Visão Operacional, Visão de Estoques.',
-      },
-      {
-        icone: 'relatorio',
-        titulo: 'Do título vencido à tarefa em um clique',
-        descricao: 'No calendário do Financeiro, ao abrir um dia, marque os títulos e toque em Criar tarefa: ela já vem pronta, urgente e para hoje, com cada título numa etapa. É só escolher quem vai cobrar ou pagar. Aparece nas redes com o módulo Tarefas.',
-      },
-      {
         icone: 'ajuste',
-        titulo: 'Dia do calendário com filtros',
-        descricao: 'A janela de um dia do calendário ficou mais larga e ganhou busca, filtro por posto (e categoria no a pagar) e ordem. Os totais de cima seguem o filtro.',
-      },
-      {
-        icone: 'ajuste',
-        titulo: 'Telas mais foscas e fáceis de ler',
-        descricao: 'No modo escuro do computador, as telas ficaram com acabamento fosco: sem brilho, sem sombras fortes e com cores mais calmas. Na Central, cada cartão de setor tem a sua cor no contorno, e as tabelas, os gráficos e o financeiro seguem as mesmas cores.',
-      },
-      {
-        icone: 'ajuste',
-        titulo: 'Topo mais limpo',
-        descricao: 'A barra de cima ficou só com o essencial: o posto, o tema, o sino e os apps. Cada tela agora começa com o caminho (rede › módulo › tela), o título grande e, à direita, os filtros e quando os dados foram atualizados, com o botão de atualizar ao lado. Instalar o Visor360 no computador fica no menu de apps.',
-      },
-      {
-        icone: 'ajuste',
-        titulo: 'Menu lateral com as telas de cada módulo',
-        descricao: 'As telas de cada módulo agora ficam no menu lateral, debaixo do nome do módulo: clique no módulo para abrir ou fechar a lista. No topo aparece onde você está, por exemplo Financeiro › Receber. Com o menu recolhido, as telas continuam no topo da página.',
-      },
-      {
-        icone: 'ajuste',
-        titulo: 'Modo escuro novo no computador',
-        descricao: 'No computador, o modo escuro ficou em tons de azul-ardósia com destaque verde-petróleo e as letras novas, iguais aos outros apps da CCI: mais confortável para a vista em uso longo. O modo claro não mudou.',
-      },
-      {
-        icone: 'relatorio',
-        titulo: 'Resumo de ontem mais direto',
-        descricao: 'Tocar em caixas abertos, diferença de caixa ou recebido abre ali mesmo a lista desses caixas e formas de pagamento, posto a posto. Títulos vencidos e que vencem hoje abrem o Financeiro já filtrado. A barra de rolagem do resumo sumiu: é só rolar.',
-      },
-      {
-        icone: 'ajuste',
-        titulo: 'Nome da rede de volta no botão do posto',
-        descricao: 'O nome da rede saiu do lado da logo e voltou a aparecer no botão do posto, como antes.',
-      },
-      {
-        icone: 'ajuste',
-        titulo: 'Radar de Preços em quadro',
-        descricao: 'O Radar de Preços agora abre em quatro colunas: Subir o preço, Segurar, Pode ceder e Confirmar o custo. Cada cartão mostra o posto, o combustível e a ação em destaque, como Subir R$ 0,03/L ou Não cortar. Clique no cartão para analisar o posto. A lista de antes continua no botão Lista.',
+        titulo: 'Ajustes no sistema',
+        descricao: 'Melhorias de visual, de navegação e nas telas da Central, Comercial, Financeiro, Estoques, Compras, Operação e Parâmetros.',
       },
     ],
   },
