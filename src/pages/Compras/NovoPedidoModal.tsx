@@ -69,6 +69,27 @@ const DiasInput = ({ value, onChange, min, max, label, className }: {
   )
 }
 
+/** Custo unitário: mostra 22,90 (vírgula, 2 casas); ao clicar, edita o número livre. */
+const CustoInput = ({ value, onChange, label, className }: { value: number; onChange: (v: number) => void; label: string; className?: string }) => {
+  const [texto, setTexto] = useState<string | null>(null)
+  const fmt = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return (
+    <input
+      inputMode="decimal" aria-label={label} className={className}
+      value={texto ?? fmt(value)}
+      onFocus={(e) => { setTexto(fmt(value)); const el = e.currentTarget; requestAnimationFrame(() => el.select()) }}
+      onChange={(e) => {
+        const t = e.target.value.replace(/[^\d,.]/g, '')
+        setTexto(t)
+        // Com vírgula, o ponto é milhar (1.234,50); sem vírgula, o ponto é decimal (22.9).
+        const n = Number(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t)
+        if (Number.isFinite(n)) onChange(n)
+      }}
+      onBlur={() => { onChange(Math.round(value * 100) / 100); setTexto(null) }}
+    />
+  )
+}
+
 const QtdStepper = ({ value, onChange, label, disabled, className }: {
   value: string
   onChange: (v: string) => void
@@ -94,7 +115,7 @@ const QtdStepper = ({ value, onChange, label, disabled, className }: {
           else if (e.key === 'ArrowDown') { e.preventDefault(); passo(-1) }
         }}
         onFocus={(e) => e.target.select()}
-        className={cn(inputCls, 'h-full w-full pl-2 pr-5 text-right font-semibold tabular-nums', disabled && 'opacity-60')}
+        className={cn(inputCls, 'h-full w-full py-0 pl-2 pr-5 text-right font-semibold tabular-nums', disabled && 'opacity-60')}
       />
       <span className="absolute inset-y-0.5 right-0.5 flex flex-col">
         <button type="button" tabIndex={-1} aria-label="Aumentar" disabled={disabled} onClick={() => passo(1)} className={seta}><ChevronUp className="h-3 w-3" /></button>
@@ -384,7 +405,7 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
             {ja ? (
                     <RowActionButton icon={Check} label="No pedido" disabled className="border-emerald-200 bg-emerald-50 text-emerald-700 opacity-100 dark:border-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-300" />
                   ) : (
-                    <RowActionButton icon={ShoppingCart} label="Adicionar" onClick={() => adicionar(s)} className="border-[#1e3a5f] bg-[#1e3a5f] text-white hover:border-[#172d4a] hover:bg-[#172d4a] hover:text-white dark:border-blue-600 dark:bg-blue-600 dark:text-white dark:hover:border-blue-500 dark:hover:bg-blue-500 dark:hover:text-white" />
+                    <RowActionButton icon={ShoppingCart} label="Adicionar" onClick={() => adicionar(s)} className="border-[#1e3a5f] bg-[#1e3a5f] text-white hover:border-[#172d4a] hover:bg-[#172d4a] hover:text-white dark:border-transparent dark:bg-blue-600 dark:text-white dark:hover:border-transparent dark:hover:bg-blue-700 dark:hover:text-white" />
                   )}
           </BalaoAcao>
         </td>
@@ -432,7 +453,7 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
     }
     const dup = i.produto_codigo > 0 ? duplicado(i.produto_codigo) : undefined
     return (
-      <li key={i.key} className="px-3 py-2">
+      <li key={i.key} className="px-3 py-2.5">
         <div className="flex items-start gap-2">
           <p className="min-w-0 flex-1 text-[12.5px] font-medium leading-snug text-gray-900 dark:text-gray-100">
             {nomeProprio(i.produto_nome)}
@@ -442,26 +463,25 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
           <button type="button" onClick={() => remover(i.key)} aria-label="Tirar do pedido" className="-mr-1 rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600 dark:hover:bg-gray-800"><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
         {dup && <p className="mt-0.5 inline-flex items-center gap-1 text-[10.5px] text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3 w-3" /> Já pedido no nº {dup.numero} ({STATUS_LABEL[dup.status].toLowerCase()}): {qtdFmt(dup.qtd_liberada ?? dup.qtd_solicitada)}{i.unidade ? ` ${i.unidade.toLowerCase()}` : ''}.</p>}
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-400">
-          <select aria-label="Embalagem" value={i.embalagem ?? 'UN'} onChange={(e) => trocarEmbalagem(e.target.value)} className={cn(inputCls, 'h-7 w-[92px] px-1.5 text-[12px]')}>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+          <select aria-label="Embalagem" value={i.embalagem ?? 'UN'} onChange={(e) => trocarEmbalagem(e.target.value)} className={cn(inputCls, 'h-8 w-[104px] py-0 pl-2 pr-7 text-[12px] leading-none')}>
             {EMBALAGENS.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
           </select>
           {emb.comFator && (
             <span className="inline-flex items-center gap-1">
               com
               <input inputMode="numeric" aria-label={`Unidades por ${emb.nome.toLowerCase()}`} value={i.qtd_por_embalagem ? String(i.qtd_por_embalagem) : ''} placeholder="?" onChange={(e) => trocarFator(e.target.value)}
-                className={cn(inputCls, 'h-7 w-12 px-1.5 text-right text-[12px] tabular-nums', !i.qtd_por_embalagem && 'border-amber-400 dark:border-amber-500/60')} />
+                className={cn(inputCls, 'h-8 w-14 px-2 py-0 text-right text-[12px] tabular-nums', !i.qtd_por_embalagem && 'border-amber-400 dark:border-amber-500/60')} />
               un
             </span>
           )}
         </div>
-        <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-gray-400">
-          <QtdStepper label={comFator ? `Quantidade de ${emb.nome.toLowerCase()}s` : 'Quantidade'} value={String(comFator ? qtdEmbalagens(i.qtd_solicitada, i.qtd_por_embalagem!) : i.qtd_solicitada)} onChange={trocarQtd} className="h-7 w-20 text-[12px]" />
-          <span>{comFator ? emb.curto : emb.fracionavel ? emb.curto : 'un'}</span>
-          <span>×</span>
-          <span className="relative"><span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[10px]">R$</span><input inputMode="decimal" aria-label="Custo unitário" value={String(i.custo_unit)} onChange={(e) => mudar(i.key, { custo_unit: Number(e.target.value.replace(',', '.')) || 0 })} onBlur={() => mudar(i.key, { custo_unit: Number(i.custo_unit.toFixed(2)) })} className={cn(inputCls, 'h-7 w-24 pl-7 pr-2 text-right text-[12px] tabular-nums')} /></span>
-          <span>/un</span>
-          <span className="ml-auto text-[12.5px] font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(i.qtd_solicitada * i.custo_unit)}</span>
+        <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+          <QtdStepper label={comFator ? `Quantidade de ${emb.nome.toLowerCase()}s` : 'Quantidade'} value={String(comFator ? qtdEmbalagens(i.qtd_solicitada, i.qtd_por_embalagem!) : i.qtd_solicitada)} onChange={trocarQtd} className="h-8 w-[72px] shrink-0 text-[12px]" />
+          <span className="shrink-0">{comFator ? emb.curto : emb.fracionavel ? emb.curto : 'un'} ×</span>
+          <span className="relative shrink-0"><span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[10px]">R$</span><CustoInput label="Custo unitário" value={i.custo_unit} onChange={(v) => mudar(i.key, { custo_unit: v })} className={cn(inputCls, 'h-8 w-[92px] py-0 pl-7 pr-2 text-right text-[12px] tabular-nums')} /></span>
+          <span className="shrink-0">/un</span>
+          <span className="ml-auto whitespace-nowrap pl-1 text-[13px] font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(i.qtd_solicitada * i.custo_unit)}</span>
         </div>
         <p className={cn('mt-1 text-[11px]', emb.comFator && !comFator ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400')}>
           {emb.comFator && !comFator

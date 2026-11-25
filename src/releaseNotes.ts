@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.37',
+    data: '2026-11-25',
+    resumo: 'Ajustes no sistema.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Ajustes no sistema',
+        descricao: 'Tela de novo pedido de compra mais legível: a embalagem não fica mais cortada, o custo aparece em reais (22,90) e os campos de cada item ficam alinhados.',
+      },
+    ],
+  },
+  {
     versao: '1.2.36',
     data: '2026-11-25',
     resumo: 'Ajustes no sistema.',
