@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.31',
+    data: '2026-11-25',
+    resumo: 'Ajustes no sistema.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Ajustes no sistema',
+        descricao: 'A análise de estoque para comprar fica agora no módulo Estoques (de lá já sai o pedido de compra) e o gráfico de fluxo de caixa ficou mais fácil de ler.',
+      },
+    ],
+  },
+  {
     versao: '1.2.30',
     data: '2026-11-25',
     resumo: 'Ajustes no sistema.',
