@@ -169,7 +169,7 @@ export const usePersonalizationStore = create<PersonalizationState>()(
     }),
     {
       name: 'visor360-personalization-v1',
-      version: 2,
+      version: 3,
       // Re-sincroniza ordens com a estrutura atual (adiciona módulos/abas novos
       // no fim, remove os que sumiram) preservando a customização do usuário.
       migrate: (persisted, version) => {
@@ -178,6 +178,9 @@ export const usePersonalizationStore = create<PersonalizationState>()(
         // v2: a aba Cartões (Financeiro) deixou de nascer escondida — quem veio
         // da v1 ganha ela visível (quem quiser esconde de novo na engrenagem).
         if (version < 2) s = { ...s, hidden: (s.hidden ?? []).filter((h) => h !== tabKey('/financeiro', 'cartoes')) }
+        // v3 (24/11/2026): a personalização por navegador saiu de Parâmetros → volta ao padrão
+        // (o que esconder agora é em Painel › Ocultar módulos e abas, para a rede ou por pessoa).
+        if (version < 3) s = { ...s, hidden: defaultHidden(), planoApplied: null }
         const knownPaths = new Set(APP_STRUCTURE.map((m) => m.path))
         const mergedModules = [
           ...s.moduleOrder.filter((p) => knownPaths.has(p)),

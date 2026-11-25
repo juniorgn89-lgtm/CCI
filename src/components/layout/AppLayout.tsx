@@ -16,9 +16,7 @@ import useAutoSelectSinglePosto from '@/hooks/useAutoSelectSinglePosto'
 import useFiltersUrlSync from '@/hooks/useFiltersUrlSync'
 import useDataUpdating from '@/hooks/useDataUpdating'
 import { PAGE_HEADER_ACTIONS_SLOT_ID } from '@/components/layout/PageHeaderActions'
-import { PAGE_HEADER_TITLE_SLOT_ID } from '@/components/layout/PageHeaderTitle'
 import HeaderContextMenu from '@/components/layout/HeaderContextMenu'
-import ModuleHeaderChrome from '@/components/layout/ModuleHeaderChrome'
 import { useAuthStore } from '@/store/auth'
 import WelcomeModal from '@/components/onboarding/WelcomeModal'
 import ChaveApiOnboarding from '@/components/onboarding/ChaveApiOnboarding'
@@ -29,7 +27,7 @@ import { normalizePlano, moduloAllowedByPlano } from '@/lib/access'
 import { usePersonalizationStore } from '@/store/personalization'
 import { showsGlobalFilters } from '@/lib/globalFilters'
 import GlobalFilterControls from '@/components/filters/GlobalFilterControls'
-import TopBar from '@/components/layout/TopBar'
+import CabecalhoPagina from '@/components/layout/CabecalhoPagina'
 import SuporteCaduWidget from '@/components/cadu/SuporteCaduWidget'
 import useIsMobile from '@/hooks/useIsMobile'
 import { useLogAcesso } from '@/hooks/useLogAcesso'
@@ -224,14 +222,14 @@ const AppLayout = () => {
   }
 
   return (
-    <div className="flex h-[calc(100dvh/var(--ui-zoom,1))] flex-col bg-gray-100 dark:bg-gray-950">
+    <div className="flex h-[calc(100dvh/var(--ui-zoom,1))] flex-col bg-gray-100 dark:bg-[#1e293b]">
       {welcomeModal}
       <ChaveApiOnboarding />
       {/* Briefing matinal — só no shell web (decisão de produto); abre 1×/dia. */}
       {authUser && <BriefingModal />}
       {/* Barra de topo de largura total — logo+nome na ponta esquerda (fixos,
           fora do menu que recolhe, estilo Gmail) + rede/posto + cluster direito. */}
-      <Header onMobileMenuOpen={() => setMobileOpen(true)} />
+      <Header onMobileMenuOpen={() => setMobileOpen(true)} posto={showFilters ? <HeaderContextMenu /> : null} />
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop sidebar — escondida quando o Modo Foco está ativo. */}
@@ -239,7 +237,7 @@ const AppLayout = () => {
 
         {/* Mobile sidebar (Sheet) */}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetContent side="left" className="w-52 border-r border-gray-100 bg-white p-0 dark:border-gray-800 dark:bg-[#1e3a5f]">
+          <SheetContent side="left" className="w-52 border-r border-gray-100 bg-white p-0 dark:border-gray-800 dark:bg-[#1e293b]">
             <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
             <div className="flex h-16 items-center px-4">
               <Link
@@ -280,26 +278,17 @@ const AppLayout = () => {
 
         {/* Painel de conteúdo — cantos arredondados sobre o fundo cinza do shell
             (estilo Gmail). TopBar + main vivem dentro dele. */}
-        <div className="relative flex flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-gray-950 md:m-2 md:rounded-2xl">
+        <div className="relative flex flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-[#0b1220] md:m-2 md:rounded-2xl">
           {/* TopBar consolidada — título (slot-portal por página) + cluster único de
               filtros. Fica fixa no topo (irmã do <main> que rola). O período
               (DateRangeToolbar) chega via slot-portal que cada página preenche. */}
           {/* Chrome de módulo dirigido pela rota (nome no Header) — global. */}
-          <ModuleHeaderChrome />
-          {showFilters && (
-            <TopBar
-              scrolled={scrolled}
-              title={<div id={PAGE_HEADER_TITLE_SLOT_ID} className="flex min-w-0 flex-1 items-center" />}
-              actions={
-                <>
-                  <GlobalFilterControls
-                    dateSlot={<div id={PAGE_HEADER_ACTIONS_SLOT_ID} className="flex items-center" />}
-                  />
-                  <HeaderContextMenu />
-                </>
-              }
-            />
-          )}
+          <CabecalhoPagina
+            scrolled={scrolled}
+            filtros={showFilters
+              ? <GlobalFilterControls dateSlot={<div id={PAGE_HEADER_ACTIONS_SLOT_ID} className="flex items-center" />} />
+              : <div id={PAGE_HEADER_ACTIONS_SLOT_ID} className="flex items-center" />}
+          />
 
           {/* Aviso urgente: apuração atrasada pro período aplicado (fora do <main>
               pra não borrar/pulsar com o conteúdo). */}
@@ -313,7 +302,8 @@ const AppLayout = () => {
               // overflow-x-hidden: corta o scroll horizontal de PÁGINA (ex.: números
               // um pouco mais largos com 2 casas decimais empurrando o layout 1-2px).
               // Tabelas largas mantêm seu próprio overflow-x-auto interno.
-              'flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-5',
+              // acetinado: acabamento fosco do escuro em TODOS os módulos (index.css).
+              'acetinado flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-5',
               filterDirty && 'pointer-events-none select-none opacity-50 blur-[2px] transition-all',
               // Atualizando (recorte aplicado mudou): pulsa o conteúdo. Não
               // combina com filterDirty (um é antes de aplicar, outro depois).

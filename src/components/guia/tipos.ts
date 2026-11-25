@@ -5,6 +5,8 @@ export interface GuiaModal {
   titulo: string
   /** Parágrafos curtos, em linguagem de dono de posto. */
   texto: string[]
+  /** Tópicos extras no mesmo balão, cada um com subtítulo (ex.: o que dá para fazer na tela). */
+  topicos?: { titulo: string; texto: string[] }[]
 }
 
 /** Atributo que marca o balão: clique nele não conta como "fora do modal". */

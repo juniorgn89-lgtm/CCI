@@ -98,7 +98,7 @@ const Inner = ({ setor, onClose, onPosto }: { setor: SetorModal; onClose: () => 
                   <th className="px-3 py-2 text-right font-semibold">Faturamento</th>
                   <th className="px-3 py-2 text-right font-semibold">Lucro bruto</th>
                   <th className="px-3 py-2 text-right font-semibold">Margem</th>
-                  <th className="px-3 py-2 text-right font-semibold">L.B./un</th>
+                  <th className="px-3 py-2 text-right font-semibold">{setor === 'combustivel' ? 'L.B./litro' : setor === 'global' ? 'L.B./un' : 'L.B./un'}</th>
                   <th className="px-3 py-2 text-right font-semibold">Fatia</th>
                   <th className="py-2 pl-3 text-right font-semibold">{cmpLabel}</th>
                 </tr>

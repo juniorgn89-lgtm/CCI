@@ -1,15 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Settings, Sun, Moon, Monitor, User, Mail, Info, LifeBuoy, Smartphone, LayoutDashboard, ChevronRight, ChevronDown, Wrench, Save, HelpCircle, Layers, Sparkles, Rocket, Check, ArrowUpRight, BadgeCheck } from 'lucide-react'
-import { Link, useLocation } from 'react-router-dom'
+import { Settings, Sun, Moon, Monitor, Mail, Info, LifeBuoy, ChevronRight, ChevronDown, Wrench, Save, HelpCircle, Sparkles } from 'lucide-react'
+import { useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { useThemeStore, type ThemeMode } from '@/store/theme'
 import { getUiScaleMode, setUiScaleMode, UI_SCALE_OPTIONS, type UiScaleMode } from '@/lib/uiScale'
 import { useAuthStore } from '@/store/auth'
-import { useTenantStore } from '@/store/tenant'
-import { PLANOS, getPlano, recursosAcumulados, type PlanoId, type PlanoDef } from '@/lib/planos'
 import useIsMobile from '@/hooks/useIsMobile'
-import { useRedeNomeExibicao } from '@/hooks/useDemo'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { formatLiters } from '@/lib/formatters'
 import {
@@ -17,8 +14,6 @@ import {
   DEFAULT_CONFIG,
 } from '@/store/manutencao'
 import AlterarSenhaCard from '@/pages/Configuracoes/components/AlterarSenhaCard'
-import RedefinirSenhaUsuariosCard from '@/pages/Configuracoes/components/RedefinirSenhaUsuariosCard'
-import PersonalizacaoSection from '@/pages/Configuracoes/components/PersonalizacaoSection'
 import NotificacoesSection from '@/pages/Configuracoes/components/NotificacoesSection'
 import { NovidadesModal } from '@/components/feedback/Novidades'
 import InfoHint from '@/components/ui/InfoHint'
@@ -187,7 +182,7 @@ const ManutencaoBombasSection = () => {
         </div>
       )}
 
-      <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+      <div className="grid items-start gap-2 lg:grid-cols-2">
         {isLoading ? (
           <div className="p-5 text-sm text-gray-400">Carregando postos…</div>
         ) : empresas.length === 0 ? (
@@ -201,7 +196,7 @@ const ManutencaoBombasSection = () => {
             const isOpen = openCodigo === codigo
             const nome = emp.fantasia || emp.razao || `Posto ${codigo}`
             return (
-              <div key={codigo}>
+              <div key={codigo} className={cn('overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700', isOpen && 'lg:col-span-2')}>
                 <div className="flex items-center gap-3 px-5 py-4">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
                     <Wrench className="h-4 w-4 text-gray-500" />
@@ -305,161 +300,6 @@ const ManutencaoBombasSection = () => {
   )
 }
 
-/* ─── Meu plano ─────────────────────────────────────────────────────────────
- * Mostra o plano comercial da rede ativa (redes.plano) + o que está incluído
- * (acumulado) + solicitar troca. Informativo — não trava módulo. Preço sob
- * consulta (CTA pro comercial). Fonte: src/lib/planos.ts. */
-
-const PLAN_TINT: Record<PlanoId, { icon: typeof Layers; iconWrap: string; ring: string }> = {
-  basic: {
-    icon: Layers,
-    iconWrap: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
-    ring: 'border-slate-300 dark:border-slate-600',
-  },
-  premium: {
-    icon: Sparkles,
-    iconWrap: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-    ring: 'border-amber-300 dark:border-amber-500/40',
-  },
-  pro: {
-    icon: Rocket,
-    iconWrap: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
-    ring: 'border-teal-300 dark:border-teal-500/40',
-  },
-}
-
-const COMERCIAL_MAIL = 'comercial@cci.app.br'
-
-const MeuPlanoSection = () => {
-  const rede = useTenantStore((s) => s.rede)
-  const atual = getPlano(rede?.plano)
-  const redeNome = useRedeNomeExibicao(rede?.nome) ?? 'minha rede'
-
-  const mailFor = (alvo?: PlanoDef) => {
-    const subject = alvo ? `Interesse no plano ${alvo.nome} — Visor360` : 'Troca de plano — Visor360'
-    const body =
-      `Olá! Quero falar sobre o plano da rede "${redeNome}".\n` +
-      `Plano atual: ${atual?.nome ?? 'não definido'}.` +
-      (alvo ? `\nTenho interesse no plano: ${alvo.nome}.` : '') +
-      '\n\n'
-    return `mailto:${COMERCIAL_MAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
-  }
-
-  const AtualIcon = atual ? PLAN_TINT[atual.id].icon : Info
-
-  return (
-    <section className="space-y-3">
-      <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-        Meu plano
-      </h2>
-
-      {/* Banner do plano atual + o que está incluído (acumulado) */}
-      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-        {atual ? (
-          <>
-            <div className="flex items-start gap-3">
-              <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-lg', PLAN_TINT[atual.id].iconWrap)}>
-                <AtualIcon className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Plano atual</p>
-                <p className="text-lg font-bold leading-tight text-gray-900 dark:text-gray-100">
-                  Visor360 {atual.nome}
-                </p>
-                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{atual.tagline}</p>
-              </div>
-              <span className="shrink-0 rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                sob consulta
-              </span>
-            </div>
-
-            <div className="mt-4 space-y-3 border-t border-gray-100 pt-4 dark:border-gray-800">
-              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">O que está incluído</p>
-              {recursosAcumulados(atual.id).map(({ plano, recursos }) => (
-                <div key={plano.id}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 dark:text-gray-500">{plano.nome}</p>
-                  <ul className="mt-1 space-y-1">
-                    {recursos.map((r) => (
-                      <li key={r} className="flex items-start gap-2 text-[13px] text-gray-600 dark:text-gray-300">
-                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-green-600 dark:text-green-400" />
-                        <span>{r}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-500 dark:bg-gray-800">
-              <Info className="h-5 w-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Plano ainda não definido</p>
-              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                Fale com o comercial pra confirmar o plano da sua rede.
-              </p>
-              <a href={mailFor()} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline dark:text-blue-400">
-                Falar com o comercial <ArrowUpRight className="h-3.5 w-3.5" />
-              </a>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Trocar de plano — os 3 planos, o atual destacado */}
-      <div>
-        <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Quer trocar de plano?</p>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {PLANOS.map((p) => {
-            const isAtual = atual?.id === p.id
-            const T = PLAN_TINT[p.id]
-            const Icon = T.icon
-            return (
-              <div
-                key={p.id}
-                className={cn(
-                  'flex flex-col rounded-xl border bg-white p-4 shadow-sm dark:bg-gradient-to-b dark:from-gray-900 dark:to-black',
-                  isAtual ? cn(T.ring, 'ring-2 ring-blue-500/20') : 'border-gray-200 dark:border-gray-700',
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <div className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-md', T.iconWrap)}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{p.nome}</p>
-                  {p.destaque && !isAtual && (
-                    <span className="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                      Recomendado
-                    </span>
-                  )}
-                </div>
-                <p className="mt-2 flex-1 text-[12px] leading-snug text-gray-500 dark:text-gray-400">{p.tagline}</p>
-                {isAtual ? (
-                  <span className="mt-3 inline-flex items-center gap-1 text-[12px] font-semibold text-blue-600 dark:text-blue-400">
-                    <BadgeCheck className="h-4 w-4" /> Seu plano
-                  </span>
-                ) : (
-                  <a
-                    href={mailFor(p)}
-                    className="mt-3 inline-flex items-center gap-1 text-[12px] font-semibold text-blue-600 hover:underline dark:text-blue-400"
-                  >
-                    Solicitar <ArrowUpRight className="h-3.5 w-3.5" />
-                  </a>
-                )}
-              </div>
-            )
-          })}
-        </div>
-        <p className="mt-2 text-[11px] text-gray-400 dark:text-gray-500">
-          Preços sob consulta. A troca é liberada pelo seu representante CCI.
-        </p>
-      </div>
-    </section>
-  )
-}
-
 const Configuracoes = () => {
   const { mode, setMode } = useThemeStore()
   const isMobile = useIsMobile()
@@ -499,230 +339,127 @@ const Configuracoes = () => {
     return () => { clearInterval(timer); if (ajuste) clearTimeout(ajuste) }
   }, [location])
 
+  const iniciais = userName.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join('') || 'U'
+
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
-      {/* Header */}
+    <div className="mx-auto max-w-[1400px] space-y-6">
+      {/* Cabeçalho */}
       <div className="flex items-center gap-3">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1e3a5f]">
           <Settings className="h-5 w-5 text-white" />
         </div>
         <div>
           <h1 className="text-base font-bold text-gray-900 dark:text-gray-100">Parâmetros</h1>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Preferências da conta e do sistema</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Sua conta, a aparência do sistema, os avisos e as regras da rede</p>
         </div>
       </div>
 
-      {/* Aparência */}
-      <section className="space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-          Aparência
-        </h2>
-        <div>
-          <p className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">Modo de cor</p>
-          <div role="radiogroup" aria-label="Modo de tema" className="flex flex-wrap gap-3">
-            {themeOptions.map((opt) => {
-              const active = mode === opt.value
-              return (
-                <button
-                  key={opt.value}
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => setMode(opt.value)}
-                  className="group flex w-[150px] flex-col items-center gap-2"
-                >
-                  <div
-                    className={cn(
-                      'relative h-20 w-full overflow-hidden rounded-xl border-2 transition-all',
-                      active
-                        ? 'border-blue-500 shadow-md ring-2 ring-blue-500/20'
-                        : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600'
-                    )}
-                  >
-                    {renderPreview(opt.value)}
-                  </div>
-                  <span
-                    className={cn(
-                      'text-sm transition-colors',
-                      active
-                        ? 'font-semibold text-gray-900 dark:text-gray-100'
-                        : 'text-gray-500 dark:text-gray-400'
-                    )}
-                  >
-                    {opt.label}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Tamanho da interface (zoom) — opção de tela só pra PC; escondida no mobile. */}
-        {!isMobile && (
-        <div className="pt-2">
-          <p className="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Tamanho da interface</p>
-          <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
-            Em telas antigas ou pequenas, reduza para caber tudo sem apertar. Aplica-se só a este computador.
-          </p>
-          <div role="radiogroup" aria-label="Tamanho da interface" className="flex flex-wrap gap-2">
-            {UI_SCALE_OPTIONS.map((opt) => {
-              const active = scaleMode === opt.value
-              return (
-                <button
-                  key={String(opt.value)}
-                  role="radio"
-                  aria-checked={active}
-                  onClick={() => handleScaleChange(opt.value)}
-                  title={opt.hint}
-                  className={cn(
-                    'flex min-w-[84px] flex-col items-center rounded-xl border-2 px-3 py-2 transition-all',
-                    active
-                      ? 'border-blue-500 bg-blue-50/60 shadow-sm ring-2 ring-blue-500/20 dark:bg-blue-900/20'
-                      : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600',
-                  )}
-                >
-                  <span className={cn('text-sm', active ? 'font-semibold text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-300')}>
-                    {opt.label}
-                  </span>
-                  <span className="mt-0.5 text-center text-[10px] leading-tight text-gray-400 dark:text-gray-500">{opt.hint}</span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-        )}
-      </section>
-
-      {/* Conta */}
-      <section className="space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-          Conta
-        </h2>
-        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-          <div className="flex items-center gap-3 px-5 py-4">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
-              <User className="h-4 w-4 text-gray-500" />
+      {/* Linha 1: Aparência · Conta e sistema */}
+      {/* Linha 1: Aparência · Conta e sistema (mesma altura, cartões alinhados) */}
+      <div className="grid items-stretch gap-6 xl:grid-cols-2">
+        <section className="flex flex-col gap-3">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Aparência</h2>
+          <div className="flex-1 space-y-5 rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700">
+            <div>
+              <p className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">Modo de cor</p>
+              <div role="radiogroup" aria-label="Modo de tema" className="grid grid-cols-3 gap-3">
+                {themeOptions.map((opt) => {
+                  const active = mode === opt.value
+                  return (
+                    <button key={opt.value} role="radio" aria-checked={active} onClick={() => setMode(opt.value)} className="group flex flex-col items-center gap-2">
+                      <div className={cn('relative h-20 w-full overflow-hidden rounded-xl border-2 transition-all',
+                        active ? 'border-blue-500 shadow-md ring-2 ring-blue-500/20' : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600')}>
+                        {renderPreview(opt.value)}
+                      </div>
+                      <span className={cn('text-sm transition-colors', active ? 'font-semibold text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400')}>{opt.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Nome</p>
-              <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{userName}</p>
-            </div>
-            <span className="text-[10px] font-medium uppercase text-gray-400">Somente leitura</span>
+
+            {/* Tamanho da interface (zoom) — só no computador. */}
+            {!isMobile && (
+              <div className="border-t border-gray-100 pt-4 dark:border-gray-800">
+                <p className="inline-flex items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Tamanho da interface
+                  <InfoHint text="Em telas antigas ou pequenas, reduza para caber tudo sem apertar. Vale só para este computador." />
+                </p>
+                <div role="radiogroup" aria-label="Tamanho da interface" className="mt-3 grid grid-cols-3 gap-2">
+                  {UI_SCALE_OPTIONS.map((opt) => {
+                    const active = scaleMode === opt.value
+                    return (
+                      <button key={String(opt.value)} role="radio" aria-checked={active} onClick={() => handleScaleChange(opt.value)}
+                        className={cn('flex flex-col items-center rounded-xl border-2 px-2 py-2 transition-all',
+                          active ? 'border-blue-500 bg-blue-50/60 shadow-sm ring-2 ring-blue-500/20 dark:bg-blue-900/20' : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600')}>
+                        <span className={cn('text-sm', active ? 'font-semibold text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-300')}>{opt.label}</span>
+                        <span className="mt-0.5 text-center text-[10px] leading-tight text-gray-400 dark:text-gray-500">{opt.hint}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-3 px-5 py-4">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
-              <Mail className="h-4 w-4 text-gray-500" />
+        </section>
+
+        <section className="flex flex-col gap-3">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">Conta e sistema</h2>
+          <div className="flex flex-1 flex-col divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 [&>*]:flex-1">
+            <div className="flex items-center gap-3 px-5 py-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#1e3a5f] text-sm font-semibold text-white">{iniciais}</div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">{userName}</p>
+                <p className="inline-flex max-w-full items-center gap-1.5 truncate text-xs text-gray-500 dark:text-gray-400"><Mail className="h-3.5 w-3.5 shrink-0" /> {userEmail}</p>
+              </div>
+              <InfoHint text="Nome e e-mail são definidos por quem administra os acessos da rede. Para mudar, fale com o suporte." />
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Email</p>
-              <p className="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{userEmail}</p>
+            <div className="flex items-center gap-3 px-5 py-3.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
+                <Info className="h-4 w-4 text-gray-500" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400">Versão do sistema</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Visor360 {APP_VERSION}</p>
+              </div>
             </div>
-            <span className="text-[10px] font-medium uppercase text-gray-400">Somente leitura</span>
+            <button type="button" onClick={() => setNovidades(true)} className="flex w-full items-center gap-3 px-5 py-3.5 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/20">
+                <Sparkles className="h-4 w-4 text-amber-600 dark:text-[#FCB619]" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Novidades</p>
+                <p className="truncate text-xs text-gray-500 dark:text-gray-400">O que mudou nas últimas versões</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-gray-400" />
+            </button>
+            <a href={`mailto:${SUPPORTE_EMAIL}`} className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
+                <LifeBuoy className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Suporte</p>
+                <p className="truncate text-xs text-gray-500 dark:text-gray-400">{SUPPORTE_EMAIL}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-gray-400" />
+            </a>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
-      {/* Meu plano — plano comercial da rede + solicitar troca */}
-      <MeuPlanoSection />
+      {/* Linha 2: Segurança · Avisos (mesma altura) */}
+      <div className="grid items-stretch gap-6 xl:grid-cols-2">
+        <AlterarSenhaCard />
+        <NotificacoesSection />
+      </div>
 
-      {/* Personalização do menu — mostrar/ocultar/reordenar módulos e abas +
-          preset reversível pelo plano da rede */}
-      <PersonalizacaoSection />
+      {/* Redefinir senha de usuários: saiu (fica em Cadastros › Usuários).
+          Personalização do menu: saiu (ocultar módulos e abas fica no Painel › Ocultar módulos e abas).
+          Meu plano: escondido enquanto não trabalhamos com planos. */}
 
-      {/* Avisos no celular (Web Push) */}
-      <NotificacoesSection />
-
-      {/* Segurança — Alterar senha */}
-      <AlterarSenhaCard />
-
-      {/* Redefinir senha de outros usuários (só admin/master) */}
-      <RedefinirSenhaUsuariosCard />
-
-      {/* Manutenção de Bombas */}
+      {/* Manutenção de bombas (regra da rede) */}
       <ManutencaoBombasSection />
 
-      {/* Ferramentas */}
-      <section className="space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-          Ferramentas
-        </h2>
-        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-          <Link
-            to="/frentista"
-            className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
-          >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-green-50 dark:bg-green-900/30">
-              <Smartphone className="h-4 w-4 text-green-600 dark:text-green-400" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Mobile (Frentista)</p>
-              <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-                Visão mobile para frentistas verem suas vendas e ranking
-              </p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-gray-400" />
-          </Link>
-          <Link
-            to="/mobile"
-            className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
-          >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-purple-50 dark:bg-purple-900/30">
-              <LayoutDashboard className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">App Gerente</p>
-              <p className="truncate text-xs text-gray-500 dark:text-gray-400">
-                Gestão de acessos e QR codes do app dos frentistas
-              </p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-gray-400" />
-          </Link>
-        </div>
-      </section>
-
-      {/* Sobre */}
-      <section className="space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-          Sobre
-        </h2>
-        <div className="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-          <div className="flex items-center gap-3 px-5 py-4">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-800">
-              <Info className="h-4 w-4 text-gray-500" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs text-gray-500 dark:text-gray-400">Versão do sistema</p>
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Visor360 {APP_VERSION}</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setNovidades(true)}
-            className="flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
-          >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/20">
-              <Sparkles className="h-4 w-4 text-amber-600 dark:text-[#FCB619]" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Novidades</p>
-              <p className="truncate text-xs text-gray-500 dark:text-gray-400">O que mudou nas últimas versões</p>
-            </div>
-            <ChevronRight className="h-4 w-4 text-gray-400" />
-          </button>
-          <a
-            href={`mailto:${SUPPORTE_EMAIL}`}
-            className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
-          >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30">
-              <LifeBuoy className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Suporte</p>
-              <p className="truncate text-xs text-gray-500 dark:text-gray-400">{SUPPORTE_EMAIL}</p>
-            </div>
-            <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Entrar em contato</span>
-          </a>
-        </div>
-      </section>
 
       <NovidadesModal open={novidades} onClose={() => setNovidades(false)} releases={RELEASE_NOTES} />
     </div>

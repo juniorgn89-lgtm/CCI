@@ -5,10 +5,8 @@ import { Warehouse, Package, Settings, LayoutDashboard } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
-import ModuleSettings from '@/components/layout/ModuleSettings'
 import SelectCompanyState from '@/components/feedback/SelectCompanyState'
-import HeaderTray from '@/components/layout/HeaderTray'
-import TopBarTabs from '@/components/layout/TopBarTabs'
+import ModuloAbas from '@/components/layout/ModuloAbas'
 import useTabParam from '@/hooks/useTabParam'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import { useModuleTabSettings } from '@/hooks/usePersonalizedTabs'
@@ -39,7 +37,7 @@ const FOI_PARA_COMPRAS = new Set(['comprar', 'necessidade'])
  * da Visão Geral abrem Produtos com o mesmo filtro.
  */
 const Estoques = () => {
-  const { tabs: layoutTabs, toggleVisibility, moveUp, moveDown, reset } = useModuleTabSettings('/estoques')
+  const { tabs: layoutTabs } = useModuleTabSettings('/estoques')
   const visibleTabs = layoutTabs.filter((t) => t.visible)
   // Aba controlada pela URL (?tab=) pro flyout/deep link. `activeTab` é derivado:
   // se a aba do ?tab= estiver escondida via engrenagem, cai na primeira visível
@@ -96,16 +94,13 @@ const Estoques = () => {
     <div className="space-y-6">
       {visibleTabs.length > 0 && (
         <PageHeaderTitle>
-          <TopBarTabs
+          <ModuloAbas
             tabs={visibleTabs.map((t) => ({ id: t.id, label: t.label, Icon: TAB_ICONS[t.id] ?? Warehouse }))}
             active={activeTab}
             onChange={setActiveTab}
           />
         </PageHeaderTitle>
       )}
-      <HeaderTray>
-        <ModuleSettings title="Estoques" tabs={layoutTabs} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
-      </HeaderTray>
       {/* Sem filtro de período: o estoque é sempre o saldo ATUAL (igual ao
           webPosto, cujo "Qtd" não muda com a data). Histórico fixo de 6m é
           interno. Sem DateRangeToolbar aqui → a barra de período não aparece. */}

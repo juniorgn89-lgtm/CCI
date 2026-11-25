@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Package } from 'lucide-react'
+import { Package, ShoppingCart, ArrowLeft } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
@@ -27,7 +27,11 @@ const Bloco = ({ titulo, children }: { titulo: string; children: ReactNode }) =>
  * cadastro (custo, venda, margem). É o detalhe das abas Produtos e Comprar —
  * por isso as tabelas podem ficar enxutas.
  */
-const ProdutoDetalheModal = ({ produto, janelaDias, coberturaDias, onClose }: {
+const ProdutoDetalheModal = ({ produto, janelaDias, coberturaDias, onClose, onGerarPedido, onVoltar }: {
+  /** Veio da análise de produtos: mostra "Voltar para a análise". */
+  onVoltar?: () => void
+  /** Presente = mostra "Gerar pedido de compra" (rede com Compras à vista). */
+  onGerarPedido?: () => void
   produto: ProductAnalyticsRow | null
   janelaDias: number
   coberturaDias: number
@@ -41,6 +45,11 @@ const ProdutoDetalheModal = ({ produto, janelaDias, coberturaDias, onClose }: {
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent guia={GUIAS.produtoEstoque} className="max-h-[88vh] w-[95vw] max-w-3xl overflow-y-auto">
         <DialogHeader>
+          {onVoltar && (
+            <button type="button" onClick={onVoltar} className="mb-1 inline-flex w-fit items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-[12.5px] font-semibold text-teal-800 hover:bg-teal-100 dark:border-[#0d9488]/40 dark:bg-[#0d9488]/[0.10] dark:text-[#5eead4] dark:hover:bg-[#0d9488]/[0.18]">
+              <ArrowLeft className="h-3.5 w-3.5" /> Voltar para a análise
+            </button>
+          )}
           <DialogTitle className="flex flex-wrap items-center gap-2 pr-16">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1e3a5f] text-white"><Package className="h-4 w-4" /></span>
             {p.produtoNome}
@@ -92,6 +101,18 @@ const ProdutoDetalheModal = ({ produto, janelaDias, coberturaDias, onClose }: {
               ))}
             </div>
           </section>
+        )}
+
+        {onGerarPedido && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4 dark:border-[#2f3b4f]">
+            <p className="text-[12.5px] text-gray-500 dark:text-[#94a3b8]">
+              {p.necessidadeUnidades > 0 ? <>Sugestão: comprar <b className="font-semibold text-gray-800 dark:text-[#e2e8f0]">{fmtUnidades(Math.ceil(p.necessidadeUnidades))}</b> para {coberturaDias} dias. Você ajusta no pedido.</> : 'O estoque cobre a meta de dias; o pedido abre com 1 unidade para você ajustar.'}
+            </p>
+            <button type="button" onClick={onGerarPedido}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-teal-600 px-3.5 text-[13px] font-semibold text-white hover:bg-teal-700">
+              <ShoppingCart className="h-4 w-4" /> Gerar pedido de compra
+            </button>
+          </div>
         )}
       </DialogContent>
     </Dialog>

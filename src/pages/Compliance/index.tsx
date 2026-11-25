@@ -753,7 +753,7 @@ const JustificarModal = ({ row, empresaCodigo, onClose, onSaved }: {
 type ComplianceTab = 'geral' | 'detalhe'
 
 const TAB_META: { id: ComplianceTab; label: string; Icon: typeof LayoutGrid }[] = [
-  { id: 'geral', label: 'Visão Geral', Icon: LayoutGrid },
+  { id: 'geral', label: 'Visão de Compliance', Icon: LayoutGrid },
   { id: 'detalhe', label: 'Detalhe', Icon: ListTree },
 ]
 

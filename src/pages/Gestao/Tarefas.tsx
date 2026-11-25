@@ -1,9 +1,9 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useFilters } from '@/hooks/useFilters'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ClipboardList, Plus, Loader2, Check, Play, RotateCcw, XCircle, Clock, AlertTriangle, Building2, User, Pencil, CalendarClock, History, ListChecks, X, Undo2, Repeat, Trash2, Camera, SlidersHorizontal,
+  ClipboardList, Plus, Loader2, Check, Play, RotateCcw, XCircle, Clock, AlertTriangle, Building2, User, Pencil, CalendarClock, History, ListChecks, X, Undo2, Repeat, Trash2, Camera, SlidersHorizontal, Search, Siren, ChevronDown,
 } from 'lucide-react'
 import {
   fetchTarefas, fetchAtividadesDaTarefa, criarTarefa, editarTarefa, adiarTarefa, mudarStatusTarefa, salvarChecklist, excluirTarefa, excluirTarefas, estaAtrasada,
@@ -719,25 +719,100 @@ const TarefaDetalhe = ({ tarefa: t, onClose, onMudar, onAdiar, onEditar, onExclu
   )
 }
 
+/* ─── responsável com busca (redes com muita gente) ─────────────────────── */
+
+const BuscaResponsavel = ({ id, usuarios, valor, onChange, erro }: {
+  id: string
+  usuarios: { user_id: string; nome: string; email: string }[]
+  valor: string
+  onChange: (v: string) => void
+  erro?: boolean
+}) => {
+  const [aberto, setAberto] = useState(false)
+  const [q, setQ] = useState('')
+  const sel = usuarios.find((u) => u.user_id === valor)
+  const norm = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const lista = useMemo(() => {
+    const k = norm(q.trim())
+    return usuarios.filter((u) => !k || norm(`${u.nome} ${u.email}`).includes(k)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
+  }, [usuarios, q])
+  const escolher = (v: string) => { onChange(v); setAberto(false); setQ('') }
+  // Fecha ao clicar fora (a lista flutua por cima dos campos de baixo).
+  const caixa = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!aberto) return undefined
+    const fora = (e: MouseEvent) => { if (caixa.current && !caixa.current.contains(e.target as Node)) setAberto(false) }
+    document.addEventListener('mousedown', fora)
+    return () => document.removeEventListener('mousedown', fora)
+  }, [aberto])
+  return (
+    <div ref={caixa} className="relative">
+      <button id={id} type="button" onClick={() => setAberto((v) => !v)} aria-expanded={aberto}
+        className={cn(inputCls, 'flex items-center gap-2 text-left', erro && 'border-red-400 dark:border-red-700')}>
+        <User className="h-4 w-4 shrink-0 text-gray-400" />
+        <span className={cn('min-w-0 flex-1 truncate', !sel && 'text-gray-400')}>{sel ? sel.nome : 'Selecione quem vai fazer…'}</span>
+        {sel && <span className="hidden truncate text-[11.5px] text-gray-400 sm:inline">{sel.email}</span>}
+        <ChevronDown className={cn('h-4 w-4 shrink-0 text-gray-400 transition-transform', aberto && 'rotate-180')} />
+      </button>
+      {aberto && (
+        <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-2xl dark:border-[#3e4c63] dark:bg-[#1e293b]">
+          <div className="relative border-b border-gray-100 dark:border-[#2f3b4f]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Buscar entre ${usuarios.length} pessoas pelo nome ou e-mail…`}
+              onKeyDown={(e) => { if (e.key === 'Enter' && lista.length === 1) { e.preventDefault(); escolher(lista[0].user_id) } if (e.key === 'Escape') { e.stopPropagation(); setAberto(false) } }}
+              className="h-10 w-full bg-transparent pl-9 pr-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100" />
+          </div>
+          <ul className="max-h-56 overflow-y-auto py-1" role="listbox">
+            {lista.map((u) => (
+              <li key={u.user_id}>
+                <button type="button" role="option" aria-selected={u.user_id === valor} onClick={() => escolher(u.user_id)}
+                  className={cn('flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-[#223049]', u.user_id === valor && 'bg-teal-50 dark:bg-[#0d9488]/[0.12]')}>
+                  <span className="min-w-0 flex-1 truncate font-medium text-gray-800 dark:text-gray-100">{u.nome}</span>
+                  <span className="min-w-0 truncate text-[11.5px] text-gray-400">{u.email}</span>
+                  {u.user_id === valor && <Check className="h-4 w-4 shrink-0 text-[#0d9488]" />}
+                </button>
+              </li>
+            ))}
+            {lista.length === 0 && <li className="px-3 py-3 text-center text-[12px] text-gray-400">Ninguém com esse nome.</li>}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ─── nova tarefa avulsa / edição ─────────────────────────────────────── */
 
-const TarefaForm = ({ tarefa, onClose, onSalva }: { tarefa?: TarefaRow | null; onClose: () => void; onSalva: () => void }) => {
+/** Pré-preenchimento de uma tarefa nova criada de outra tela (ex.: títulos do Financeiro). */
+export interface TarefaInicial {
+  titulo?: string
+  descricao?: string
+  empresaCodigo?: number | null
+  prioridade?: Prioridade
+  checklist?: ChecklistItem[]
+  /** yyyy-MM-dd */
+  data?: string
+  /** HH:mm */
+  hora?: string
+}
+
+export const TarefaForm = ({ tarefa, inicial, onClose, onSalva }: { tarefa?: TarefaRow | null; inicial?: TarefaInicial; onClose: () => void; onSalva: (t?: TarefaRow) => void }) => {
   const base = useGestaoBase()
   const edicao = !!tarefa
-  const [titulo, setTitulo] = useState(tarefa?.titulo ?? '')
-  const [empresa, setEmpresa] = useState(tarefa?.empresa_codigo != null ? String(tarefa.empresa_codigo) : '')
+  const [titulo, setTitulo] = useState(tarefa?.titulo ?? inicial?.titulo ?? '')
+  const [empresa, setEmpresa] = useState(tarefa?.empresa_codigo != null ? String(tarefa.empresa_codigo) : inicial?.empresaCodigo != null ? String(inicial.empresaCodigo) : '')
   const [responsavel, setResponsavel] = useState(tarefa?.responsavel_id ?? '')
   const [setor, setSetor] = useState(tarefa?.setor_id ?? '')
   // Depois das 18h o padrão já é amanhã, pra tarefa não nascer atrasada.
-  const [data, setData] = useState(tarefa ? tarefa.vence_dia : new Date().getHours() >= 18 ? somaDias(hojeLocal(), 1) : hojeLocal())
-  const [hora, setHora] = useState(tarefa ? horaDe(tarefa.vence_em) : '18:00')
-  const [descricao, setDescricao] = useState(tarefa?.descricao ?? '')
+  const [data, setData] = useState(tarefa ? tarefa.vence_dia : inicial?.data ?? (new Date().getHours() >= 18 ? somaDias(hojeLocal(), 1) : hojeLocal()))
+  const [hora, setHora] = useState(tarefa ? horaDe(tarefa.vence_em) : inicial?.hora ?? '18:00')
+  const [descricao, setDescricao] = useState(tarefa?.descricao ?? inicial?.descricao ?? '')
   // Checklist como lista de etapas (adiciona uma por vez, igual na rotina).
   // Na edição, etapas já marcadas continuam marcadas.
-  const [checklist, setChecklist] = useState<ChecklistItem[]>(tarefa ? tarefa.checklist : [])
+  const [checklist, setChecklist] = useState<ChecklistItem[]>(tarefa ? tarefa.checklist : inicial?.checklist ?? [])
   const [novaEtapa, setNovaEtapa] = useState('')
   const addEtapa = () => { const t = novaEtapa.trim(); if (!t) return; setChecklist((xs) => [...xs, { texto: t, feito: false }]); setNovaEtapa('') }
-  const [prioridade, setPrioridade] = useState<Prioridade>(tarefa?.prioridade ?? 'media')
+  const [prioridade, setPrioridade] = useState<Prioridade>(tarefa?.prioridade ?? inicial?.prioridade ?? 'media')
   const [exigeFoto, setExigeFoto] = useState(tarefa?.exige_anexo ?? false)
   const [documentos, setDocumentos] = useState<string[]>(tarefa?.documentos_exigidos ?? [])
   const [novoDoc, setNovoDoc] = useState('')
@@ -768,9 +843,8 @@ const TarefaForm = ({ tarefa, onClose, onSalva }: { tarefa?: TarefaRow | null; o
         exige_anexo: exigeFoto || documentos.length > 0,
         documentos_exigidos: exigeFoto || documentos.length > 0 ? documentos : [],
       }
-      if (tarefa) await editarTarefa(tarefa, input, base.autor)
-      else await criarTarefa(base.redeId!, input, base.autor)
-      onSalva()
+      if (tarefa) { await editarTarefa(tarefa, input, base.autor); onSalva() }
+      else onSalva(await criarTarefa(base.redeId!, input, base.autor))
     } catch (e) {
       setErro(e instanceof Error ? e.message : String(e))
       setSalvando(false)
@@ -778,12 +852,17 @@ const TarefaForm = ({ tarefa, onClose, onSalva }: { tarefa?: TarefaRow | null; o
   }
 
   return (
-    <Modal guia={GUIAS.tarefaForm} open onClose={onClose} titulo={<span className="inline-flex items-center gap-2">{edicao ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />} {edicao ? 'Editar tarefa' : 'Nova tarefa'}</span>}>
+    <Modal guia={GUIAS.tarefaForm} open onClose={onClose} largura="max-w-2xl" titulo={<span className="inline-flex items-center gap-2">{edicao ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />} {edicao ? 'Editar tarefa' : 'Nova tarefa'}</span>}>
       <div className="space-y-3">
         <div>
           <label className={labelCls} htmlFor="tf-titulo">Título</label>
           <input id="tf-titulo" className={cn(inputCls, tentou && tituloInvalido && campoErro)} placeholder="Ex.: Conferir fechamento de caixa" value={titulo} onChange={(e) => setTitulo(e.target.value)} autoFocus />
           {tentou && tituloInvalido && <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">Dê um título com 3 letras ou mais.</p>}
+        </div>
+        <div>
+          <label className={cn(labelCls, 'inline-flex items-center gap-1')} htmlFor="tf-resp">Responsável <span className="font-normal text-gray-400">(obrigatório)</span> <InfoHint text="Quem vai executar. Precisa ter login no Visor nesta rede: a tarefa aparece em Minhas pendentes dele e conta na bolinha do menu." /></label>
+          <BuscaResponsavel id="tf-resp" usuarios={base.usuarios} valor={responsavel} onChange={setResponsavel} erro={tentou && respInvalido} />
+          {tentou && respInvalido && <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">Escolha quem vai fazer.</p>}
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <div><label className={labelCls} htmlFor="tf-posto">Posto</label>
@@ -791,13 +870,6 @@ const TarefaForm = ({ tarefa, onClose, onSalva }: { tarefa?: TarefaRow | null; o
               <option value="">Sem posto (rede)</option>
               {base.postos.map((p) => <option key={p.codigo} value={p.codigo}>{p.fantasia || p.razao || `Posto ${p.codigo}`}</option>)}
             </select></div>
-          <div><label className={cn(labelCls, 'inline-flex items-center gap-1')} htmlFor="tf-resp">Responsável <span className="font-normal text-gray-400">(obrigatório)</span> <InfoHint text="Quem vai executar. Precisa ter login no Visor nesta rede: a tarefa aparece em Minhas pendentes dele e conta na bolinha do menu." /></label>
-            <select id="tf-resp" className={cn(selectCls, tentou && respInvalido && campoErro)} value={responsavel} onChange={(e) => setResponsavel(e.target.value)}>
-              <option value="">Selecione…</option>
-              {base.usuarios.map((u) => <option key={u.user_id} value={u.user_id}>{u.nome}</option>)}
-            </select>
-            {tentou && respInvalido && <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">Escolha quem vai fazer.</p>}
-          </div>
           <div className="grid grid-cols-2 gap-2">
             <div><label className={labelCls} htmlFor="tf-setor">Setor</label>
               <select id="tf-setor" className={selectCls} value={setor} onChange={(e) => setSetor(e.target.value)}>
@@ -823,7 +895,16 @@ const TarefaForm = ({ tarefa, onClose, onSalva }: { tarefa?: TarefaRow | null; o
             {dataPassada && <p className="col-span-2 -mt-1 text-[11px] text-amber-600 dark:text-amber-400">Essa data já passou: a tarefa vai nascer atrasada.</p>}
           </div>
         </div>
-        <div><label className={labelCls} htmlFor="tf-desc">Descrição (opcional)</label><textarea id="tf-desc" className={inputCls} rows={2} value={descricao} onChange={(e) => setDescricao(e.target.value)} /></div>
+        <label className={cn('flex h-12 cursor-pointer items-center gap-3 rounded-lg border px-3 transition-colors', prioridade === 'urgente'
+          ? 'border-rose-300 bg-rose-50 dark:border-rose-400/30 dark:bg-rose-400/10'
+          : 'border-gray-300 dark:border-[#2f3b4f]')}>
+          <input type="checkbox" className="h-4 w-4 accent-rose-600" checked={prioridade === 'urgente'}
+            onChange={(e) => setPrioridade(e.target.checked ? 'urgente' : 'alta')} />
+          <Siren className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+          <span className="flex-1 text-sm font-medium text-gray-800 dark:text-gray-100">Urgente</span>
+          <span className="text-[12px] text-gray-500 dark:text-gray-400">aparece com selo vermelho para quem vai fazer</span>
+        </label>
+        <div><label className={labelCls} htmlFor="tf-desc">Descrição (opcional)</label><textarea id="tf-desc" className={cn(inputCls, 'min-h-[120px] resize-y leading-relaxed')} rows={5} value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: cliente pediu para ligar depois das 14h" /></div>
         <div>
           <label className={cn(labelCls, 'inline-flex items-center gap-1')} htmlFor="tf-check">Checklist (opcional) <InfoHint text="Etapas que precisam ser marcadas antes de concluir. Com checklist, a lista mostra Abrir checklist em vez de Concluir, e marcar a primeira etapa já põe a tarefa em andamento." /></label>
           {checklist.length > 0 && (

@@ -10,6 +10,8 @@ import { salvarAppOculto, removerAppOculto, type AppOculto } from '@/api/supabas
 import { useAppOcultos, OCULTOS_QUERY_KEY } from '@/hooks/useOcultosCCI'
 import RowActionButton from '@/components/tables/RowAction'
 import InfoHint from '@/components/ui/InfoHint'
+import OcultarParaPessoas from '@/pages/Admin/OcultarParaPessoas'
+import useMeuPapel from '@/hooks/useMeuPapel'
 
 /**
  * Painel › Parâmetros › Ocultar módulos e abas (só a CCI).
@@ -24,6 +26,7 @@ interface Alvo { chave: string; titulo: string; detalhe: string }
 
 const OcultarModulos = () => {
   const isMaster = useAuthStore((s) => s.isMaster)
+  const meuPapel = useMeuPapel()
   const qc = useQueryClient()
   const { data: ocultos = [], isLoading } = useAppOcultos()
   const { data: redes = [] } = useQuery({ queryKey: ['redes'], queryFn: fetchRedes, enabled: isMaster, staleTime: 5 * 60_000 })
@@ -35,7 +38,12 @@ const OcultarModulos = () => {
   const porChave = useMemo(() => new Map(ocultos.map((o) => [o.chave, o])), [ocultos])
   const nomeRede = useMemo(() => new Map(redes.map((r) => [r.id, r.nome])), [redes])
 
-  if (!isMaster) return <Navigate to="/painel/config" replace />
+  // Supervisor: só a parte "Por pessoa" (da rede dele). Os demais voltam para Parâmetros.
+  if (!isMaster) {
+    if (meuPapel.carregando) return null
+    if (meuPapel.supervisor) return <OcultarParaPessoas />
+    return <Navigate to="/painel/config" replace />
+  }
 
   const recarregar = () => qc.invalidateQueries({ queryKey: OCULTOS_QUERY_KEY })
   const mostrar = async (chave: string) => {
@@ -126,6 +134,11 @@ const OcultarModulos = () => {
           )
         })
       )}
+
+      {/* Por pessoa (rede aberta): diretor e supervisor */}
+      <div className="border-t border-gray-200 pt-5 dark:border-gray-800">
+        <OcultarParaPessoas />
+      </div>
 
       {editando && (
         <ModalOndeOcultar

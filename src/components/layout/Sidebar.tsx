@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import useVisivel from '@/hooks/useVisivel'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import { Bug,
   Settings,
@@ -28,8 +29,9 @@ import { Bug,
   Tag,
   Sun,
   Repeat,
-  Stethoscope, ArrowLeftRight, FlaskConical } from 'lucide-react'
+  Stethoscope, ArrowLeftRight, FlaskConical, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useModuloAbas, moduloDaRota } from '@/store/moduloAbas'
 import { useAuth } from '@/hooks/useAuth'
 import { useAuthStore } from '@/store/auth'
 import { supabase } from '@/lib/supabase'
@@ -56,12 +58,25 @@ type SidebarMode = 'expanded' | 'collapsed' | 'hover' | 'options'
 
 const SIDEBAR_MODE_KEY = 'sidebar_mode'
 
+// Menu em árvore (padrão Atlas One, 1.2.30): as telas de cada módulo saíram do
+// topo da página e foram para o menu. Todo mundo começa UMA vez com o menu
+// expandido; depois vale a escolha da pessoa.
+const MIGRACAO_ARVORE = 'visor360.sidebar.arvore'
+
 const readMode = (): SidebarMode => {
-  if (typeof window === 'undefined') return 'collapsed'
+  if (typeof window === 'undefined') return 'expanded'
+  try {
+    if (!localStorage.getItem(MIGRACAO_ARVORE)) {
+      localStorage.setItem(MIGRACAO_ARVORE, '1')
+      localStorage.setItem(SIDEBAR_MODE_KEY, 'expanded')
+      return 'expanded'
+    }
+  } catch { /* sem storage */ }
   const v = localStorage.getItem(SIDEBAR_MODE_KEY)
   if (v === 'expanded' || v === 'collapsed' || v === 'hover' || v === 'options') return v
-  return 'collapsed'
+  return 'expanded'
 }
+
 
 const modeOptions: { value: SidebarMode; label: string }[] = [
   { value: 'expanded', label: 'Expandido' },
@@ -95,7 +110,7 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Diagnóstico do posto', to: '/diagnostico', Icon: Stethoscope },
   ],
   '/operacao': [
-    { label: 'Visão Geral', to: '/operacao', Icon: LayoutGrid },
+    { label: 'Visão Operacional', to: '/operacao', Icon: LayoutGrid },
     { label: 'Manutenção', to: '/operacao?tab=bombas', Icon: Gauge },
     { label: 'Aferições', to: '/operacao?tab=afericoes', Icon: FlaskConical },
   ],
@@ -115,11 +130,11 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Resumo da rede', to: '/produtividade?tab=rede', Icon: Building2 },
   ],
   '/estoques': [
-    { label: 'Visão Geral', to: '/estoques', Icon: LayoutDashboard },
+    { label: 'Visão de Estoques', to: '/estoques', Icon: LayoutDashboard },
     { label: 'Produtos', to: '/estoques?tab=produtos', Icon: Package },
   ],
   '/financeiro': [
-    { label: 'Dashboard', to: '/financeiro', Icon: LayoutDashboard },
+    { label: 'Visão Financeira', to: '/financeiro', Icon: LayoutDashboard },
     { label: 'Receber', to: '/financeiro?tab=receber', Icon: ArrowDownCircle },
     { label: 'Pagar', to: '/financeiro?tab=pagar', Icon: ArrowUpCircle },
   ],
@@ -153,6 +168,25 @@ const Sidebar = () => {
   // de opções do módulo abre por CLIQUE. Guarda qual módulo está aberto.
   const [openOptions, setOpenOptions] = useState<string | null>(null)
   const expanded = mode === 'expanded' || (mode === 'hover' && hovered)
+
+  // ── Árvore: módulos que abrem/fecham mostrando as telas de dentro ──
+  const abasPath = useModuloAbas((s) => s.path)
+  const abasTabs = useModuloAbas((s) => s.tabs)
+  const abasAtiva = useModuloAbas((s) => s.active)
+  const abasOnChange = useModuloAbas((s) => s.onChange)
+  const setSidebarFixo = useModuloAbas((s) => s.setSidebarFixo)
+  // Com o menu fixo expandido, as abas saem do topo da página (ModuloAbas).
+  useEffect(() => { setSidebarFixo(mode === 'expanded') }, [mode, setSidebarFixo])
+  // Um módulo aberto por vez (acordeão): abrir outro fecha o anterior; clicar
+  // no aberto fecha. Ao chegar numa tela por outro caminho (link, sino, resumo),
+  // abre o módulo dela e fecha os demais.
+  const moduloAtual = moduloDaRota(pathname)?.path ?? null
+  const [aberto, setAberto] = useState<string | null>(moduloAtual)
+  const alternarModulo = (path: string) => setAberto((prev) => (prev === path ? null : path))
+  useEffect(() => {
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
+    if (moduloAtual) setAberto(moduloAtual)
+  }, [moduloAtual])
 
   // Dois "shadows" do `expanded` pra coordenar UI com a animação CSS:
   //  - `wide`: true 200ms DEPOIS de expandir → renderiza labels inline
@@ -355,6 +389,7 @@ const Sidebar = () => {
   // Escopo só de conveniência (CNPJ da loja): some o que é de combustível.
   const segmento = useEscopoSegmento()
   const ocultosCCI = useOcultosCCI()
+  const inteligenciaVisivel = useVisivel().modulo('/inteligencia')
   const visibleNavGroups = navGroups
     .map((group) => {
       // Módulo Gestão (tarefas) só em redes com o módulo ligado — master inclusive.
@@ -388,9 +423,9 @@ const Sidebar = () => {
       onMouseEnter={handleHoverEnter}
       onMouseLeave={handleHoverLeave}
       className={cn(
-        'hidden flex-col overflow-visible bg-white text-gray-700 dark:bg-[#1e3a5f] dark:text-gray-200 md:flex',
+        'hidden flex-col overflow-visible bg-white text-gray-700 dark:bg-[#1e293b] dark:text-gray-200 md:flex',
         '[transition:width_220ms_cubic-bezier(0.4,0,0.2,1)]',
-        expanded ? 'w-52' : 'w-14',
+        expanded ? 'w-60' : 'w-14',
       )}
     >
       <nav aria-label="Menu principal" className="flex-1 px-2 pb-4 pt-3 md:pt-4">
@@ -423,6 +458,69 @@ const Sidebar = () => {
                 const optionsOpen = openOptions === item.path
 
                 const badge = item.path === '/gestao' && tarefasAtencao > 0 ? tarefasAtencao : 0
+
+                // Telas do módulo: da própria página quando ela está aberta (lista
+                // exata, com permissões); senão os atalhos do módulo (links).
+                const daPagina = abasPath === item.path && abasTabs.length > 0
+                const filhos: { key: string; label: string; ativo: boolean; to?: string; ir?: () => void }[] = daPagina
+                  ? abasTabs.filter((t) => !t.disabled).map((t) => ({ key: t.id, label: t.label, ativo: t.id === abasAtiva, ir: () => abasOnChange?.(t.id) }))
+                  : (subOptions ?? []).map((o) => ({ key: o.to, label: o.label, ativo: false, to: o.to }))
+                if (wide && filhos.length > 0) {
+                  const estaAberto = aberto === item.path
+                  const itemCls = (ativo: boolean) => cn(
+                    'flex h-8 w-full items-center justify-between gap-2 rounded-md px-2.5 text-left text-[13px] transition-colors',
+                    ativo
+                      ? 'bg-gray-100 font-semibold text-gray-900 dark:bg-white/[0.08] dark:text-white'
+                      : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900 dark:text-white/55 dark:hover:bg-white/[0.04] dark:hover:text-white',
+                  )
+                  return (
+                    <div key={item.path}>
+                      <button
+                        type="button"
+                        // Outro módulo: abre e já vai para a primeira tela dele (ex.: Visão Geral,
+                        // Painel, Análise de estoque). O módulo em que você está: só abre/fecha a lista.
+                        onClick={() => { if (moduloAtual === item.path) alternarModulo(item.path); else { setAberto(item.path); navigate(filhos[0]?.to ?? item.path) } }}
+                        aria-expanded={estaAberto}
+                        className={cn('relative flex h-9 w-full items-center rounded-lg text-left transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.06]',
+                          isActive ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-white/80')}
+                      >
+                        <span className="relative flex h-9 w-10 shrink-0 items-center justify-center">
+                          <Icon className={cn('h-[17px] w-[17px]', isActive ? 'text-teal-600 dark:text-teal-300' : 'text-gray-400 dark:text-white/55')} />
+                        </span>
+                        <span className="flex min-w-0 flex-1 items-center justify-between gap-2 pr-2">
+                          <span className="truncate text-[13px] font-semibold">{item.label}</span>
+                          <span className="flex shrink-0 items-center gap-1.5">
+                            {badge > 0 && <span className="rounded-full bg-amber-500 px-1.5 py-px text-[10px] font-semibold leading-4 text-white tabular-nums">{badge > 99 ? '99+' : badge}</span>}
+                            <ChevronDown className={cn('h-3.5 w-3.5 text-gray-400 transition-transform duration-300 ease-out motion-reduce:transition-none dark:text-white/40', !estaAberto && '-rotate-90')} />
+                          </span>
+                        </span>
+                      </button>
+                      <div
+                        aria-hidden={!estaAberto}
+                        className={cn(
+                          'grid transition-[grid-template-rows,opacity] duration-300 ease-out motion-reduce:transition-none',
+                          estaAberto ? 'grid-rows-[1fr] opacity-100' : 'pointer-events-none grid-rows-[0fr] opacity-0',
+                        )}
+                      >
+                       <div className="overflow-hidden">
+                        <div className="mb-1 ml-5 mt-0.5 space-y-0.5 border-l border-gray-200 pl-2 dark:border-white/10">
+                          {filhos.map((f) => {
+                            const conteudo = (
+                              <>
+                                <span className="truncate">{f.label}</span>
+                                {f.ativo && <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500 dark:bg-teal-400" />}
+                              </>
+                            )
+                            return f.to
+                              ? <Link key={f.key} to={f.to} tabIndex={estaAberto ? undefined : -1} className={itemCls(f.ativo)}>{conteudo}</Link>
+                              : <button key={f.key} type="button" onClick={f.ir} tabIndex={estaAberto ? undefined : -1} aria-current={f.ativo ? 'page' : undefined} className={itemCls(f.ativo)}>{conteudo}</button>
+                          })}
+                        </div>
+                       </div>
+                      </div>
+                    </div>
+                  )
+                }
                 const inner = (
                   <>
                     {/* Barra vertical indicando item ativo. Fica colada à esquerda
@@ -669,14 +767,14 @@ const Sidebar = () => {
 
               {isMaster && (
                 <>
-                  <button
+                  {inteligenciaVisivel && <button
                     role="menuitem"
                     onClick={handleAssistente}
                     className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800"
                   >
                     <Sparkles className="h-4 w-4 text-gray-500" />
                     Cadu IA
-                  </button>
+                  </button>}
                   <button
                     role="menuitem"
                     onClick={handleAdminUsuarios}

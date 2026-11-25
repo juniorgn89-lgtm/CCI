@@ -112,7 +112,7 @@ export const APP_STRUCTURE: AppModule[] = [
     plano: 'premium',
     permId: 'bombas',
     tabs: [
-      { id: 'geral', label: 'Visão Geral', plano: 'premium' },
+      { id: 'geral', label: 'Visão Operacional', plano: 'premium' },
       { id: 'bombas', label: 'Manutenção', plano: 'premium' },
       { id: 'afericoes', label: 'Aferições', plano: 'premium' },
     ],
@@ -148,7 +148,7 @@ export const APP_STRUCTURE: AppModule[] = [
     plano: 'pro',
     permId: 'estoques',
     tabs: [
-      { id: 'visao', label: 'Visão Geral', plano: 'pro' },
+      { id: 'visao', label: 'Visão de Estoques', plano: 'pro' },
       { id: 'produtos', label: 'Produtos', plano: 'pro' },
     ],
   },
@@ -159,7 +159,7 @@ export const APP_STRUCTURE: AppModule[] = [
     plano: 'pro',
     permId: 'financeiro',
     tabs: [
-      { id: 'dashboard', label: 'Dashboard', plano: 'pro' },
+      { id: 'dashboard', label: 'Visão Financeira', plano: 'pro' },
       { id: 'receber', label: 'Receber', plano: 'pro' },
       { id: 'pagar', label: 'Pagar', plano: 'pro' },
       { id: 'fechamento', label: 'Fechamento', plano: 'pro', defaultHidden: true },

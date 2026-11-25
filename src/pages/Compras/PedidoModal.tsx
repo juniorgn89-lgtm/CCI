@@ -78,8 +78,8 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
     title: `Pedido de compra nº ${p.numero}`,
     subtitle: `${base.nomePosto(p.empresa_codigo)} · ${nomeProprio(p.fornecedor_nome)} · ${STATUS_LABEL[p.status]} · ${SETOR_LABEL[p.setor]}`,
     kpis: [
-      { label: 'Solicitado', value: formatCurrencyInt(p.total_solicitado) },
-      { label: 'Liberado', value: p.total_liberado != null ? formatCurrencyInt(p.total_liberado) : '—', tone: p.total_liberado != null ? 'pos' : 'neutral' },
+      { label: 'Valor solicitado', value: formatCurrencyInt(p.total_solicitado) },
+      { label: 'Valor liberado', value: p.total_liberado != null ? formatCurrencyInt(p.total_liberado) : '—', tone: p.total_liberado != null ? 'pos' : 'neutral' },
       { label: 'Itens', value: String(itens.length) },
       { label: 'Solicitante', value: p.solicitante_nome ?? '—' },
     ],
@@ -125,7 +125,7 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
           {itensQ.isLoading ? <p className="inline-flex items-center gap-2 px-4 py-3 text-[12px] text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Carregando…</p> : (
             <div className="overflow-x-auto">
               <table className="w-full text-[12.5px]">
-                <thead className="text-[10px] uppercase tracking-wider text-gray-400"><tr><th className="w-20 py-1.5 pl-4 pr-2 text-left font-semibold">Código</th><th className="px-2 py-1.5 text-left font-semibold">Produto</th><th className="px-2 py-1.5 text-right font-semibold">Solicitado</th><th className="px-2 py-1.5 text-right font-semibold">Liberado</th><th className="px-2 py-1.5 text-right font-semibold">Custo un.</th><th className="px-4 py-1.5 text-right font-semibold">Subtotal</th></tr></thead>
+                <thead className="text-[10px] uppercase tracking-wider text-gray-400"><tr><th className="w-20 py-1.5 pl-4 pr-2 text-left font-semibold">Código</th><th className="px-2 py-1.5 text-left font-semibold">Produto</th><th className="px-2 py-1.5 text-right font-semibold">Qtd. solicitada</th><th className="px-2 py-1.5 text-right font-semibold">Qtd. liberada</th><th className="px-2 py-1.5 text-right font-semibold">Custo un.</th><th className="px-4 py-1.5 text-right font-semibold">Subtotal</th></tr></thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {itens.map((i: ItemRow) => {
                     const lib = liberando ? (Number((liberadas[i.id] ?? '').replace(',', '.')) || 0) : i.qtd_liberada

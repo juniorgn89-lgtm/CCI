@@ -8,7 +8,7 @@ import { LoadingScreen, EmptyCard } from '@/components/mobile/states'
 import { brl, brlShort, variacaoPct } from '@/components/mobile/format'
 
 const TABS = [
-  { id: 'geral', label: 'Visão Geral' },
+  { id: 'geral', label: 'Visão Financeira' },
   { id: 'receber', label: 'A Receber' },
   { id: 'pagar', label: 'A Pagar' },
   { id: 'fluxo', label: 'Fluxo' },

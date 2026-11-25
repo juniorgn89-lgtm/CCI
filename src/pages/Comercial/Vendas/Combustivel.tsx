@@ -1,4 +1,5 @@
 import { type ReactNode, useMemo, useState } from 'react'
+import useVisivel from '@/hooks/useVisivel'
 import {
   ResponsiveContainer, ComposedChart, Bar, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, LabelList,
@@ -6,7 +7,6 @@ import {
 import { Fuel, Droplets, DollarSign, PieChart, TrendingUp, TrendingDown, Minus, Info, Trophy, ChevronDown } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
-import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import { Skeleton } from '@/components/ui/skeleton'
 import DeltaBadge from '@/components/kpi/DeltaBadge'
@@ -15,7 +15,6 @@ import { GROUP_TINT } from '@/lib/groupTint'
 import { fuelLabel } from '@/lib/fuel'
 import { formatCurrency, formatCurrencyInt, formatDate, formatLiters, formatNumber } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
-import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import useFuelVendaCacheAnalytics from '@/pages/Operacao/hooks/useFuelVendaCacheAnalytics'
 import MovimentoFiscalValidacao from '@/pages/Comercial/Vendas/MovimentoFiscalValidacao'
@@ -240,7 +239,6 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   // Consolidado rede-wide: a aba renderiza sempre (Todos/subconjunto/1 posto).
   // `single1Posto` libera os blocos operacionais por-posto (ritmo bomba/frentista).
   const single1Posto = empresaCodigos.length === 1
-  const empresaNome = useEmpresaNome()
   const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
   // VENDA fiscal CONSOLIDADA (cache apuracao_vendas) — fonte das métricas de
   // VALOR: KPIs, mix, ranking, projeção, tabela dia a dia e por combustível.
@@ -273,6 +271,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   // Toggle global "Ver detalhes" (no card de Projeção) → expande os 4 KPIs com a
   // projeção por combustível.
   const [projDetalheAberto, setProjDetalheAberto] = useState(false)
+  const radarVisivel = useVisivel().aba('/comercial', 'radar')
 
   // Mix ordenado por participação. fuelTypeData já vem com `participacao`
   // (% sobre litros totais) calculado no hook.
@@ -784,23 +783,6 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
     <div className={embedded ? 'space-y-6' : 'space-y-6'}>
       {!embedded && (
         <>
-          <PageHeaderTitle placement="header">
-            <div className="flex items-center gap-2.5">
-              <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-              <Fuel className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
-                    Vendas · Combustível{empresaNome ? ` · ${empresaNome}` : ''}
-                  </h1>
-                  <FocusModeToggle />
-                </div>
-                <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-                  Litros, faturamento, ticket médio e mix por tipo de combustível
-                </p>
-              </div>
-            </div>
-          </PageHeaderTitle>
           <PageHeaderActions>
             <DateRangeToolbar />
           </PageHeaderActions>
@@ -987,6 +969,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               confiabilidadePct={pilotoSazonal.sazonal.lucro.confiabilidadePct}
               modo={pilotoSazonal.modo}
               contexto="combustível"
+              acao={radarVisivel ? { to: '/comercial?tab=radar', label: 'Ver no Radar de Preços' } : undefined}
               expanded={projDetalheAberto}
               onToggleExpanded={() => setProjDetalheAberto((v) => !v)}
               loading={isLoadingValor || pilotoSazonal.isLoading}

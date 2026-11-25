@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, ArrowRight, Users, ListOrdered, ChevronLeft } from 'lucide-react'
+import { ArrowRight, Users, ListOrdered, ChevronLeft } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
@@ -8,6 +8,10 @@ import type { ContaItem, Horizonte } from '@/pages/Dashboard/hooks/useContasResu
 import { linkFinanceiro } from '@/pages/Financeiro/lib/filtroLink'
 import { GUIAS } from '@/lib/guiasModais'
 import { brDateShort, relDias, todayISO, MODAL_CLS } from '@/pages/Dashboard/components/modais/util'
+import FiltrosDiaModal from '@/pages/Financeiro/components/shared/FiltrosDiaModal'
+import { opcoesDe, norm } from '@/pages/Financeiro/components/shared/filtrosDia'
+import BarraTarefaTitulos from '@/pages/Financeiro/components/shared/BarraTarefaTitulos'
+import { usePodeCriarTarefa, type TituloSelecionado } from '@/pages/Financeiro/components/shared/tarefaTitulos'
 
 export type TomLista = 'red' | 'orange' | 'amber' | 'blue' | 'gray' | 'rose' | 'emerald'
 
@@ -41,7 +45,21 @@ interface Props {
 const PAGINA = 120
 const docs = (n: number) => `${n} ${n === 1 ? 'título' : 'títulos'}`
 
-interface Grupo { nome: string; total: number; count: number; postos: Set<string>; cats: Set<string>; maisAntigo: string }
+interface Grupo { nome: string; total: number; count: number; postos: Set<string>; cats: Set<string>; maisAntigo: string; ids: string[] }
+
+type Ordem = 'valor' | 'nome' | 'venc'
+const ORDENS: { id: Ordem; label: string }[] = [
+  { id: 'valor', label: 'Maior valor' },
+  { id: 'nome', label: 'Nome (A–Z)' },
+  { id: 'venc', label: 'Vencimento mais antigo' },
+]
+const caixa = 'h-4 w-4 cursor-pointer rounded border-gray-300 accent-[#0d9488] dark:border-[#3e4c63]'
+/** Caixinha que aceita o estado "parcial" (alguns marcados). */
+const Caixa = ({ checked, parcial, onChange, rotulo }: { checked: boolean; parcial?: boolean; onChange: () => void; rotulo: string }) => (
+  <input type="checkbox" className={caixa} aria-label={rotulo} checked={checked}
+    ref={(el) => { if (el) el.indeterminate = !!parcial && !checked }}
+    onClick={(e) => e.stopPropagation()} onChange={onChange} />
+)
 
 /**
  * Lista os títulos de uma faixa/categoria do card de Contas (Central), sem
@@ -57,27 +75,49 @@ const ContasListaModal = ({ sel, onClose }: Props) => {
 const Inner = ({ sel, onClose }: { sel: ListaSel; onClose: () => void }) => {
   const [modo, setModo] = useState<'nomes' | 'titulos'>('nomes')
   const [busca, setBusca] = useState('')
+  const [posto, setPosto] = useState('')
+  const [cat, setCat] = useState('')
+  const [ordem, setOrdem] = useState<Ordem>('valor')
   const [limite, setLimite] = useState(PAGINA)
+  // Seleção para criar tarefa (só com o módulo Tarefas ligado e permissão de criar).
+  const podeTarefa = usePodeCriarTarefa()
+  const [marcados, setMarcados] = useState<Set<string>>(() => new Set())
+  const marcar = (ids: string[], ligar: boolean) => setMarcados((m) => { const n = new Set(m); ids.forEach((id) => (ligar ? n.add(id) : n.delete(id))); return n })
 
   const hoje = todayISO()
   const itens = sel.itens
+  const postos = useMemo(() => opcoesDe(itens, (i) => String(i.empresaCodigo), (k) => itens.find((i) => String(i.empresaCodigo) === k)?.posto ?? `Posto ${k}`), [itens])
+  const cats = useMemo(() => opcoesDe(itens, (i) => i.catLabel, (k) => k), [itens])
 
   const filtrados = useMemo(() => {
-    const q = busca.trim().toLowerCase()
-    const base = q ? itens.filter((i) => i.nome.toLowerCase().includes(q) || i.posto.toLowerCase().includes(q) || i.documento.toLowerCase().includes(q) || i.detalhe.toLowerCase().includes(q)) : itens
-    return [...base].sort((a, b) => a.venc.localeCompare(b.venc) || b.valor - a.valor)
-  }, [itens, busca])
+    const q = norm(busca.trim())
+    const base = itens.filter((i) => {
+      if (posto && String(i.empresaCodigo) !== posto) return false
+      if (cat && i.catLabel !== cat) return false
+      return !q || norm(`${i.nome} ${i.posto} ${i.documento} ${i.detalhe}`).includes(q)
+    })
+    return base.sort((a, b) => ordem === 'nome' ? a.nome.localeCompare(b.nome, 'pt-BR') || a.venc.localeCompare(b.venc)
+      : ordem === 'valor' ? b.valor - a.valor
+      : a.venc.localeCompare(b.venc) || b.valor - a.valor)
+  }, [itens, busca, posto, cat, ordem])
 
   const grupos = useMemo(() => {
     const m = new Map<string, Grupo>()
     for (const i of filtrados) {
-      const g = m.get(i.nome) ?? { nome: i.nome, total: 0, count: 0, postos: new Set<string>(), cats: new Set<string>(), maisAntigo: i.venc }
-      g.total += i.valor; g.count++; g.postos.add(i.posto); g.cats.add(i.catLabel)
+      const g = m.get(i.nome) ?? { nome: i.nome, total: 0, count: 0, postos: new Set<string>(), cats: new Set<string>(), maisAntigo: i.venc, ids: [] }
+      g.total += i.valor; g.count++; g.postos.add(i.posto); g.cats.add(i.catLabel); g.ids.push(i.id)
       if (i.venc && i.venc < g.maisAntigo) g.maisAntigo = i.venc
       m.set(i.nome, g)
     }
-    return [...m.values()].sort((a, b) => b.total - a.total)
-  }, [filtrados])
+    return [...m.values()].sort((a, b) => ordem === 'nome' ? a.nome.localeCompare(b.nome, 'pt-BR') : ordem === 'venc' ? a.maisAntigo.localeCompare(b.maisAntigo) : b.total - a.total)
+  }, [filtrados, ordem])
+
+  const idsVisiveis = filtrados.map((i) => i.id)
+  const todos = idsVisiveis.length > 0 && idsVisiveis.every((id) => marcados.has(id))
+  const alguns = idsVisiveis.some((id) => marcados.has(id))
+  const escolhidos = itens.filter((i) => marcados.has(i.id))
+  const selecionados: TituloSelecionado[] = escolhidos.map((i) => ({ nome: i.nome, documento: i.documento, valor: i.valor, empresaCodigo: i.empresaCodigo, posto: i.posto, venc: i.venc }))
+  const temVencido = escolhidos.some((i) => i.horizonte === 'vencidas')
 
   const resumo = useMemo(() => {
     const total = filtrados.reduce((s, i) => s + i.valor, 0)
@@ -91,7 +131,7 @@ const Inner = ({ sel, onClose }: { sel: ListaSel; onClose: () => void }) => {
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
-      <DialogContent guia={GUIAS.contasLista} className={MODAL_CLS}>
+      <DialogContent guia={podeTarefa ? GUIAS.contasListaTarefa : GUIAS.contasLista} className={cn(MODAL_CLS, 'w-[96vw] max-w-7xl')}>
         <DialogHeader className="px-6 pt-6">
           <DialogTitle className="flex flex-wrap items-center gap-2">
             {sel.titulo}
@@ -109,7 +149,9 @@ const Inner = ({ sel, onClose }: { sel: ListaSel; onClose: () => void }) => {
           )}
         </DialogHeader>
 
-        <div className="flex flex-wrap items-center gap-2 px-6">
+        <div className="space-y-2 px-6">
+          <FiltrosDiaModal<Ordem>
+            inicio={(
           <div className="inline-flex rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800">
             {([['nomes', 'Por nome', Users], ['titulos', 'Título a título', ListOrdered]] as const).map(([id, label, Icon]) => (
               <button key={id} type="button" onClick={() => setModo(id)}
@@ -118,13 +160,18 @@ const Inner = ({ sel, onClose }: { sel: ListaSel; onClose: () => void }) => {
               </button>
             ))}
           </div>
-          <label className="relative block min-w-[200px] flex-1">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
-            <input value={busca} onChange={(e) => { setBusca(e.target.value); setLimite(PAGINA) }} placeholder="Buscar nome, posto ou documento…"
-              className="h-8 w-full rounded-lg border border-gray-200 bg-white pl-8 pr-3 text-xs text-gray-800 placeholder-gray-400 focus:border-[#1e3a5f] focus:outline-none focus:ring-1 focus:ring-[#1e3a5f] dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-100" />
-          </label>
+            )}
+            busca={busca} onBusca={(v) => { setBusca(v); setLimite(PAGINA) }} placeholder="Buscar nome, posto ou documento…"
+            postos={postos} posto={posto} onPosto={(v) => { setPosto(v); setLimite(PAGINA) }}
+            extra={{ label: 'Categoria', opcoes: cats, valor: cat, onChange: (v) => { setCat(v); setLimite(PAGINA) } }}
+            ordem={ordem} onOrdem={setOrdem} ordens={ORDENS}
+            mostrando={filtrados.length} total={itens.length} onLimpar={() => { setBusca(''); setPosto(''); setCat(''); setLimite(PAGINA) }}
+          />
           {busca && modo === 'titulos' && (
             <button type="button" onClick={() => { setBusca(''); setModo('nomes') }} className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#1e3a5f] hover:underline dark:text-blue-300"><ChevronLeft className="h-3.5 w-3.5" /> todos os nomes</button>
+          )}
+          {podeTarefa && (
+            <BarraTarefaTitulos tipo={sel.lado} dia={null} selecionados={selecionados} vencido={temVencido} onLimpar={() => setMarcados(new Set())} />
           )}
         </div>
 
@@ -135,6 +182,11 @@ const Inner = ({ sel, onClose }: { sel: ListaSel; onClose: () => void }) => {
             <table className="w-full min-w-[640px] text-[12px]">
               <thead className="sticky top-0 bg-white text-[10px] uppercase tracking-wider text-gray-400 dark:bg-gray-900">
                 <tr>
+                  {podeTarefa && (
+                    <th className="w-8 py-2 pr-2 text-left">
+                      <Caixa rotulo="Selecionar todos os títulos visíveis" checked={todos} parcial={alguns} onChange={() => marcar(idsVisiveis, !todos)} />
+                    </th>
+                  )}
                   <th className="py-2 pr-3 text-left font-semibold">{sel.lado === 'pagar' ? 'Fornecedor' : 'Cliente / administradora'}</th>
                   <th className="px-3 py-2 text-left font-semibold">Postos</th>
                   <th className="px-3 py-2 text-right font-semibold">Títulos</th>
@@ -143,8 +195,16 @@ const Inner = ({ sel, onClose }: { sel: ListaSel; onClose: () => void }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {grupos.slice(0, limite).map((g) => (
-                  <tr key={g.nome} className="cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5" onClick={() => { setBusca(g.nome); setModo('titulos'); setLimite(PAGINA) }} title="Ver os títulos deste nome">
+                {grupos.slice(0, limite).map((g) => {
+                  const nMarc = g.ids.filter((id) => marcados.has(id)).length
+                  const cheio = nMarc === g.ids.length
+                  return (
+                  <tr key={g.nome} className={cn('cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5', nMarc > 0 && 'bg-teal-50/60 dark:!bg-[#0d9488]/[0.10]')} onClick={() => { setBusca(g.nome); setModo('titulos'); setLimite(PAGINA) }} title="Ver os títulos deste nome">
+                    {podeTarefa && (
+                      <td className="w-8 py-2 pr-2" onClick={(e) => e.stopPropagation()}>
+                        <Caixa rotulo={`Selecionar os títulos de ${g.nome}`} checked={cheio} parcial={nMarc > 0} onChange={() => marcar(g.ids, !cheio)} />
+                      </td>
+                    )}
                     <td className="py-2 pr-3">
                       <p className="font-semibold text-gray-900 dark:text-gray-100">{g.nome}</p>
                       <p className="text-[10px] text-gray-400">{[...g.cats].join(' · ')}</p>
@@ -157,13 +217,19 @@ const Inner = ({ sel, onClose }: { sel: ListaSel; onClose: () => void }) => {
                       <span className="mt-0.5 block h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"><span className="block h-full rounded-full bg-[#1e3a5f] dark:bg-blue-500" style={{ width: `${maxGrupo > 0 ? Math.max(2, (g.total / maxGrupo) * 100) : 0}%` }} /></span>
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           ) : (
             <table className="w-full min-w-[640px] text-[12px]">
               <thead className="sticky top-0 bg-white text-[10px] uppercase tracking-wider text-gray-400 dark:bg-gray-900">
                 <tr>
+                  {podeTarefa && (
+                    <th className="w-8 py-2 pr-2 text-left">
+                      <Caixa rotulo="Selecionar todos os títulos visíveis" checked={todos} parcial={alguns} onChange={() => marcar(idsVisiveis, !todos)} />
+                    </th>
+                  )}
                   <th className="py-2 pr-3 text-left font-semibold">{sel.lado === 'pagar' ? 'Fornecedor' : 'Cliente / administradora'}</th>
                   <th className="px-3 py-2 text-left font-semibold">Posto</th>
                   <th className="px-3 py-2 text-left font-semibold">Documento</th>
@@ -175,7 +241,12 @@ const Inner = ({ sel, onClose }: { sel: ListaSel; onClose: () => void }) => {
                 {filtrados.slice(0, limite).map((i) => {
                   const vencido = i.horizonte === 'vencidas'
                   return (
-                    <tr key={i.id}>
+                    <tr key={i.id} className={cn(podeTarefa && 'cursor-pointer', marcados.has(i.id) && 'bg-teal-50/60 dark:!bg-[#0d9488]/[0.10]')} onClick={podeTarefa ? () => marcar([i.id], !marcados.has(i.id)) : undefined}>
+                      {podeTarefa && (
+                        <td className="w-8 py-2 pr-2">
+                          <Caixa rotulo="Selecionar título" checked={marcados.has(i.id)} onChange={() => marcar([i.id], !marcados.has(i.id))} />
+                        </td>
+                      )}
                       <td className="py-2 pr-3">
                         <p className="font-semibold text-gray-900 dark:text-gray-100">{i.nome}</p>
                         <p className="text-[10px] text-gray-400">{i.detalhe}</p>

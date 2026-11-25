@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import useMeuPapel from '@/hooks/useMeuPapel'
 import { Outlet, Link, NavLink, Navigate, useLocation } from 'react-router-dom'
 import {
   Network, Users, User, Settings, CalendarDays, Sparkles, ShieldCheck, CreditCard, Inbox,
@@ -20,7 +21,7 @@ import { useRedeNomeExibicao } from '@/hooks/useDemo'
  *  · Controle de acesso · Parâmetros (antiga Configurações, rota /painel/config)
  */
 
-interface Item { to: string; label: string; Icon: typeof Network; /** Só a CCI (master). */ masterOnly?: boolean }
+interface Item { to: string; label: string; Icon: typeof Network; /** Só a CCI (master). */ masterOnly?: boolean; /** Também para supervisor. */ supervisor?: boolean }
 interface Grupo { id: string; label: string; Icon: typeof Network; itens: Item[] }
 
 const GRUPOS: Grupo[] = [
@@ -49,7 +50,7 @@ const GRUPOS: Grupo[] = [
   ] },
   { id: 'config', label: 'Parâmetros', Icon: Settings, itens: [
     { to: '/painel/config', label: 'Parâmetros', Icon: Settings },
-    { to: '/painel/ocultar', label: 'Ocultar módulos e abas', Icon: EyeOff, masterOnly: true },
+    { to: '/painel/ocultar', label: 'Ocultar módulos e abas', Icon: EyeOff, masterOnly: true, supervisor: true },
   ] },
 ]
 
@@ -64,6 +65,7 @@ const PainelLayout = () => {
   const acessoTodas = useAuthStore((s) => s.acessoTodasRedes)
   const redesPermitidas = useAuthStore((s) => s.redesPermitidas)
   const profileLoaded = useAuthStore((s) => s.profileLoaded)
+  const meuPapel = useMeuPapel()
   const rede = useTenantStore((s) => s.rede)
   const redeNome = useRedeNomeExibicao(rede?.nome)
   // Celular: a fila de abas rola na horizontal; ao trocar de tela, traz a aba
@@ -78,7 +80,7 @@ const PainelLayout = () => {
   // o guard rodava com os defaults (isMaster=false, acessoTodas=false) porque o
   // perfil chega num 2º passo async → chutava todo mundo pro /dashboard, inclusive
   // Configurações (que é universal). Ver [[auth.profileLoaded]].
-  if (!profileLoaded) return null
+  if (!profileLoaded || meuPapel.carregando) return null
 
   // Configurações (/painel/config) é UNIVERSAL — preferências, plano e
   // personalização não fazem sentido gatear por rede/master. O resto do Painel
@@ -86,14 +88,16 @@ const PainelLayout = () => {
   const podeTrocar = acessoTodas || redesPermitidas.length > 1
   const acessoAmplo = isMaster || podeTrocar
   const isConfig = pathname.startsWith('/painel/config')
-  if (!acessoAmplo && !isConfig) return <Navigate to="/dashboard" replace />
+  // Supervisor também entra em Ocultar módulos e abas (só a parte "Por pessoa").
+  const isOcultarSupervisor = meuPapel.supervisor && pathname.startsWith('/painel/ocultar')
+  if (!acessoAmplo && !isConfig && !isOcultarSupervisor) return <Navigate to="/dashboard" replace />
 
   // Grupos visíveis: master vê tudo; os demais veem Configurações (universal) +
   // Selecionar rede quando podem trocar.
   const grupos = isMaster
     ? GRUPOS
     : GRUPOS.filter((g) => g.id === 'config' || (g.id === 'selecionar' && podeTrocar))
-        .map((g) => ({ ...g, itens: g.itens.filter((i) => !i.masterOnly) }))
+        .map((g) => ({ ...g, itens: g.itens.filter((i) => !i.masterOnly || (i.supervisor && meuPapel.supervisor)) }))
 
   const ativo = (to: string) => pathname === to || pathname.startsWith(`${to}/`)
   const grupoAtivo = grupos.find((g) => g.itens.some((i) => ativo(i.to))) ?? null

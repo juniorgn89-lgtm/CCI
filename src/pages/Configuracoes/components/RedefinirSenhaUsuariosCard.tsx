@@ -69,7 +69,7 @@ const RedefinirSenhaUsuariosCard = () => {
         />
       </div>
 
-      <div className="max-h-[360px] divide-y divide-gray-100 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+      <div className="max-h-[360px] divide-y divide-gray-100 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-sm dark:divide-gray-800 dark:border-gray-700">
         {isLoading ? (
           <div className="p-5 text-sm text-gray-400">Carregando usuários…</div>
         ) : filtrados.length === 0 ? (

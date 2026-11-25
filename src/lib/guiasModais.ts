@@ -6,7 +6,7 @@ import type { GuiaModal } from '@/components/guia/tipos'
  * para fazer nele. O `id` guarda no navegador o "não mostrar mais" — não mude o
  * id de um guia que já existe, senão ele volta a aparecer para todo mundo.
  */
-const g = (id: string, titulo: string, texto: string[]): GuiaModal => ({ id, titulo, texto })
+const g = (id: string, titulo: string, texto: string[], topicos?: GuiaModal['topicos']): GuiaModal => ({ id, titulo, texto, topicos })
 
 export const GUIAS = {
   // ── Central ──────────────────────────────────────────────────────────────
@@ -29,6 +29,15 @@ export const GUIAS = {
     'Em "Por nome" você vê quem concentra o valor; em "Título a título", cada um, com busca.',
     'Clique num nome para filtrar só os títulos dele.',
   ]),
+  // Versão com o tópico de tarefa: só para quem pode criar tarefa (id novo = aparece de novo).
+  contasListaTarefa: g('contas-lista-tarefa', 'Os títulos desta faixa', [
+    'Estes são os títulos da faixa que você clicou (vencidos, hoje, próximos dias).',
+    'Em "Por nome" você vê quem concentra o valor; em "Título a título", cada um. Use a busca e os filtros de posto e categoria para achar rápido.',
+    'Clique num nome para ver só os títulos dele.',
+  ], [{ titulo: 'Mandar alguém resolver', texto: [
+    'Marque um nome (pega todos os títulos dele) ou títulos soltos; a caixinha do topo marca tudo o que está na lista.',
+    'Toque em Criar tarefa: ela já vem pronta e urgente, por exemplo "Pagar Vibra Energia" ou "Cobrar DS2 Distribuidora". É só escolher o funcionário.',
+  ] }]),
   tituloDetalhe: g('titulo-detalhe', 'Um título em detalhe', [
     'Aqui está tudo de uma conta: quanto falta, quando vence e de onde veio (posto, documento, plano de contas).',
     'Se já houve pagamento parcial ou desconto, a barra mostra quanto já foi e quanto falta.',
@@ -90,6 +99,21 @@ export const GUIAS = {
     'Estes são os valores a receber deste dia, com cliente, valor e situação.',
     'Vermelho é o que já venceu e ainda não foi recebido.',
   ]),
+  // Versões com o tópico de tarefa: só para quem pode criar tarefa (id novo = aparece de novo).
+  pagarDiaTarefa: g('pagar-dia-tarefa', 'O que vence neste dia', [
+    'Estas são as contas a pagar deste dia, com fornecedor, valor e situação.',
+    'Vermelho é o que já venceu e ainda não foi pago.',
+  ], [{ titulo: 'Mandar alguém resolver', texto: [
+    'Marque um ou mais títulos na lista (a caixinha do topo marca todos).',
+    'Toque em Criar tarefa: ela já vem pronta e urgente, por exemplo "Pagar DS2 Distribuidora". É só escolher o funcionário.',
+  ] }]),
+  receberDiaTarefa: g('receber-dia-tarefa', 'O que entra neste dia', [
+    'Estes são os valores a receber deste dia, com cliente, valor e situação.',
+    'Vermelho é o que já venceu e ainda não foi recebido.',
+  ], [{ titulo: 'Mandar alguém cobrar', texto: [
+    'Marque um ou mais títulos na lista (a caixinha do topo marca todos).',
+    'Toque em Criar tarefa: ela já vem pronta e urgente, por exemplo "Cobrar DS2 Distribuidora". É só escolher o funcionário.',
+  ] }]),
 
   // ── Cartões ──────────────────────────────────────────────────────────────
   aReceberRepasses: g('cartoes-repasses-dia', 'Os repasses do dia', [

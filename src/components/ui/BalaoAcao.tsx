@@ -7,12 +7,14 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/comp
  * atrapalhar quem só passa o mouse ou clica direto. Fecha ao clicar.
  * O `span` em volta faz o balão funcionar até com botão desabilitado.
  */
-const BalaoAcao = ({ texto, children, lado = 'top' }: {
+const BalaoAcao = ({ texto, children, lado = 'top', atraso = 1200 }: {
   texto: ReactNode
   children: ReactNode
   lado?: 'top' | 'bottom' | 'left' | 'right'
+  /** ms com o mouse parado até abrir (ícones do topo usam menos). */
+  atraso?: number
 }) => (
-  <TooltipProvider delayDuration={1200} skipDelayDuration={0}>
+  <TooltipProvider delayDuration={atraso} skipDelayDuration={0}>
     <Tooltip>
       <TooltipTrigger asChild>
         <span className="inline-flex">{children}</span>

@@ -1,4 +1,5 @@
-import { CalendarRange, Gauge, ChevronDown, ChevronUp } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { CalendarRange, Gauge, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
@@ -36,16 +37,19 @@ interface RitmoDoMesCardProps {
   /** "Ver detalhes" (aba Combustível): abre a quebra por combustível nos KPIs. */
   expanded?: boolean
   onToggleExpanded?: () => void
+  /** Atalho "o que fazer" (ex.: Radar de Preços na aba Combustível). */
+  acao?: { to: string; label: string }
   className?: string
 }
 
-const Pct = ({ v }: { v: number | null }) => v === null
-  ? <span className="text-white/50">sem base</span>
-  : <span className={cn('font-bold tabular-nums', v >= 0 ? 'text-emerald-300' : 'text-red-300')}>{v >= 0 ? '▲ +' : '▼ '}{v.toFixed(1).replace('.', ',')}%</span>
+/** "▼ 5,2% abaixo de out/26 inteiro" — comparação em frase. */
+const Variacao = ({ v, sufixo }: { v: number | null; sufixo: string }) => v === null
+  ? <span className="text-white/50">sem base para comparar</span>
+  : <span><b className={cn('font-semibold tabular-nums', v >= 0 ? 'text-emerald-300' : 'text-red-300')}>{v >= 0 ? '▲' : '▼'} {Math.abs(v).toFixed(1).replace('.', ',')}% {v >= 0 ? 'acima' : 'abaixo'}</b> {sufixo}</span>
 
 const RitmoDoMesCard = ({
   realizado, projetado, diasFechados, diasRestantes, dataFinal, cheioAnterior, cheioLabel, parcialAnterior, parcialLabel,
-  confiabilidade, confiabilidadePct, modo, contexto, loading, expanded, onToggleExpanded, className,
+  confiabilidade, confiabilidadePct, modo, contexto, loading, expanded, onToggleExpanded, acao, className,
 }: RitmoDoMesCardProps) => {
   const fechado = diasRestantes <= 0
   const entregue = projetado > 0 ? Math.min(100, (realizado / projetado) * 100) : 0
@@ -55,20 +59,22 @@ const RitmoDoMesCard = ({
   const vsCheio = cheioAnterior && cheioAnterior > 0 ? ((fechaValor - cheioAnterior) / cheioAnterior) * 100 : null
   const vsParcial = parcialAnterior && parcialAnterior > 0 ? ((realizado - parcialAnterior) / parcialAnterior) * 100 : null
   const fimMes = dataFinal.split('-').reverse().slice(0, 2).join('/')
+  // R$/dia para empatar com o mês de referência inteiro nos dias que faltam.
+  const paraEmpatar = cheioAnterior && cheioAnterior > 0 && diasRestantes > 0 ? Math.max(0, cheioAnterior - realizado) / diasRestantes : null
   const DOT = { alta: 'bg-emerald-400', media: 'bg-amber-400', baixa: 'bg-red-400' } as const
   const hintCls = 'text-white/50 hover:text-white dark:text-white/50 dark:hover:text-white'
 
   return (
-    <div className={cn('flex h-full min-w-0 flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e3a5f] to-[#27496f] text-white shadow-lg', className)}>
+    <div className={cn('flex h-full min-w-0 flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e3a5f] to-[#27496f] text-white shadow-lg dark:border dark:border-[#2f3b4f] dark:border-t-2 dark:border-t-[#0d9488] dark:bg-none dark:bg-[#1b2b35] dark:shadow-none', className)}>
       <div className="flex items-start justify-between gap-2 px-5 pb-3 pt-[18px]">
         <div className="min-w-0">
           <p className="inline-flex flex-wrap items-center gap-1.5 text-[15px] font-bold">
             <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full shadow-[0_0_0_3px_rgba(255,255,255,0.14)]', DOT[confiabilidade])} />
-            Ritmo do mês
+            Como o mês vai fechar
             <InfoHint className={hintCls} text="Projeção de fechamento do lucro bruto pela sazonalidade de dia da semana da rede (ramo linear quando falta histórico). Mesma conta dos cards acima e do painel da Central: os números batem. É estimativa, não valor fechado." />
             {modo && <ProjecaoModoAviso modo={modo} contexto={contexto} tone="navy" />}
           </p>
-          <p className="mt-0.5 text-[11px] text-white/60">Como o mês está indo · lucro bruto{contexto ? ` de ${contexto}` : ''}</p>
+          <p className="mt-0.5 text-[11px] text-white/60">Previsão do lucro bruto{contexto ? ` de ${contexto}` : ''} até o fim do mês</p>
         </div>
         {onToggleExpanded && (
           <button
@@ -88,44 +94,66 @@ const RitmoDoMesCard = ({
         </div>
       ) : (
         <div className="flex flex-1 flex-col gap-3 px-5 pb-5">
-          <div>
-            <div className="flex items-baseline justify-between">
-              <span className="text-[28px] font-extrabold tabular-nums leading-none">{fechado ? '100' : Math.round(entregue)}%</span>
-              <span className="text-[11px] text-white/70">{fechado ? 'mês fechado' : 'do lucro do mês já entrou'}</span>
+          {/* 1. Já entrou × deve fechar */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-wider text-white/55">Já entrou</p>
+              <p className="text-[19px] font-bold tabular-nums leading-tight">{formatCurrencyInt(realizado)}</p>
+              <p className="text-[11px] text-white/60">em {diasFechados} {diasFechados === 1 ? 'dia' : 'dias'}</p>
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/15">
+            <div className="text-right">
+              <p className="text-[10px] uppercase tracking-wider text-white/55">{fechado ? 'Fechou em' : 'Deve fechar em'}</p>
+              <p className="text-[19px] font-bold tabular-nums leading-tight text-[#6ee7b7] dark:text-[#86c5aa]">{formatCurrencyInt(fechaValor)}</p>
+              <p className="text-[11px] text-white/60">{fechado ? 'mês fechado' : `até ${fimMes}`}</p>
+            </div>
+          </div>
+
+          {/* 2. Barra com legenda */}
+          <div>
+            <div className="h-2 overflow-hidden rounded-full bg-white/15">
               <div className="h-full rounded-full bg-[#34d399]" style={{ width: `${fechado ? 100 : Math.max(2, entregue)}%` }} />
             </div>
             <p className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] text-white/70">
               <CalendarRange className="h-3.5 w-3.5" />
-              {fechado ? 'Período fechado: projeção = realizado.' : `${diasFechados} dias fechados · ${diasRestantes} restantes · fecha em ${fimMes}`}
+              {fechado ? 'Período fechado: a previsão é o realizado.' : `${Math.round(entregue)}% da previsão já entrou · faltam ${diasRestantes} ${diasRestantes === 1 ? 'dia' : 'dias'}`}
             </p>
           </div>
 
-          <div className="rounded-xl bg-white/[0.07] p-3">
-            <p className="text-[10px] uppercase tracking-wider text-white/55">{fechado ? 'Fechou em' : 'Fecha em'}</p>
-            <p className="text-[20px] font-extrabold tabular-nums leading-tight">{formatCurrencyInt(fechaValor)}</p>
-            <div className="mt-2 space-y-1 text-[11px] text-white/80">
-              <p className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1">vs {cheioLabel} inteiro <InfoHint className={hintCls} text={`${fechado ? 'Fechamento' : 'Projeção de fechamento'} contra o lucro bruto do mês INTEIRO de ${cheioLabel}${cheioAnterior ? ` (${formatCurrencyInt(cheioAnterior)})` : ''}. A pergunta que importa: vou fechar melhor que ${cheioLabel}?`} /></span>
-                <Pct v={vsCheio} />
+          {/* 3. Comparações em frase + o que precisa por dia */}
+          <div className="space-y-1.5 rounded-xl bg-white/[0.07] p-3 text-[12px] leading-snug text-white/85">
+            <p className="flex items-start justify-between gap-2">
+              <span><Variacao v={vsCheio} sufixo={`de ${cheioLabel} inteiro${cheioAnterior ? ` (${formatCurrencyInt(cheioAnterior)})` : ''}`} /></span>
+              <InfoHint className={cn('mt-0.5 shrink-0', hintCls)} text={`${fechado ? 'Fechamento' : 'Previsão de fechamento'} contra o lucro bruto do mês INTEIRO de ${cheioLabel}. A pergunta que importa: vou fechar melhor que ${cheioLabel}?`} />
+            </p>
+            <p className="flex items-start justify-between gap-2">
+              <span>Até aqui: <Variacao v={vsParcial} sufixo={`de ${parcialLabel} nos mesmos dias`} /></span>
+              <InfoHint className={cn('mt-0.5 shrink-0', hintCls)} text="O que já entrou contra o mesmo número de dias do período de comparação. É o mesmo selo dos cartões ao lado." />
+            </p>
+            {!fechado && paraEmpatar !== null && vsCheio !== null && vsCheio < 0 ? (
+              <p className="border-t border-white/10 pt-1.5 text-white">
+                Para empatar com {cheioLabel}: <b className="font-semibold tabular-nums">{formatCurrencyInt(paraEmpatar)}/dia</b> nos {diasRestantes} {diasRestantes === 1 ? 'dia' : 'dias'} que faltam
+                <span className="text-white/60"> (o ritmo previsto é {formatCurrencyInt(porDia)}/dia)</span>
               </p>
-              <p className="flex items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-1">vs {parcialLabel}, mesmos dias <InfoHint className={hintCls} text="Realizado até agora contra o mesmo número de dias do período comparativo. É o mesmo selo dos cards." /></span>
-                <Pct v={vsParcial} />
+            ) : !fechado ? (
+              <p className="border-t border-white/10 pt-1.5 text-white/80">
+                Faltam {formatCurrencyInt(falta)} para a previsão: <b className="font-semibold tabular-nums text-white">{formatCurrencyInt(porDia)}/dia</b>
               </p>
-              {!fechado && (
-                <p className="flex items-center justify-between gap-2 border-t border-white/10 pt-1">
-                  <span>faltam {formatCurrencyInt(falta)}</span>
-                  <span className="tabular-nums">{formatCurrencyInt(porDia)}/dia</span>
-                </p>
-              )}
-            </div>
+            ) : null}
           </div>
 
-          <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/70">
-            <span className="inline-flex items-center gap-1"><Gauge className="h-3.5 w-3.5" /> confiança <span className={cn('font-semibold capitalize', confiabilidade === 'alta' ? 'text-emerald-300' : confiabilidade === 'media' ? 'text-amber-300' : 'text-red-300')}>{confiabilidade}</span> ({Math.round(confiabilidadePct)}%)</span>
-            <span>· {modo?.linear ? 'ritmo linear (pouco histórico)' : 'sazonal por dia da semana'}</span>
+          {/* 4. Próximo passo */}
+          {!fechado && acao && (
+            <Link to={acao.to}
+              className="group inline-flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.06] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:border-[#5eead4]/50 hover:bg-white/[0.1]">
+              <span>{vsCheio !== null && vsCheio < 0 ? `Como virar o jogo nos ${diasRestantes} dias?` : 'Como fechar ainda melhor?'}</span>
+              <span className="inline-flex shrink-0 items-center gap-1 text-[#5eead4]">{acao.label} <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></span>
+            </Link>
+          )}
+
+          {/* 5. Quanto confiar */}
+          <div className="mt-auto flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-white/70">
+            <Gauge className="h-3.5 w-3.5" /> Confiança da previsão: <span className={cn('font-semibold', confiabilidade === 'alta' ? 'text-emerald-300' : confiabilidade === 'media' ? 'text-amber-300' : 'text-red-300')}>{confiabilidade === 'media' ? 'média' : confiabilidade}</span> ({Math.round(confiabilidadePct)}%)
+            <span>· {modo?.linear ? 'média simples (pouco histórico)' : 'conta o ritmo de cada dia da semana'}</span>
           </div>
         </div>
       )}

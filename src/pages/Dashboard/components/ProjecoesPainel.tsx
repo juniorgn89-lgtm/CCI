@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
+import useVisivel from '@/hooks/useVisivel'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Droplets, Wrench, Store, Globe, BarChart3, Table2, TrendingUp, TrendingDown, CalendarRange, Gauge } from 'lucide-react'
+import { Droplets, Wrench, Store, Globe, BarChart3, Table2, TrendingUp, TrendingDown, CalendarRange, Gauge, ArrowRight } from 'lucide-react'
 import { formatCurrency, formatCurrencyInt, formatCurrencyShort, formatLitersShort, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/store/filters'
@@ -122,7 +124,7 @@ const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBru
       title={onClick ? 'Ver o setor posto a posto' : undefined}
       onClick={onClick ? (e) => { if ((e.target as HTMLElement).closest('button')) return; onClick() } : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
-      className={cn('flex h-full w-full min-w-0 flex-col rounded-2xl border border-gray-200 p-5 text-left shadow-sm dark:border-gray-700', cardBg, onClick && 'cursor-pointer transition-shadow hover:shadow-md hover:ring-2 hover:ring-[#1e3a5f]/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a5f] dark:hover:ring-blue-400/40')}
+      className={cn('flex h-full w-full min-w-0 flex-col rounded-2xl border border-gray-200 p-5 text-left shadow-sm dark:border-[#2f3b4f] dark:shadow-none', cardBg, onClick && 'cursor-pointer transition-shadow hover:shadow-md hover:ring-2 hover:ring-[#1e3a5f]/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a5f] dark:hover:ring-blue-400/40')}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -139,7 +141,7 @@ const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBru
       {loading ? (
         <div className="mt-4 h-8 w-32 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
       ) : (
-        <p className="mt-3 text-[26px] font-extrabold tabular-nums tracking-tight text-gray-900 dark:text-gray-100">{formatCurrencyInt(lucroBruto)}</p>
+        <p className="mt-3 text-[26px] font-extrabold tabular-nums tracking-tight text-gray-900 dark:font-bold dark:text-[#e2e8f0]">{formatCurrencyInt(lucroBruto)}</p>
       )}
       {!loading && <CompBadge current={lucroBruto} previous={lucroBrutoAnterior} label={cmpLabel} title={cmpTitle} />}
 
@@ -159,7 +161,7 @@ const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBru
             <>
               <div className="flex items-center gap-2">
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200/80 dark:bg-gray-700/80" title={`${Math.round(entregue)}% do lucro projetado já realizado`}>
-                  <div className="h-full rounded-full bg-[#1e3a5f] dark:bg-blue-500" style={{ width: `${Math.max(2, entregue)}%` }} />
+                  <div className="h-full rounded-full bg-[#1e3a5f] dark:bg-[#5b7fb4]" style={{ width: `${Math.max(2, entregue)}%` }} />
                 </div>
                 <span className="shrink-0 text-[10px] font-semibold tabular-nums text-gray-500 dark:text-gray-400">{Math.round(entregue)}% do mês</span>
               </div>
@@ -204,6 +206,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
   const { combustivel, automotivos, conveniencia, global, isLoading, comparisonMode } = useRedeSetores()
   // Índice sazonal per-posto (mesma fonte da tabela BenchmarkSetor → batem).
   const sazonal = useCentralSazonal()
+  const radarVisivel = useVisivel().aba('/comercial', 'radar')
   // Rótulo do comparativo conforme o modo global (AA = ano ant., MA = mês ant.).
   const cmpLabel = comparisonMode === 'prevYear' ? 'AA' : 'MA'
   const cmpTitle = comparisonMode === 'prevYear'
@@ -221,6 +224,8 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
   // Modais de detalhe dos cards (setor posto a posto → resumo do posto).
   const [setorModal, setSetorModal] = useState<SetorModal | null>(null)
   const [postoModal, setPostoModal] = useState<number | null>(null)
+  // Setor de onde o posto foi aberto (card Combustível → só combustível no resumo do posto).
+  const [setorDoPosto, setSetorDoPosto] = useState<'combustivel' | 'automotivos' | 'conveniencia' | null>(null)
   // Avisa o pai (Dashboard) quando abre/fecha — pra ocultar o Detalhamento por setor.
   useEffect(() => { onExpandedChange?.(expanded) }, [expanded, onExpandedChange])
   const setorLabel = setorProj === 'combustivel' ? 'combustível' : setorProj === 'automotivos' ? 'automotivos' : 'conveniência'
@@ -511,7 +516,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
           <div className="grid flex-1 auto-rows-fr grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <SegmentCard
             onClick={() => setSetorModal('combustivel')}
-            label="Combustível" Icon={Droplets} cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:from-blue-950/20 dark:to-gray-900"
+            label="Combustível" Icon={Droplets} cardBg="bg-gradient-to-br from-blue-50/60 to-white dark:bg-none dark:bg-[#0b1220] dark:!border-[#5b7fb4]/45 dark:!border-t-2 dark:!border-t-[#5b7fb4] dark:!shadow-[0_16px_36px_-14px_rgba(0,0,0,0.9),0_2px_6px_rgba(0,0,0,0.35)]"
             iconBg="bg-blue-100 dark:bg-blue-900/30" iconColor="text-blue-600 dark:text-blue-400"
             loading={isLoading} lucroBruto={combustivel.lucroBruto}
             lucroBrutoAnterior={combustivel.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
@@ -524,7 +529,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
           />
           <SegmentCard
             onClick={() => setSetorModal('automotivos')}
-            label="Automotivos" Icon={Wrench} cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
+            label="Automotivos" Icon={Wrench} cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:bg-none dark:bg-[#0b1220] dark:!border-[#c79a4a]/45 dark:!border-t-2 dark:!border-t-[#c79a4a] dark:!shadow-[0_16px_36px_-14px_rgba(0,0,0,0.9),0_2px_6px_rgba(0,0,0,0.35)]"
             iconBg="bg-amber-100 dark:bg-amber-900/30" iconColor="text-amber-600 dark:text-amber-400"
             loading={isLoading} lucroBruto={automotivos.lucroBruto}
             lucroBrutoAnterior={automotivos.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
@@ -537,7 +542,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
           />
           <SegmentCard
             onClick={() => setSetorModal('conveniencia')}
-            label="Conveniência" Icon={Store} cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:from-emerald-950/20 dark:to-gray-900"
+            label="Conveniência" Icon={Store} cardBg="bg-gradient-to-br from-emerald-50/60 to-white dark:bg-none dark:bg-[#0b1220] dark:!border-[#4f9d84]/45 dark:!border-t-2 dark:!border-t-[#4f9d84] dark:!shadow-[0_16px_36px_-14px_rgba(0,0,0,0.9),0_2px_6px_rgba(0,0,0,0.35)]"
             iconBg="bg-emerald-100 dark:bg-emerald-900/30" iconColor="text-emerald-600 dark:text-emerald-400"
             loading={isLoading} lucroBruto={conveniencia.lucroBruto}
             lucroBrutoAnterior={conveniencia.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
@@ -550,7 +555,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
           />
           <SegmentCard
             onClick={() => setSetorModal('global')}
-            label="Global" Icon={Globe} cardBg="bg-gradient-to-br from-violet-50/60 to-white dark:from-violet-950/20 dark:to-gray-900"
+            label="Global" Icon={Globe} cardBg="bg-gradient-to-br from-violet-50/60 to-white dark:bg-none dark:bg-[#0b1220] dark:!border-[#8b7fc0]/45 dark:!border-t-2 dark:!border-t-[#8b7fc0] dark:!shadow-[0_16px_36px_-14px_rgba(0,0,0,0.9),0_2px_6px_rgba(0,0,0,0.35)]"
             iconBg="bg-violet-100 dark:bg-violet-900/30" iconColor="text-violet-600 dark:text-violet-400"
             loading={isLoading} lucroBruto={global.lucroBruto}
             lucroBrutoAnterior={global.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
@@ -567,7 +572,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
 
       {/* Painel Projeção (navy) — col-span-2 (fechado) → col-span total (aberto). */}
       <div className={cn(
-        'flex min-w-0 flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e3a5f] to-[#27496f] shadow-lg',
+        'flex min-w-0 flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#1e3a5f] to-[#27496f] shadow-lg dark:border dark:border-[#2f3b4f] dark:border-t-2 dark:border-t-[#0d9488] dark:bg-none dark:bg-[#1b2b35] dark:shadow-none',
         expanded ? 'md:col-span-2 xl:col-span-6' : 'md:col-span-2 xl:col-span-2',
       )}>
         <div className="flex items-start justify-between gap-2.5 px-5 pb-3.5 pt-[18px]">
@@ -576,7 +581,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
               <span
                 className={cn('h-2.5 w-2.5 shrink-0 rounded-full shadow-[0_0_0_3px_rgba(255,255,255,0.14)]', DOT_CONFIA[projResumo.confiabilidade])}
               />
-              {expanded ? 'Projeção' : 'Ritmo do mês'}
+              {expanded ? 'Projeção' : 'Como o mês vai fechar'}
               <InfoHint
                 text={PROJECAO_TOOLTIP_SAZONAL}
                 className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white"
@@ -587,7 +592,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
                 <ProjecaoModoAviso key={s} modo={sazonal.modo(s)} contexto={SETOR_NOME[s]} tone="navy" />
               ))}
             </p>
-            <p className="mt-0.5 text-[11px] text-white/60">{expanded ? `Projeção do lucro bruto de ${setorLabel} — por dia` : 'Como o mês está indo · lucro bruto da rede'}</p>
+            <p className="mt-0.5 text-[11px] text-white/60">{expanded ? `Projeção do lucro bruto de ${setorLabel} — por dia` : 'Previsão do lucro bruto da rede, somando todos os setores'}</p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
             {expanded && (
@@ -624,54 +629,76 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
           const vsCheio = cheio.total && cheio.total > 0 ? ((projGlobalCard.lucro - cheio.total) / cheio.total) * 100 : null
           const vsParcial = global.lucroBrutoAnoAnterior > 0 ? ((global.lucroBruto - global.lucroBrutoAnoAnterior) / global.lucroBrutoAnoAnterior) * 100 : null
           const fimMes = projMonthEnd.split('-').reverse().slice(0, 2).join('/')
-          const Pct = ({ v }: { v: number | null }) => v === null
-            ? <span className="text-white/50">sem base</span>
-            : <span className={cn('font-bold tabular-nums', v >= 0 ? 'text-emerald-300' : 'text-red-300')}>{v >= 0 ? '▲ +' : '▼ '}{v.toFixed(1).replace('.', ',')}%</span>
+          // Para empatar com o mês cheio de referência: quanto por dia nos dias que faltam.
+          const paraEmpatar = cheio.total && projGlobalCard.diasRestantes > 0 ? Math.max(0, cheio.total - global.lucroBruto) / projGlobalCard.diasRestantes : null
+          const Variacao = ({ v, sufixo }: { v: number | null; sufixo: string }) => v === null
+            ? <span className="text-white/50">sem base para comparar</span>
+            : <span><b className={cn('font-semibold tabular-nums', v >= 0 ? 'text-emerald-300' : 'text-red-300')}>{v >= 0 ? '▲' : '▼'} {Math.abs(v).toFixed(1).replace('.', ',')}% {v >= 0 ? 'acima' : 'abaixo'}</b> {sufixo}</span>
           return (
             <div className="flex flex-1 flex-col gap-3 px-5 pb-5 text-white">
-              {/* Barra grande do mês */}
-              <div>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-[28px] font-extrabold tabular-nums leading-none">{fechado ? '100' : Math.round(entregue)}%</span>
-                  <span className="text-[11px] text-white/70">{fechado ? 'mês fechado' : `do lucro do mês já entrou`}</span>
+              {/* 1. Os dois números: o que já entrou × a previsão de fechamento */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-white/55">Já entrou</p>
+                  <p className="text-[20px] font-bold tabular-nums leading-tight">{formatCurrencyInt(global.lucroBruto)}</p>
+                  <p className="text-[11px] text-white/60">em {projGlobalCard.diasFechados} {projGlobalCard.diasFechados === 1 ? 'dia' : 'dias'}</p>
                 </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/15">
+                <div className="text-right">
+                  <p className="text-[10px] uppercase tracking-wider text-white/55">{fechado ? 'Fechou em' : 'Deve fechar em'}</p>
+                  <p className="text-[20px] font-bold tabular-nums leading-tight text-[#6ee7b7] dark:text-[#86c5aa]">{formatCurrencyInt(fechado ? global.lucroBruto : projGlobalCard.lucro)}</p>
+                  <p className="text-[11px] text-white/60">{fechado ? 'mês fechado' : `até ${fimMes}`}</p>
+                </div>
+              </div>
+
+              {/* 2. Barra: quanto da previsão já entrou */}
+              <div>
+                <div className="h-2 overflow-hidden rounded-full bg-white/15">
                   <div className="h-full rounded-full bg-[#34d399]" style={{ width: `${fechado ? 100 : Math.max(2, entregue)}%` }} />
                 </div>
                 <p className="mt-1.5 inline-flex items-center gap-1.5 text-[11px] text-white/70">
                   <CalendarRange className="h-3.5 w-3.5" />
                   {fechado
-                    ? 'Período fechado: projeção = realizado.'
-                    : `${projGlobalCard.diasFechados} dias fechados · ${projGlobalCard.diasRestantes} restantes · fecha em ${fimMes}`}
+                    ? 'Período fechado: a previsão é o realizado.'
+                    : `${Math.round(entregue)}% da previsão já entrou · faltam ${projGlobalCard.diasRestantes} ${projGlobalCard.diasRestantes === 1 ? 'dia' : 'dias'}`}
                 </p>
               </div>
 
-              {/* Fecha em + comparações */}
-              <div className="rounded-xl bg-white/[0.07] p-3">
-                <p className="text-[10px] uppercase tracking-wider text-white/55">{fechado ? 'Fechou em' : 'Fecha em'}</p>
-                <p className="text-[20px] font-extrabold tabular-nums leading-tight">{formatCurrencyInt(fechado ? global.lucroBruto : projGlobalCard.lucro)}</p>
-                <div className="mt-2 space-y-1 text-[11px] text-white/80">
-                  <p className="flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1">vs {cheioLabel} inteiro <InfoHint text={`Projeção de fechamento contra o lucro bruto do mês INTEIRO de ${cheioLabel}${cheio.total ? ` (${formatCurrencyInt(cheio.total)})` : ''}. É a pergunta que importa: vou fechar melhor que ${cheioLabel}?`} className="text-white/50 hover:text-white dark:text-white/50 dark:hover:text-white" /></span>
-                    <Pct v={vsCheio} />
+              {/* 3. Comparações em frase + o que fazer */}
+              <div className="space-y-1.5 rounded-xl bg-white/[0.07] p-3 text-[12px] leading-snug text-white/85">
+                <p className="flex items-start justify-between gap-2">
+                  <span><Variacao v={vsCheio} sufixo={`de ${cheioLabel} inteiro${cheio.total ? ` (${formatCurrencyInt(cheio.total)})` : ''}`} /></span>
+                  <InfoHint text={`Previsão de fechamento contra o lucro bruto do mês INTEIRO de ${cheioLabel}. É a pergunta que importa: vou fechar melhor que ${cheioLabel}?`} className="mt-0.5 shrink-0 text-white/50 hover:text-white dark:text-white/50 dark:hover:text-white" />
+                </p>
+                <p className="flex items-start justify-between gap-2">
+                  <span>Até aqui: <Variacao v={vsParcial} sufixo={`de ${cmpLabelLong} nos mesmos dias`} /></span>
+                  <InfoHint text="O que já entrou contra o mesmo número de dias do período de comparação. É o mesmo selo dos cartões dos setores." className="mt-0.5 shrink-0 text-white/50 hover:text-white dark:text-white/50 dark:hover:text-white" />
+                </p>
+                {!fechado && paraEmpatar !== null && vsCheio !== null && vsCheio < 0 && (
+                  <p className="border-t border-white/10 pt-1.5 text-white">
+                    Para empatar com {cheioLabel}: <b className="font-semibold tabular-nums">{formatCurrencyInt(paraEmpatar)}/dia</b> nos {projGlobalCard.diasRestantes} dias que faltam
+                    <span className="text-white/60"> (o ritmo previsto é {formatCurrencyInt(porDia)}/dia)</span>
                   </p>
-                  <p className="flex items-center justify-between gap-2">
-                    <span className="inline-flex items-center gap-1">vs {cmpLabelLong}, mesmos dias <InfoHint text="Realizado até agora contra o mesmo número de dias do período comparativo. É o mesmo selo dos cards." className="text-white/50 hover:text-white dark:text-white/50 dark:hover:text-white" /></span>
-                    <Pct v={vsParcial} />
+                )}
+                {!fechado && (paraEmpatar === null || vsCheio === null || vsCheio >= 0) && (
+                  <p className="border-t border-white/10 pt-1.5 text-white/80">
+                    Faltam {formatCurrencyInt(falta)} para a previsão: <b className="font-semibold tabular-nums text-white">{formatCurrencyInt(porDia)}/dia</b>
                   </p>
-                  {!fechado && (
-                    <p className="flex items-center justify-between gap-2 border-t border-white/10 pt-1">
-                      <span>faltam {formatCurrencyInt(falta)}</span>
-                      <span className="tabular-nums">{formatCurrencyInt(porDia)}/dia</span>
-                    </p>
-                  )}
-                </div>
+                )}
               </div>
 
-              {/* Método e confiança */}
-              <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/70">
-                <span className="inline-flex items-center gap-1"><Gauge className="h-3.5 w-3.5" /> confiança <span className={cn('font-semibold capitalize', projResumo.confiabilidade === 'alta' ? 'text-emerald-300' : projResumo.confiabilidade === 'media' ? 'text-amber-300' : 'text-red-300')}>{projResumo.confiabilidade}</span> ({Math.round(projResumo.confiabilidadePct)}%)</span>
-                <span>· sazonal por dia da semana{SETORES_PROJ.some((x) => sazonal.modo(x).linear) ? ' (linear onde falta histórico)' : ''}</span>
+              {/* 5. Próximo passo: o Radar de Preços mostra o que fazer nos dias que faltam */}
+              {!fechado && radarVisivel && (
+                <Link to="/comercial?tab=radar"
+                  className="group inline-flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.06] px-3 py-2 text-[12.5px] font-semibold text-white transition-colors hover:border-[#5eead4]/50 hover:bg-white/[0.1]">
+                  <span>{vsCheio !== null && vsCheio < 0 ? `Como virar o jogo nos ${projGlobalCard.diasRestantes} dias que faltam?` : 'Como fechar o mês ainda melhor?'}</span>
+                  <span className="inline-flex shrink-0 items-center gap-1 text-[#5eead4]">Ver no Radar de Preços <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></span>
+                </Link>
+              )}
+
+              {/* 4. Quanto confiar */}
+              <div className="mt-auto flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-white/70">
+                <Gauge className="h-3.5 w-3.5" /> Confiança da previsão: <span className={cn('font-semibold capitalize', projResumo.confiabilidade === 'alta' ? 'text-emerald-300' : projResumo.confiabilidade === 'media' ? 'text-amber-300' : 'text-red-300')}>{projResumo.confiabilidade === 'media' ? 'média' : projResumo.confiabilidade}</span> ({Math.round(projResumo.confiabilidadePct)}%)
+                <span>· conta o ritmo de cada dia da semana{SETORES_PROJ.some((x) => sazonal.modo(x).linear) ? ' (média simples onde falta histórico)' : ''}</span>
               </div>
             </div>
           )
@@ -683,7 +710,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
             <div className="mb-1.5 flex flex-wrap items-end justify-between gap-4">
               <div>
                 <p className="text-[10px] uppercase tracking-wider text-white/55">Projeção · {setorLabel} · fim do mês</p>
-                <p className="mt-0.5 text-[22px] font-extrabold tabular-nums text-[#6ee7b7]">{formatCurrencyInt(chart.projEnd)}</p>
+                <p className="mt-0.5 text-[22px] font-extrabold tabular-nums text-[#6ee7b7] dark:font-bold dark:text-[#86c5aa]">{formatCurrencyInt(chart.projEnd)}</p>
               </div>
               {projView === 'grafico' && (
                 <div className="flex items-center gap-3.5">
@@ -759,7 +786,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
             ) : (
             <div className="mt-2 overflow-hidden rounded-lg border border-white/10" style={{ animation: 'chartIn .35s cubic-bezier(.4,0,.2,1) both' }}>
               <table className="w-full text-[11px]">
-                <thead className="sticky top-0 z-10 bg-[#22456b]">
+                <thead className="sticky top-0 z-10 bg-[#22456b] dark:bg-[#172234]">
                   <tr className="text-left text-white/55">
                     <th className="px-3 py-2 font-semibold uppercase tracking-wide">
                       <span className="inline-flex items-center gap-1">Data<InfoHint text="Dia do mês, dentro do período filtrado. Só aparecem os dias já realizados." className="text-white/40 hover:text-white/75 dark:text-white/40 dark:hover:text-white/75" /></span>
@@ -816,8 +843,9 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
       </div>
     </div>
 
-      <SetorPostosModal setor={setorModal} onClose={() => setSetorModal(null)} onPosto={(c) => { setSetorModal(null); setPostoModal(c) }} />
-      <PostoResumoModal empresaCodigo={postoModal} onClose={() => setPostoModal(null)} />
+      <SetorPostosModal setor={setorModal} onClose={() => setSetorModal(null)} onPosto={(c) => { setSetorDoPosto(setorModal && setorModal !== 'global' ? setorModal : null); setSetorModal(null); setPostoModal(c) }} />
+      <PostoResumoModal empresaCodigo={postoModal} onClose={() => { setPostoModal(null); setSetorDoPosto(null) }} setor={setorDoPosto}
+        onVoltar={setorDoPosto ? () => { setPostoModal(null); setSetorModal(setorDoPosto); setSetorDoPosto(null) } : undefined} />
     </div>
   )
 }

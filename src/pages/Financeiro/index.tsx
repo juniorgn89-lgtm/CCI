@@ -3,16 +3,14 @@ import { Receipt, CreditCard, Settings, LayoutDashboard, ClipboardCheck, BadgeCh
 import { useAuthStore } from '@/store/auth'
 import { podeVerConciliacaoCartao } from '@/pages/Financeiro/lib/acessoConciliacao'
 import { Skeleton } from '@/components/ui/skeleton'
-import ModuleSettings from '@/components/layout/ModuleSettings'
-import HeaderTray from '@/components/layout/HeaderTray'
-import TopBarTabs from '@/components/layout/TopBarTabs'
+import ModuloAbas from '@/components/layout/ModuloAbas'
 import useTabParam from '@/hooks/useTabParam'
 import { useSearchParams } from 'react-router-dom'
 import { lerFiltroLink, PARAMS_FILTRO_LINK } from '@/pages/Financeiro/lib/filtroLink'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import { useModuleTabSettings } from '@/hooks/usePersonalizedTabs'
 import { useOcultosCCI } from '@/hooks/useOcultosCCI'
-import ContasRedeCard from '@/pages/Dashboard/components/ContasRedeCard'
+import VisaoFinanceira from '@/pages/Financeiro/components/VisaoFinanceira'
 import ReceberTabela from '@/pages/Financeiro/components/ReceberTabela'
 import PagarTabela from '@/pages/Financeiro/components/PagarTabela'
 import ReceberCalendario from '@/pages/Financeiro/components/ReceberCalendario'
@@ -61,7 +59,7 @@ const TableSkeleton = () => (
 )
 
 const Financeiro = () => {
-  const { tabs: tabsPersonalizaveis, toggleVisibility, moveUp, moveDown, reset } = useModuleTabSettings('/financeiro')
+  const { tabs: tabsPersonalizaveis } = useModuleTabSettings('/financeiro')
   const isMaster = useAuthStore((s) => s.isMaster)
   const email = useAuthStore((s) => s.user?.email ?? null)
   // Diretores veem; a CCI pode ocultar em Painel › Parâmetros › Ocultar módulos e abas.
@@ -138,7 +136,7 @@ const Financeiro = () => {
     <div className="space-y-6">
       {visibleTabs.length > 0 && (
         <PageHeaderTitle>
-          <TopBarTabs
+          <ModuloAbas
             active={activeTab}
             onChange={setActiveTab}
             tabs={visibleTabs.map((t) => {
@@ -168,9 +166,6 @@ const Financeiro = () => {
             />
         </PageHeaderTitle>
       )}
-      <HeaderTray>
-        <ModuleSettings title="Financeiro" tabs={tabsPersonalizaveis} toggleVisibility={toggleVisibility} moveUp={moveUp} moveDown={moveDown} reset={reset} />
-      </HeaderTray>
       {/* Conteúdo — consolidado rede-wide (respeita o filtro de posto). */}
       {(
         <>
@@ -191,7 +186,8 @@ const Financeiro = () => {
                       {/* Saldo da janela + Contas a pagar + Contas a receber (mesmos cards da
                           Central). Os cards de posição por instrumento saíram: diziam o mesmo
                           em outro corte e confundiam. */}
-                      <ContasRedeCard />
+                      {/* Visão Financeira (modelo Atlas): saldo das contas, fluxo semanal, entra × sai e receitas × despesas. */}
+                      <VisaoFinanceira />
                     </div>
                   )}
                   {activeTab === 'receber' && (

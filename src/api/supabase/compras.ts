@@ -163,6 +163,21 @@ export const fetchPedidos = async (redeId: string, de?: string, ate?: string): P
   return ((data as Record<string, unknown>[]) ?? []).map(normPedido)
 }
 
+/** Quantidades por pedido (soma dos itens) — para a coluna Qtd. da lista de pedidos. */
+export const fetchQtdPorPedido = async (redeId: string): Promise<Map<string, { itens: number; solicitada: number; liberada: number | null }>> => {
+  const { data, error } = await need().from('compras_itens').select('pedido_id, qtd_solicitada, qtd_liberada').eq('rede_id', redeId)
+  if (error) throw erro(error)
+  const m = new Map<string, { itens: number; solicitada: number; liberada: number | null }>()
+  for (const i of (data ?? []) as { pedido_id: string; qtd_solicitada: number; qtd_liberada: number | null }[]) {
+    const a = m.get(i.pedido_id) ?? { itens: 0, solicitada: 0, liberada: null }
+    a.itens++
+    a.solicitada += Number(i.qtd_solicitada) || 0
+    if (i.qtd_liberada != null) a.liberada = (a.liberada ?? 0) + Number(i.qtd_liberada)
+    m.set(i.pedido_id, a)
+  }
+  return m
+}
+
 export const fetchItensDoPedido = async (pedidoId: string): Promise<ItemRow[]> => {
   const { data, error } = await need().from('compras_itens').select('*').eq('pedido_id', pedidoId).order('ordem')
   if (error) throw erro(error)

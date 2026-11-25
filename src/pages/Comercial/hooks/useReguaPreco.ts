@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import useVisivel from '@/hooks/useVisivel'
 import { useQuery } from '@tanstack/react-query'
 import { PRECO_VELHO_DIAS } from '@/pages/Comercial/hooks/useConcorrencia'
 import useComercialData from '@/pages/Comercial/hooks/useComercialData'
@@ -116,6 +117,8 @@ export const useReguaPreco = (): ReguaPreco => {
   // Uso dos vizinhos é decisão POR POSTO (salva no sistema), não um flag global.
   const cfgVizinhos = useConcorrenciaPostos()
   const porPostoCfg = cfgVizinhos.porPosto
+  // Concorrência oculta (personalização, plano, CCI…) = vizinhos fora de tudo: a régua usa a média da rede.
+  const concorrenciaVisivel = useVisivel().aba('/comercial', 'concorrencia')
   const redeId = useTenantStore((s) => s.rede?.id ?? null)
   const dataFinal = useFilterStore((s) => s.dataFinal)
   const desde = useMemo(() => isoMinusDays(dataFinal, 30), [dataFinal])
@@ -132,7 +135,7 @@ export const useReguaPreco = (): ReguaPreco => {
     // aba Concorrência. Vizinhos velhos não entram (contados à parte p/ avisar).
     const pracaPor = new Map<string, { preco: number; stale: number; n: number }>()
     const velhosPor = new Map<string, number>()
-    const usaVizinhos = (emp: number) => porPostoCfg.get(emp)?.usar ?? false
+    const usaVizinhos = (emp: number) => concorrenciaVisivel && (porPostoCfg.get(emp)?.usar ?? false)
     if (pracaRows.length) {
       const porEmpresa = new Map<number, ConcorrenciaPrecoRow[]>()
       for (const r of pracaRows) { const a = porEmpresa.get(r.empresa_codigo) ?? []; a.push(r); porEmpresa.set(r.empresa_codigo, a) }
@@ -273,7 +276,7 @@ export const useReguaPreco = (): ReguaPreco => {
       postosComVizinhos: data.postos.filter((p) => usaVizinhos(p.empresaCodigo)).length,
       totalPostos: data.postos.length,
     }
-  }, [data, setores, pracaRows, porPostoCfg, dataFinal, bomba])
+  }, [data, setores, pracaRows, porPostoCfg, dataFinal, bomba, concorrenciaVisivel])
 }
 
 export { milShort, moneyL }

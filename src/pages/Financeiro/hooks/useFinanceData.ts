@@ -556,7 +556,8 @@ const useFinanceData = (localPeriod?: LocalPeriodFilter) => {
   const cartoesPend = useSubset(cartoesPendRaw, scopedCodes)
   const titulosReceberPagos = useSubset(titulosReceberPagosRaw, scopedCodes)
   const contas = useSubset(contasRaw, scopedCodes)
-  const saldoEmCaixa = contas.filter((c) => c.ativo).reduce((s, c) => s + (c.saldoAtual ?? 0), 0)
+  // A mesma conta vem cadastrada em vários postos: soma cada contaCodigo uma vez só.
+  const saldoEmCaixa = [...new Map(contas.filter((c) => c.ativo).map((c) => [c.contaCodigo ?? c.descricao, c.saldoAtual ?? 0])).values()].reduce((s, v) => s + v, 0)
 
   const isLoading = isLoadingReceber || isLoadingPagar || isLoadingMovimentos
     || isLoadingReceberPend || isLoadingPagarPend || isLoadingDuplicatasPend

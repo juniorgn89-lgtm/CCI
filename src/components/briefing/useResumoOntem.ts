@@ -5,7 +5,7 @@ import { fetchTitulosReceber } from '@/api/endpoints/financeiro'
 import { fetchAllPages } from '@/api/helpers/fetchAllPages'
 import {
   fetchApuracaoDiaria, fetchVendasSetorDiaria, fetchFormasPagamentoCache, fetchCaixasCache,
-  fetchApuracaoAfericoes, fetchVendasCache,
+  fetchApuracaoAfericoes, fetchVendasCache, type CaixaCacheRow, type FormaPagamentoCacheRow,
 } from '@/api/supabase/apuracao'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { fpgCategoria } from '@/pages/QualidadeDados/hooks/useQualidadeDados'
@@ -26,7 +26,7 @@ const isoMinusDays = (iso: string, n: number) => {
 }
 
 export type GrupoRecebimento = 'cartao' | 'dinheiro' | 'prazo' | 'outros'
-const grupoDe = (tipo: string, nome: string): GrupoRecebimento => {
+export const grupoDe = (tipo: string, nome: string): GrupoRecebimento => {
   const c = fpgCategoria(tipo, nome)
   if (c === 'Dinheiro') return 'dinheiro'
   if (c === 'A prazo') return 'prazo'
@@ -55,6 +55,10 @@ export interface ResumoOntem {
   /** Títulos a receber em aberto (null enquanto carrega ou se falhar). */
   prazo: { vencidosValor: number; vencidosQtd: number; hojeValor: number; hojeQtd: number; abertoValor: number } | null
   carregandoPrazo: boolean
+  /** Linhas cruas de ontem para o detalhe dentro do resumo (o que foi contado). */
+  caixasRows: CaixaCacheRow[]
+  formasRows: FormaPagamentoCacheRow[]
+  nomePosto: (codigo: number) => string
 }
 
 const useResumoOntem = (enabled: boolean): ResumoOntem => {
@@ -90,6 +94,7 @@ const useResumoOntem = (enabled: boolean): ResumoOntem => {
 
   return useMemo(() => {
     const permit = new Set(codes)
+    const nomes = new Map(permitidas.map((e) => [e.codigo, e.fantasia || e.razao || `Posto ${e.codigo}`]))
     const dRows = (diaria.data ?? []).filter((r) => r.data === ontem)
     const dSem = (diaria.data ?? []).filter((r) => r.data === semanaPassada)
     const vendasDiaria = dRows.reduce((s, r) => s + (r.vendas_total ?? 0), 0)
@@ -160,8 +165,11 @@ const useResumoOntem = (enabled: boolean): ResumoOntem => {
       topProduto,
       prazo,
       carregandoPrazo: receber.isLoading,
+      caixasRows: caixas.data ?? [],
+      formasRows: formas.data ?? [],
+      nomePosto: (c: number) => nomes.get(c) ?? `Posto ${c}`,
     }
-  }, [codes, diaria.data, diaria.isLoading, setor.data, setor.isLoading, formas.data, formas.isLoading, caixas.data, afer.data, prod.data, receber.data, receber.isLoading, ontem, semanaPassada, hoje])
+  }, [codes, permitidas, diaria.data, diaria.isLoading, setor.data, setor.isLoading, formas.data, formas.isLoading, caixas.data, afer.data, prod.data, receber.data, receber.isLoading, ontem, semanaPassada, hoje])
 }
 
 export default useResumoOntem

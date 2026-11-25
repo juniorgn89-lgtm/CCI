@@ -39,7 +39,6 @@ const AppLauncher = ({ variant = 'desktop' }: AppLauncherProps) => {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            title="Apps da CCI"
             aria-label="Abrir apps da CCI"
             className={cn(
               'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors',

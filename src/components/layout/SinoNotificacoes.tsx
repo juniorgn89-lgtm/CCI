@@ -188,7 +188,7 @@ const SinoNotificacoes = ({ variant = 'desktop' }: Props) => {
       aria-label="Notificações"
       className={celular
         ? 'fixed inset-0 z-[70] flex flex-col bg-white pt-[env(safe-area-inset-top)] dark:bg-[#1e293b]'
-        : 'absolute right-0 top-11 z-50 flex max-h-[78vh] w-[400px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-2xl dark:border-gray-700 dark:bg-gray-900'}
+        : 'absolute right-0 top-11 z-50 flex max-h-[78vh] w-[400px] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white text-left shadow-2xl dark:border-[#2f3b4f] dark:bg-[#1e293b]'}
     >
       {/* Cabeçalho */}
       <div className={cn('flex shrink-0 items-start gap-2', celular ? 'px-4 pb-3.5 pt-5' : 'px-4 pb-3 pt-4')}>
@@ -228,7 +228,7 @@ const SinoNotificacoes = ({ variant = 'desktop' }: Props) => {
         'min-h-0 flex-1 overflow-y-auto overscroll-contain border-t',
         celular
           ? 'divide-y divide-gray-100 border-gray-100 bg-white dark:divide-white/[0.05] dark:border-white/[0.06] dark:bg-[#192436]'
-          : 'divide-y divide-gray-100 border-gray-100 dark:divide-gray-800 dark:border-gray-800',
+          : 'divide-y divide-gray-100 border-gray-100 dark:divide-[#2f3b4f] dark:border-[#2f3b4f]',
       )}>
         {vazio && <p className="py-16 text-center text-sm text-gray-500">Nenhuma notificação.</p>}
         {lista.map((n) => (
@@ -368,7 +368,7 @@ const ReceberNoDispositivo = ({ celular, userId }: { celular: boolean; userId: s
       'shrink-0 border-t',
       celular
         ? 'border-gray-100 bg-gray-100 pb-[env(safe-area-inset-bottom)] dark:border-white/[0.06] dark:bg-[#121a2d]'
-        : 'border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-black/20',
+        : 'border-gray-100 bg-gray-50 dark:border-[#2f3b4f] dark:bg-[#172234]',
     )}>
       <button
         type="button"

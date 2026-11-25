@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
 import { ChevronDown, Info, Check } from 'lucide-react'
 import {
   DropdownMenu,
@@ -11,11 +12,18 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { todayLocal } from '@/lib/period'
-import { useFilterStore } from '@/store/filters'
+import { useFilterStore, type ComparisonMode } from '@/store/filters'
+import { showsComparison } from '@/lib/globalFilters'
+import { useTopbarUi } from '@/store/topbarUi'
+import useIsMobile from '@/hooks/useIsMobile'
 
 const months = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+]
+const COMPARACOES: { value: ComparisonMode; label: string; curto: string; ajuda: string }[] = [
+  { value: 'prevMonth', label: 'Mês anterior', curto: 'vs mês ant.', ajuda: 'Mesmos dias do mês passado' },
+  { value: 'prevYear', label: 'Ano anterior', curto: 'vs ano ant.', ajuda: 'Mesmos dias do ano passado' },
 ]
 const monthsShort = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -86,6 +94,15 @@ interface PeriodPresetSelectProps {
  */
 const PeriodPresetSelect = ({ dataInicial, dataFinal, onApply, onCustomChange }: PeriodPresetSelectProps) => {
   const diasFechados = useFilterStore((s) => s.diasFechados)
+  // Comparação (vs mês ant. / vs ano ant.) mora DENTRO do menu de período no
+  // computador — antes era um botão à parte na barra. Só nas telas que a usam;
+  // no modo ao vivo fica desligada. No celular segue na folha de filtros.
+  const { pathname } = useLocation()
+  const isMobile = useIsMobile()
+  const liveLock = useTopbarUi((s) => s.liveLock)
+  const comparacao = useFilterStore((s) => s.comparisonMode)
+  const setComparacao = useFilterStore((s) => s.setComparisonMode)
+  const mostraComparacao = !isMobile && showsComparison(pathname)
   const setDiasFechados = useFilterStore((s) => s.setDiasFechados)
   const active = activePreset(dataInicial, dataFinal, diasFechados)
   const year = dataInicial ? Number(dataInicial.slice(0, 4)) : new Date().getFullYear()
@@ -143,10 +160,14 @@ const PeriodPresetSelect = ({ dataInicial, dataFinal, onApply, onCustomChange }:
           type="button"
           className={cn(
             'inline-flex h-7 min-w-[124px] items-center justify-between gap-1.5 rounded-md border border-gray-300 bg-white px-2 text-xs text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500',
+            mostraComparacao && !liveLock && 'min-w-[172px]',
             'dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-200 dark:hover:bg-gray-800',
           )}
         >
-          <span className="truncate">{triggerLabel}</span>
+          <span className="truncate">
+            {triggerLabel}
+            {mostraComparacao && !liveLock && <span className="text-gray-400 dark:text-gray-500"> · {COMPARACOES.find((c) => c.value === comparacao)?.curto}</span>}
+          </span>
           <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
         </button>
       </DropdownMenuTrigger>
@@ -175,6 +196,26 @@ const PeriodPresetSelect = ({ dataInicial, dataFinal, onApply, onCustomChange }:
             <span className="text-[10px] text-gray-400">Mês corrente termina em ontem (apurado)</span>
           </span>
         </DropdownMenuCheckboxItem>
+        {mostraComparacao && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs">Comparar com</DropdownMenuLabel>
+            {COMPARACOES.map((c) => (
+              <DropdownMenuItem
+                key={c.value}
+                disabled={liveLock}
+                onSelect={(e) => { e.preventDefault(); setComparacao(c.value) }}
+                className="gap-2 text-xs"
+              >
+                <Check className={cn('h-3.5 w-3.5', comparacao === c.value ? 'opacity-100 text-[#2563eb]' : 'opacity-0')} />
+                <span className="flex flex-col">
+                  <span>{c.label}</span>
+                  <span className="text-[10px] text-gray-400">{c.ajuda}</span>
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="flex items-center justify-between gap-2">
           <span className="text-xs">Personalizado · meses</span>

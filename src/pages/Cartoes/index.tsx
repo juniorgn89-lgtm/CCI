@@ -15,7 +15,7 @@ import InfoHint from '@/components/ui/InfoHint'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
-import TopBarTabs from '@/components/layout/TopBarTabs'
+import ModuloAbas from '@/components/layout/ModuloAbas'
 import useCartoesConciliacao, { type DetalheItem } from '@/pages/Cartoes/hooks/useCartoesConciliacao'
 import ResultadoTab from '@/pages/Cartoes/components/ResultadoTab'
 import DetalhamentoTab from '@/pages/Cartoes/components/DetalhamentoTab'
@@ -121,7 +121,7 @@ const Cartoes = ({ embedded = false }: { embedded?: boolean } = {}) => {
       ) : (
         <>
           <PageHeaderTitle>
-            <TopBarTabs active={tab} onChange={(id) => { setFiltro(null); setTab(id as CartaoTab) }} tabs={TAB_META.map((t) => ({ id: t.id, label: t.label, Icon: t.Icon }))} />
+            <ModuloAbas active={tab} onChange={(id) => { setFiltro(null); setTab(id as CartaoTab) }} tabs={TAB_META.map((t) => ({ id: t.id, label: t.label, Icon: t.Icon }))} />
           </PageHeaderTitle>
 
           <PageHeaderActions>

@@ -122,11 +122,11 @@ const NotificacoesSection = () => {
   if (!userId) return null
 
   return (
-    <section id="avisos" className="scroll-mt-6 space-y-3">
+    <section id="avisos" className="flex scroll-mt-6 flex-col gap-3">
       <h2 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
         Avisos no celular <InfoHint text="O Visor avisa na barra do celular quando você precisa agir: pedido para liberar, pedido decidido, nota devolvida, tarefa nova e um resumo das pendências de manhã. Cada pessoa liga no próprio aparelho." />
       </h2>
-      <div className="space-y-5 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900 sm:p-5">
+      <div className="flex-1 space-y-5 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900 sm:p-5">
         {!pref.isLoading && !bancoPronto && (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">Os avisos ainda não foram ativados no banco de dados. Avise o suporte da CCI.</p>
         )}

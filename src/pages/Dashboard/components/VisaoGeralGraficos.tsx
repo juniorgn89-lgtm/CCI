@@ -37,6 +37,11 @@ const GRAN_SUBTITULO: Record<Granularidade, string> = {
 
 type SetorKey = 'combustivel' | 'automotivos' | 'conveniencia'
 const SETOR_COR: Record<SetorKey, string> = { combustivel: '#2563eb', conveniencia: '#10b981', automotivos: '#f59e0b' }
+/** Escuro "acetinado": as mesmas cores, menos saturadas (sem brilho na tela escura). */
+const SETOR_COR_FOSCO: Record<SetorKey, string> = { combustivel: '#5b7fb4', conveniencia: '#4f9d84', automotivos: '#c79a4a' }
+const corSetor = (k: SetorKey, dark: boolean) => (dark ? SETOR_COR_FOSCO : SETOR_COR)[k]
+const FAT_COR = (dark: boolean) => (dark ? '#5b7fb4' : '#2563eb')
+const LB_COR = (dark: boolean) => (dark ? '#4f9d84' : '#10b981')
 const SETOR_LABEL: Record<SetorKey, string> = { combustivel: 'Combustível', conveniencia: 'Conveniência', automotivos: 'Automotivos' }
 
 type RankMetric = 'lucroBruto' | 'faturamento' | 'margem' | 'litros'
@@ -147,7 +152,7 @@ const Donut = ({ title, dados, total, totalLabel, fmt, onSetor }: {
                 onMouseEnter={() => setHover(true)}
                 onMouseLeave={() => setHover(false)}
               >
-                {ordenados.map((d) => <Cell key={d.id} fill={SETOR_COR[d.id]} />)}
+                {ordenados.map((d) => <Cell key={d.id} fill={corSetor(d.id, ct.dark)} />)}
               </Pie>
               <Tooltip
                 formatter={((v: number, n: SetorKey) => [fmt(v), SETOR_LABEL[n]]) as never}
@@ -192,6 +197,7 @@ const VisaoGeralGraficos = () => {
   const evoLonga = useEvolucaoRede(gran)
   // Modais de detalhe (posto / setor) — abrem em cima da Visão Geral.
   const [postoSel, setPostoSel] = useState<number | null>(null)
+  const [setorDoPosto, setSetorDoPosto] = useState<'combustivel' | 'automotivos' | 'conveniencia' | null>(null)
   const [setorSel, setSetorSel] = useState<SetorKey | null>(null)
   const cmpLabel = rede.comparisonMode === 'prevYear' ? 'vs AA' : 'vs MA'
   const cmpLongo = rede.comparisonMode === 'prevYear' ? 'mesmo período do ano anterior' : 'mês anterior'
@@ -269,11 +275,11 @@ const VisaoGeralGraficos = () => {
       return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([, v]) => v)
     }
     return [
-      { id: 'litros', label: 'Litros vendidos', atual: rede.combustivel.qtd, anterior: rede.combustivel.qtdAnoAnterior, serie: porDia((d) => d.qtd, 'combustivel'), fmt: (v: number) => formatNumber(Math.round(v)), cor: '#10b981' },
-      { id: 'fat', label: 'Faturamento', atual: rede.global.faturamento, anterior: rede.global.faturamentoAnoAnterior, serie: porDia((d) => d.faturamento), fmt: formatCurrencyInt, cor: '#2563eb' },
-      { id: 'lb', label: 'Lucro bruto', atual: rede.global.lucroBruto, anterior: rede.global.lucroBrutoAnoAnterior, serie: porDia((d) => d.lucroBruto), fmt: formatCurrencyInt, cor: '#7c3aed' },
+      { id: 'litros', label: 'Litros vendidos', atual: rede.combustivel.qtd, anterior: rede.combustivel.qtdAnoAnterior, serie: porDia((d) => d.qtd, 'combustivel'), fmt: (v: number) => formatNumber(Math.round(v)), cor: LB_COR(ct.dark) },
+      { id: 'fat', label: 'Faturamento', atual: rede.global.faturamento, anterior: rede.global.faturamentoAnoAnterior, serie: porDia((d) => d.faturamento), fmt: formatCurrencyInt, cor: FAT_COR(ct.dark) },
+      { id: 'lb', label: 'Lucro bruto', atual: rede.global.lucroBruto, anterior: rede.global.lucroBrutoAnoAnterior, serie: porDia((d) => d.lucroBruto), fmt: formatCurrencyInt, cor: ct.dark ? '#8b7fc0' : '#7c3aed' },
     ]
-  }, [setores, rede.combustivel, rede.global])
+  }, [setores, rede.combustivel, rede.global, ct.dark])
 
   const margens = useMemo(
     () => setores.map(({ id, obj }) => ({ id, margem: obj.margem })).sort((a, b) => b.margem - a.margem),
@@ -313,8 +319,8 @@ const VisaoGeralGraficos = () => {
         className="lg:col-span-2 xl:col-span-7"
         right={
           <div className="flex flex-wrap items-center gap-3 text-[11px] text-gray-500 dark:text-gray-400">
-            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" />Faturamento</span>
-            <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-3.5 rounded-full bg-[#10b981]" />Lucro bruto</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full" style={{ background: FAT_COR(ct.dark) }} />Faturamento</span>
+            <span className="inline-flex items-center gap-1.5"><span className="h-0.5 w-3.5 rounded-full" style={{ background: LB_COR(ct.dark) }} />Lucro bruto</span>
             {gran === 'dia' && <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-amber-100 ring-1 ring-amber-200/70 dark:bg-amber-400/15 dark:ring-amber-300/20" />Fim de semana</span>}
             <div className="inline-flex rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800">
               {GRAN_TABS.map((t) => (
@@ -364,11 +370,11 @@ const VisaoGeralGraficos = () => {
               formatter={((v: number, name: string) => name === 'Margem' ? [pct(v), name] : [formatCurrencyInt(v), name]) as never}
               contentStyle={{ fontSize: 12, borderRadius: 8, ...ct.tooltip }}
             />
-            <Bar yAxisId="rs" dataKey="faturamento" name="Faturamento" fill="#2563eb" radius={[3, 3, 0, 0]} maxBarSize={gran === 'dia' ? 22 : 40} isAnimationActive={false}>
+            <Bar yAxisId="rs" dataKey="faturamento" name="Faturamento" fill={FAT_COR(ct.dark)} radius={[3, 3, 0, 0]} maxBarSize={gran === 'dia' ? 22 : 40} isAnimationActive={false}>
               {/* Período em andamento / incompleto em barra clara: não é queda, é falta de dias. */}
               {serie.map((p) => <Cell key={p.data} fillOpacity={p.parcial ? 0.4 : 1} />)}
             </Bar>
-            <Line yAxisId="lb" type="monotone" dataKey="lucroBruto" name="Lucro bruto" stroke="#10b981" strokeWidth={2} dot={{ r: 2.5, strokeWidth: 0, fill: '#10b981' }} activeDot={{ r: 4 }} isAnimationActive={false} />
+            <Line yAxisId="lb" type="monotone" dataKey="lucroBruto" name="Lucro bruto" stroke={LB_COR(ct.dark)} strokeWidth={2} dot={{ r: 2.5, strokeWidth: 0, fill: LB_COR(ct.dark) }} activeDot={{ r: 4 }} isAnimationActive={false} />
             {/* Margem só no tooltip: série sem traço (o eixo não importa, ela não é desenhada). */}
             <Line yAxisId="lb" dataKey="margem" name="Margem" stroke="none" dot={false} activeDot={false} legendType="none" isAnimationActive={false} />
           </ComposedChart>
@@ -483,8 +489,9 @@ const VisaoGeralGraficos = () => {
         </ul>
       </Card>
 
-      <PostoResumoModal empresaCodigo={postoSel} onClose={() => setPostoSel(null)} />
-      <SetorPostosModal setor={setorSel} onClose={() => setSetorSel(null)} onPosto={(c) => { setSetorSel(null); setPostoSel(c) }} />
+      <PostoResumoModal empresaCodigo={postoSel} onClose={() => { setPostoSel(null); setSetorDoPosto(null) }} setor={setorDoPosto}
+        onVoltar={setorDoPosto ? () => { setPostoSel(null); setSetorSel(setorDoPosto); setSetorDoPosto(null) } : undefined} />
+      <SetorPostosModal setor={setorSel} onClose={() => setSetorSel(null)} onPosto={(c) => { setSetorDoPosto(setorSel ?? null); setSetorSel(null); setPostoSel(c) }} />
     </div>
   )
 }

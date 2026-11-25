@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode, useCallback, useMemo, useState } from 'react'
-import { Wrench, Package, TrendingUp, TrendingDown, Minus, DollarSign, Search, Trophy, LayoutDashboard, BarChart3, ListOrdered, PieChart, Receipt, CalendarDays } from 'lucide-react'
+import { Package, TrendingUp, TrendingDown, Minus, DollarSign, Search, Trophy, LayoutDashboard, BarChart3, ListOrdered, PieChart, Receipt, CalendarDays } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useFilterStore } from '@/store/filters'
 import { fetchProdutos, fetchGrupos } from '@/api/endpoints/produtos'
@@ -22,7 +22,6 @@ import { buildPostoDiaMatrix } from '@/pages/Comercial/Vendas/postoDiaMatrix'
 import usePostoNomes from '@/hooks/usePostoNomes'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
-import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import RouteFallback from '@/components/feedback/RouteFallback'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -40,7 +39,6 @@ import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentos
 import { smoothedProjection, projecaoSazonal, reprojectByFactor, fimDoMesIso, expectedDailySeries, PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
 import ProjecaoPorItemTable from '@/pages/Comercial/Vendas/ProjecaoPorItemTable'
 import { cn } from '@/lib/utils'
-import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
 import CategoriaDetalheModal, { type CategoriaData } from '@/pages/Comercial/Vendas/CategoriaDetalheModal'
 import PistaDiaModal, { type PistaDiaData } from '@/pages/Comercial/Vendas/PistaDiaModal'
@@ -196,7 +194,6 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   const { data: empresasDataPerm } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const empresasPermitidas = useEmpresasPermitidas(empresasDataPerm?.resultados ?? [])
   const permittedCodes = useMemo(() => new Set(empresasPermitidas.map((e) => e.codigo)), [empresasPermitidas])
-  const empresaNome = useEmpresaNome()
   const cmpLabel = comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.'
   const cmpOffset = comparisonMode === 'prevYear' ? 12 : 1
   // Comparativo "mesmos dias decorridos": corta o fim em hoje.
@@ -744,23 +741,6 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
     <div className="space-y-6">
       {!embedded && (
         <>
-          <PageHeaderTitle placement="header">
-            <div className="flex items-center gap-2.5">
-              <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-              <Wrench className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
-                    Vendas · Automotivo{empresaNome ? ` · ${empresaNome}` : ''}
-                  </h1>
-                  <FocusModeToggle />
-                </div>
-                <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-                  Filtros, óleos, palhetas, aditivos, baterias e acessórios
-                </p>
-              </div>
-            </div>
-          </PageHeaderTitle>
           <PageHeaderActions>
             <DateRangeToolbar />
           </PageHeaderActions>

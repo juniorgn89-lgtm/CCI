@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
+import useVisivel from '@/hooks/useVisivel'
 import {
   Info, TrendingDown, TrendingUp, Minus, Radar, Calculator, Fuel, ShieldCheck,
-  ShieldAlert, ShieldX, AlertTriangle, Activity, Target, Zap, ArrowRight,
+  ShieldAlert, ShieldX, AlertTriangle, Activity, Target, Zap,
   Lightbulb, ChevronDown, ChevronUp, Flame,
 } from 'lucide-react'
 import {
@@ -121,15 +122,11 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial, concorrenciaBy
   // semente; ao mexer, o ajuste fica preso àquela chave (troca de combustível
   // ou de veredito volta pra semente nova). Sem effect, sem reset indevido.
   const seedKey = reguaCard ? `${reguaCard.id}|${reguaCard.veredito}|${reguaCard.quantoL.toFixed(2)}` : ''
+  // Abre sempre em ZERO: nada vem marcado. A régua só escolhe a direção
+  // (subir/baixar) e vira o atalho "Testar a sugestão" — quem decide é o dono.
   const semente = ((): { dir: 'subir' | 'reduzir'; mag: number } => {
-    if (reguaCard && reguaCard.quantoL >= 0.01) {
-      const q = Math.round(reguaCard.quantoL * 100) / 100
-      if (reguaCard.veredito === 'subir') return { dir: 'subir', mag: q }
-      if (reguaCard.veredito === 'ceder' || reguaCard.veredito === 'confirmar') return { dir: 'reduzir', mag: q }
-    }
-    // 'Segurar' (ou régua sem número): abre em ZERO. Qualquer ajuste é escolha
-    // do usuário e vai contra a régua, com aviso. Sem régua: corte de R$ 0,10.
-    return { dir: 'reduzir', mag: reguaCard ? 0 : 0.1 }
+    if (reguaCard?.veredito === 'subir') return { dir: 'subir', mag: 0 }
+    return { dir: 'reduzir', mag: 0 }
   })()
   const [ajuste, setAjuste] = useState<{ key: string; dir: 'subir' | 'reduzir'; mag: number } | null>(null)
   const atual = ajuste && ajuste.key === seedKey ? ajuste : semente
@@ -343,6 +340,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial, concorrenciaBy
   // vizinhos deste posto com preço de até PRACA_STALE_WARN dias. gap>0 = estou
   // mais BARATO (posso subir); gap<0 = mais CARO. `velho` = nenhum vizinho
   // atualizado → sem média, a lista aparece mas não guia decisão.
+  const concorrenciaVisivel = useVisivel().aba('/comercial', 'concorrencia')
   const vsPraca = useMemo(() => {
     if (!praca) return null
     const media = praca.mediaVizinhos
@@ -621,7 +619,7 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial, concorrenciaBy
           />
 
           {/* ── Seu preço vs os vizinhos DESTE posto (concorrência manual) ── */}
-          {vsPraca && (
+          {concorrenciaVisivel && vsPraca && (
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
               <div className="flex flex-wrap items-center gap-1.5">
                 <Target className="h-4 w-4 text-[#1e3a5f] dark:text-blue-400" />
@@ -681,22 +679,27 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial, concorrenciaBy
             </div>
           )}
 
-          {/* ── Simulador estratégico ── */}
-          <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-gray-50 to-white p-4 shadow-sm dark:border-gray-700 dark:from-gray-800/60 dark:to-gray-900">
-            <div className="flex items-center gap-2">
-              <Calculator className="h-4 w-4 text-[#1e3a5f] dark:text-blue-400" />
-              <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                Simulador de preço
-              </h4>
-              <InfoHint text="Escolha subir ou reduzir e arraste o valor. O ajuste é aplicado sobre o que ainda falta vender até o fim do mês (os dias já fechados não mudam) e o fechamento é projetado ANTES × DEPOIS, mantendo o mesmo volume (cenário honesto)." />
-              <span className="text-[11px] text-gray-400">— arraste pra projetar o fechamento</span>
+          {/* ── Simulador de preço ── */}
+          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Calculator className="h-4 w-4 text-[#1e3a5f] dark:text-blue-400" />
+                  <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Simulador de preço</h4>
+                  <InfoHint text="Escolha subir ou baixar e o valor por litro. O novo preço vale só para o que ainda falta vender no mês (os dias fechados não mudam). A conta mantém o mesmo volume de litros." />
+                </div>
+                <p className="mt-0.5 text-[12px] text-gray-500 dark:text-gray-400">Teste um novo preço e veja como o mês fecha.</p>
+              </div>
+              {reguaCard && reguaCard.quantoL >= 0.01 && (reguaCard.veredito === 'subir' || reguaCard.veredito === 'ceder' || reguaCard.veredito === 'confirmar') && (
+                <button type="button"
+                  onClick={() => setAjuste({ key: seedKey, dir: reguaCard.veredito === 'subir' ? 'subir' : 'reduzir', mag: Math.round(reguaCard.quantoL * 100) / 100 })}
+                  className="inline-flex items-center gap-2 rounded-lg border border-teal-200 bg-teal-50 px-3 py-1.5 text-left text-[12px] text-teal-800 transition-colors hover:bg-teal-100 dark:border-[#0d9488]/40 dark:bg-[#0d9488]/[0.10] dark:text-[#5eead4] dark:hover:bg-[#0d9488]/[0.18]">
+                  <span>A régua sugere <b className="font-semibold">{reguaCard.acao}</b></span>
+                  <span className="rounded-md bg-teal-600 px-2 py-0.5 text-[11px] font-semibold text-white dark:bg-[#0d9488]/30 dark:text-[#5eead4]">Testar</span>
+                </button>
+              )}
             </div>
-            {reguaCard && (
-              <p className="mt-1.5 text-[11px] leading-snug text-gray-500 dark:text-gray-400">
-                Régua da Visão Geral: <span className="font-semibold text-gray-700 dark:text-gray-200">{reguaCard.acao}</span>.{' '}
-                {reguaMag != null ? 'Já aplicado abaixo; ajuste se quiser testar outro valor.' : 'O simulador abre em zero: qualquer ajuste aqui é escolha sua e vem com a conta e o aviso.'}
-              </p>
-            )}
+
             {coerencia && (
               <div className={cn('mt-3 flex items-start gap-2 rounded-lg px-3 py-2 text-[12px] leading-snug ring-1', coerencia.nivel === 'contra' ? 'bg-red-50 text-red-800 ring-red-200 dark:bg-red-500/10 dark:text-red-200 dark:ring-red-500/30' : 'bg-amber-50 text-amber-800 ring-amber-200 dark:bg-amber-500/10 dark:text-amber-200 dark:ring-amber-500/30')}>
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
@@ -704,220 +707,129 @@ const GuerraPreco = ({ rows, fuelTypes, dataInicial, fuelInicial, concorrenciaBy
               </div>
             )}
 
-            <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
-              {/* Slider + presets */}
-              <div>
-                <div className="flex items-end justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="inline-flex rounded-md border border-gray-200 p-0.5 dark:border-gray-700">
-                      {([['subir', 'Subir'], ['reduzir', 'Reduzir']] as const).map(([d, l]) => (
-                        <button key={d} type="button" onClick={() => setDir(d)} className={cn('rounded px-2 py-0.5 text-[11px] font-semibold transition-colors', dir === d ? (d === 'subir' ? 'bg-emerald-600 text-white' : 'bg-[#1e3a5f] text-white dark:bg-blue-700') : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200')}>{l}</button>
-                      ))}
-                    </div>
-                    <span className="text-[11px] font-medium text-gray-500 dark:text-gray-400">o preço em</span>
-                  </div>
-                  <span className={cn('text-2xl font-bold tabular-nums', dir === 'subir' ? 'text-emerald-600 dark:text-emerald-400' : 'text-[#1e3a5f] dark:text-blue-300')}>
-                    {mag > 0 ? (dir === 'subir' ? '+' : '−') : ''}R$ {moneyLraw(mag).slice(0, 4)}<span className="text-sm font-medium text-gray-400">/L</span>
-                  </span>
+            {/* Passo 1: o que testar */}
+            <div className="mt-4 rounded-lg border border-gray-200 p-4 dark:border-[#2f3b4f]">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">1. Qual mudança testar?</p>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <div className="inline-flex rounded-lg border border-gray-200 p-0.5 dark:border-gray-700">
+                  {([['subir', 'Subir o preço'], ['reduzir', 'Baixar o preço']] as const).map(([d, l]) => (
+                    <button key={d} type="button" onClick={() => setDir(d)}
+                      className={cn('rounded-md px-3 py-1 text-[12px] font-semibold transition-colors', dir === d ? (d === 'subir' ? 'bg-emerald-600 text-white dark:bg-[#4f9d84]/25 dark:text-[#86c5aa]' : 'bg-[#1e3a5f] text-white dark:bg-[#5b7fb4]/25 dark:text-[#9db5d6]') : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200')}>{l}</button>
+                  ))}
                 </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={maxDir}
-                  step={0.01}
-                  value={Math.min(mag, maxDir)}
-                  onChange={(e) => setMag(Number(e.target.value))}
-                  className={cn(
-                    'mt-2 h-2 w-full cursor-pointer appearance-none rounded-full bg-gradient-to-r',
-                    dir === 'subir' ? 'from-emerald-300 via-emerald-500 to-amber-400' : 'from-emerald-400 via-amber-400 to-red-500',
-                    '[&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#1e3a5f] [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:transition-transform hover:[&::-webkit-slider-thumb]:scale-110 dark:[&::-webkit-slider-thumb]:border-blue-400',
-                    '[&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[#1e3a5f] [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md dark:[&::-moz-range-thumb]:border-blue-400',
-                  )}
-                />
-                <div className="mt-1 flex justify-between text-[10px] tabular-nums text-gray-400">
-                  <span>R$ 0,00</span>
-                  <span>{dir === 'subir' ? 'quanto mais alto, mais o volume pesa' : `sem lucro a partir de ${moneyL(lbAtualNow).slice(3)}`}</span>
-                  <span>R$ {moneyLraw(maxDir).slice(0, 4)}</span>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-1.5">
+                <span className="text-[12px] text-gray-500 dark:text-gray-400">em</span>
+                <div className="flex flex-wrap gap-1.5">
                   {presets.map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setMag(c)}
-                      className={cn(
-                        'rounded-md px-2.5 py-1 text-[11px] font-medium tabular-nums transition-colors',
+                    <button key={c} type="button" onClick={() => setMag(c)}
+                      className={cn('rounded-md px-2.5 py-1 text-[12px] font-medium tabular-nums transition-colors',
                         Math.abs(mag - c) < 0.001
-                          ? 'bg-[#1e3a5f] text-white dark:bg-blue-700'
-                          : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-[#0f0f0f] dark:text-gray-400 dark:hover:bg-gray-800',
-                      )}
-                    >
-                      {dir === 'subir' ? '+' : '-'}R$ {moneyLraw(c).slice(0, 4)}{reguaMag != null && Math.abs(c - reguaMag) < 0.001 ? ' · régua' : ''}
+                          ? 'bg-[#1e3a5f] text-white dark:bg-[#0d9488]/20 dark:text-[#5eead4] dark:ring-1 dark:ring-[#0d9488]/50'
+                          : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-[#2f3b4f] dark:bg-transparent dark:text-gray-300 dark:hover:bg-white/[0.04]')}>
+                      R$ {moneyLraw(c).slice(0, 4)}
                     </button>
                   ))}
                 </div>
+                <span className={cn('ml-auto text-2xl font-bold tabular-nums', mag === 0 ? 'text-gray-400' : dir === 'subir' ? 'text-emerald-600 dark:text-[#86c5aa]' : 'text-[#1e3a5f] dark:text-[#9db5d6]')}>
+                  {mag > 0 ? (dir === 'subir' ? '+' : '−') : ''}R$ {moneyLraw(mag).slice(0, 4)}<span className="text-sm font-medium text-gray-400">/L</span>
+                </span>
               </div>
-
-              {/* Stats por litro — de tanto → para tanto (hoje → depois do ajuste). */}
-              <div className="grid grid-cols-2 gap-2 lg:w-[360px]">
-                <SimStat
-                  label="Preço / L"
-                  from={moneyL(precoAtual)}
-                  value={moneyL(sim.novoPreco)}
-                  help="Preço atual (cadastrado) mais a alta ou menos o corte do slider → o novo preço na bomba."
-                />
-                <SimStat
-                  label="L.B. / L"
-                  from={moneyL(lbAtualNow)}
-                  value={moneyL(sim.novoLb)}
-                  tone={sim.belowBreakeven ? 'red' : sim.novoLb < lbMinSustentavel || (coerencia && delta > 0) ? 'amber' : 'emerald'}
-                  help="Lucro bruto por litro no preço atual (preço − custo) mais a alta ou menos o corte. Abaixo de zero = preço no/abaixo do custo."
-                />
-                <SimStat
-                  label="Margem / L"
-                  from={`${(precoAtual > 0 ? (lbAtualNow / precoAtual) * 100 : 0).toFixed(2).replace('.', ',')}%`}
-                  value={sim.novoPreco > 0 ? `${sim.margemFinal.toFixed(2).replace('.', ',')}%` : '—'}
-                  tone={sim.margemFinal < MARGEM_ATENCAO ? 'red' : sim.margemFinal >= MARGEM_SAUDAVEL && !(coerencia && delta > 0) ? 'emerald' : 'amber'}
-                  help={`L.B./litro ÷ preço. Cores: saudável ≥ ${MARGEM_SAUDAVEL}%, atenção ≥ ${MARGEM_ATENCAO}%, abaixo = crítica.`}
-                />
-                {delta > 0 ? (
-                <SimStat
-                  label="Volume pode cair até"
-                  value={`−${pct1(sim.folgaVolume)}`}
-                  tone={coerencia ? 'amber' : 'emerald'}
-                  foot={coerencia ? `se cair mais que isso, a alta dá prejuízo. ${coerencia.nivel === 'contra' ? 'Acima da referência, a queda é provável.' : 'Passou da referência: a queda fica provável.'}` : `até aí o lucro do mês não fica abaixo de hoje (${formatCurrency(sim.baseline.lucro)})`}
-                  help="Quanto o volume pode CAIR depois da alta sem o lucro do mês ficar abaixo do de hoje: 1 − (L.B. atual ÷ nova L.B.). Se os litros caírem menos que isso, a alta compensa."
-                />
-                ) : (
-                <SimStat
-                  label="Volume p/ empatar"
-                  value={sim.belowBreakeven ? '∞' : `+${pct1(sim.breakEvenGrowth)}`}
-                  tone={sim.belowBreakeven ? 'red' : sim.breakEvenGrowth > 0.2 ? 'red' : sim.breakEvenGrowth > 0.1 ? 'amber' : 'emerald'}
-                  foot={sim.belowBreakeven
-                    ? 'preço no custo — não dá pra empatar'
-                    : `empatando, o lucro do mês fica em ${formatCurrency(sim.baseline.lucro)}`}
-                  help="Quanto o volume precisa crescer pra manter o MESMO lucro após o corte: (L.B. atual ÷ nova L.B.) − 1. Empatando, o lucro do mês fica igual ao de hoje (sem cortar). Abaixo do break-even = impossível empatar (∞)."
-                />
+              <input
+                type="range" min={0} max={maxDir} step={0.01} value={Math.min(mag, maxDir)}
+                onChange={(e) => setMag(Number(e.target.value))}
+                aria-label="Valor da mudança por litro"
+                className={cn(
+                  'mt-3 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-gradient-to-r',
+                  dir === 'subir' ? 'from-emerald-200 to-amber-200 dark:from-[#4f9d84]/50 dark:to-[#c79a4a]/50' : 'from-emerald-200 via-amber-200 to-red-200 dark:from-[#4f9d84]/50 dark:via-[#c79a4a]/50 dark:to-[#c07a7a]/50',
+                  '[&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-[#1e3a5f] [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md dark:[&::-webkit-slider-thumb]:border-[#5eead4] dark:[&::-webkit-slider-thumb]:bg-[#1e293b]',
+                  '[&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-[#1e3a5f] [&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:shadow-md dark:[&::-moz-range-thumb]:border-blue-400',
                 )}
+              />
+              <div className="mt-1 flex justify-between text-[10.5px] tabular-nums text-gray-400">
+                <span>R$ 0,00</span>
+                {dir === 'reduzir' && <span>sem lucro a partir de {moneyL(lbAtualNow).slice(3)}</span>}
+                <span>R$ {moneyLraw(maxDir).slice(0, 4)}</span>
               </div>
             </div>
 
-            {/* Reflexo do ajuste frente aos vizinhos (ao vivo com o slider). */}
-            {vsPraca && delta !== 0 && (() => {
-              const novo = sim.novoPreco
-              const abaixo = vsPraca.vizinhos.filter((v) => !v.velho && v.preco > novo + 0.005).length
-              const atualizados = vsPraca.vizinhos.filter((v) => !v.velho).length
-              const media = vsPraca.media
-              return (
-                <p className="mt-3 flex items-start gap-1.5 rounded-lg bg-blue-50/60 px-3 py-2 text-[11px] leading-snug text-blue-800 dark:bg-blue-950/20 dark:text-blue-200">
-                  <Target className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  <span>
-                    Com esse ajuste seu preço fica em <span className="font-semibold">{moneyL(novo)}</span>
-                    {media != null ? (
-                      <>
-                        {novo < media
-                          ? ` — R$ ${moneyLraw(media - novo).slice(0, 4)}/L abaixo da média dos vizinhos`
-                          : ` — R$ ${moneyLraw(novo - media).slice(0, 4)}/L acima da média dos vizinhos`}
-                        {`, mais barato que ${abaixo} de ${atualizados} vizinho${atualizados === 1 ? '' : 's'} atualizado${atualizados === 1 ? '' : 's'}.`}
-                      </>
-                    ) : (
-                      <span className="text-blue-800/70 dark:text-blue-200/70">. Os preços dos vizinhos estão velhos; atualize para comparar.</span>
-                    )}
-                  </span>
-                </p>
-              )
-            })()}
-
-            {/* ── Projeção do mês: ANTES × DEPOIS do corte (Lucro em destaque) ── */}
+            {/* Passo 2: o resultado, lado a lado (hoje × com o novo preço) */}
             {(() => {
-              const deltaLucro = sim.semReacao.lucro - sim.baseline.lucro
-              const deltaPct = sim.baseline.lucro !== 0 ? deltaLucro / Math.abs(sim.baseline.lucro) : 0
-              const temCorte = delta !== 0
+              const tem = delta !== 0
               const sobe = delta > 0
-              const pior = deltaLucro < 0
-              // Verde só quando a régua concorda. Alta sempre é condicional ao volume.
+              const deltaLucro = sim.semReacao.lucro - sim.baseline.lucro
               const condicional = sobe && !!coerencia
-              const corDepois = pior ? 'text-red-600 dark:text-red-400' : condicional ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
-              const apoio = [
-                { l: 'Faturamento', a: sim.baseline.fat, d: sim.semReacao.fat, fmt: formatCurrencyInt, muda: true },
-                { l: 'Margem', a: sim.baseline.margem, d: sim.semReacao.margem, fmt: (v: number) => `${v.toFixed(1).replace('.', ',')}%`, muda: true },
-                // Volume não muda: a projeção mantém o mesmo volume (cenário honesto).
-                { l: 'Volume', a: sim.baseline.litros, d: sim.semReacao.litros, fmt: (v: number) => formatLiters(v), muda: false },
+              const corNovo = (melhor: boolean) => !tem ? '' : !melhor ? 'text-red-600 dark:text-red-400' : condicional ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
+              const margemHoje = precoAtual > 0 ? (lbAtualNow / precoAtual) * 100 : 0
+              const linhas: { l: string; hint: string; hoje: string; novo: string; dif: string; melhor: boolean; destaque?: boolean }[] = [
+                { l: 'Preço na bomba', hint: 'Preço cadastrado hoje e o preço depois da mudança.', hoje: moneyL(precoAtual), novo: moneyL(sim.novoPreco), dif: `${delta > 0 ? '+' : '−'}R$ ${moneyLraw(Math.abs(delta)).slice(0, 4)}`, melhor: true },
+                { l: 'Lucro por litro', hint: 'Preço menos custo, por litro.', hoje: moneyL(lbAtualNow), novo: moneyL(sim.novoLb), dif: `${sim.novoLb - lbAtualNow >= 0 ? '+' : '−'}R$ ${moneyLraw(Math.abs(sim.novoLb - lbAtualNow)).slice(0, 4)}`, melhor: sim.novoLb >= lbAtualNow },
+                { l: 'Margem', hint: `Lucro por litro ÷ preço. Saudável a partir de ${MARGEM_SAUDAVEL}%; abaixo de ${MARGEM_ATENCAO}% é crítica.`, hoje: `${margemHoje.toFixed(1).replace('.', ',')}%`, novo: sim.novoPreco > 0 ? `${sim.margemFinal.toFixed(1).replace('.', ',')}%` : '—', dif: `${sim.margemFinal - margemHoje >= 0 ? '+' : '−'}${Math.abs(sim.margemFinal - margemHoje).toFixed(1).replace('.', ',')} p.p.`, melhor: sim.margemFinal >= margemHoje },
+                { l: `Lucro do mês ${horizonte.labelShort}`, hint: 'Já realizado nos dias fechados + previsão dos dias que faltam, com o mesmo volume de litros.', hoje: formatCurrency(sim.baseline.lucro), novo: formatCurrency(sim.semReacao.lucro), dif: `${deltaLucro >= 0 ? '+' : '−'}${formatCurrency(Math.abs(deltaLucro))}`, melhor: deltaLucro >= 0, destaque: true },
+                { l: `Faturamento ${horizonte.labelShort}`, hint: 'Mesmo volume de litros, com o novo preço nos dias que faltam.', hoje: formatCurrencyInt(sim.baseline.fat), novo: formatCurrencyInt(sim.semReacao.fat), dif: `${sim.semReacao.fat - sim.baseline.fat >= 0 ? '+' : '−'}${formatCurrencyInt(Math.abs(sim.semReacao.fat - sim.baseline.fat))}`, melhor: sim.semReacao.fat >= sim.baseline.fat },
               ]
               return (
-                <div className="mt-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-transparent">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Target className="h-4 w-4 text-[#1e3a5f] dark:text-blue-400" />
-                    <h5 className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">Projeção do mês {horizonte.labelShort}</h5>
-                    <InfoHint text="Soma o que já foi realizado nos dias fechados + os dias que faltam. 'Hoje' = sem mexer no preço; 'Depois' = o ajuste do slider (alta ou corte) mantendo o MESMO volume (cenário honesto: se o volume reagir, o resultado muda)." />
-                    <span className="ml-auto text-[11px] text-gray-400">{temCorte ? `antes × depois ${sobe ? 'da alta' : 'do corte'}` : 'sem alteração de preço'}</span>
+                <div className="mt-4">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">2. O que acontece</p>
+                  <div className="mt-2 overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+                    <table className="w-full text-[13px]">
+                      <thead className="text-[10.5px] uppercase tracking-wide text-gray-400">
+                        <tr className="border-b border-gray-100 dark:border-gray-800">
+                          <th className="px-4 py-2 text-left font-semibold"> </th>
+                          <th className="px-4 py-2 text-right font-semibold">Hoje</th>
+                          <th className="px-4 py-2 text-right font-semibold">Com o novo preço</th>
+                          <th className="px-4 py-2 text-right font-semibold">Diferença</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {linhas.map((r) => (
+                          <tr key={r.l} className={cn(r.destaque && 'font-semibold')}>
+                            <td className="px-4 py-2 text-gray-700 dark:text-gray-300"><span className="inline-flex items-center gap-1">{r.l} <InfoHint text={r.hint} /></span></td>
+                            <td className="px-4 py-2 text-right tabular-nums text-gray-900 dark:text-gray-100">{r.hoje}</td>
+                            <td className={cn('px-4 py-2 text-right tabular-nums', tem ? corNovo(r.melhor) : 'text-gray-400')}>{tem ? r.novo : '—'}</td>
+                            <td className={cn('px-4 py-2 text-right tabular-nums', tem ? corNovo(r.melhor) : 'text-gray-400')}>{tem ? r.dif : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
 
-                  {/* Lucro do mês em destaque */}
-                  <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-2">
-                    <div>
-                      <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Lucro do mês hoje</p>
-                      <p className="text-2xl font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(sim.baseline.lucro)}</p>
-                    </div>
-                    {temCorte && (
-                      <>
-                        <ArrowRight className="mb-1.5 h-5 w-5 shrink-0 text-gray-300" />
-                        <div>
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">{sobe ? 'com a alta' : 'com o corte'} de R$ {moneyLraw(mag).slice(0, 4)}/L</p>
-                          <p className={cn('text-2xl font-bold tabular-nums', corDepois)}>{formatCurrency(sim.semReacao.lucro)}</p>
-                        </div>
-                        <span className={cn('mb-1.5 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-bold ring-1', pior ? TONE.red.pill : condicional ? TONE.amber.pill : TONE.emerald.pill)}>
-                          {pior ? <TrendingDown className="h-3.5 w-3.5" /> : <TrendingUp className="h-3.5 w-3.5" />}
-                          {formatCurrency(deltaLucro)} · {pctLabel(deltaPct)}{sobe && <span className="font-medium opacity-80"> · se o volume não cair</span>}
-                        </span>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Apoio: faturamento, margem, volume — rotulados Hoje / Com corte */}
-                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    {apoio.map((r) => (
-                      <div key={r.l} className="rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2 dark:border-gray-800 dark:bg-gray-800/40">
-                        <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">{r.l} {horizonte.labelShort}</p>
-                        {temCorte && r.muda ? (
-                          <div className="mt-0.5 space-y-0.5">
-                            <p className="flex items-center justify-between gap-2 text-[11px]">
-                              <span className="text-gray-400">Hoje</span>
-                              <span className="font-semibold tabular-nums text-gray-700 dark:text-gray-300">{r.fmt(r.a)}</span>
-                            </p>
-                            <p className="flex items-center justify-between gap-2 text-[11px]">
-                              <span className="text-gray-400">{sobe ? 'Com alta' : 'Com corte'}</span>
-                              <span className={cn('font-semibold tabular-nums', corDepois)}>{r.fmt(r.d)}</span>
-                            </p>
-                          </div>
-                        ) : (
-                          <p className="text-[13px] font-semibold tabular-nums text-gray-900 dark:text-gray-100">
-                            {r.fmt(r.a)}
-                            {temCorte && !r.muda && <span className="text-[10px] font-normal text-gray-400"> · mantido</span>}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  {temCorte && sobe ? (
-                    <NotaLeitura variant="box" className="mt-2.5">
-                      Considera o <strong>mesmo volume</strong>; se a alta derrubar litros, o ganho encolhe. O volume pode cair até <strong>~{pct1(sim.folgaVolume)}</strong> antes de o lucro do mês ficar abaixo do de hoje. Suba e acompanhe os litros nos primeiros dias.
-                    </NotaLeitura>
-                  ) : temCorte ? (
-                    <NotaLeitura variant="box" className="mt-2.5">
-                      Considera o <strong>mesmo volume</strong>; se o corte trouxer mais litros, melhora — mas isso depende da reação do mercado. Pra empatar o lucro de hoje, o volume teria que crescer {sim.belowBreakeven ? 'o impossível (preço no custo)' : `~${pct1(sim.breakEvenGrowth)}`}.
-                    </NotaLeitura>
+                  {/* A frase que decide */}
+                  {!tem ? (
+                    <p className="mt-3 rounded-lg bg-gray-50 px-3 py-2.5 text-[12.5px] text-gray-600 dark:bg-[#0b1220] dark:text-gray-300">Escolha subir ou baixar e um valor acima para ver o resultado.</p>
+                  ) : sobe ? (
+                    <p className={cn('mt-3 flex items-start gap-2 rounded-lg px-3 py-2.5 text-[12.5px] leading-snug ring-1', condicional ? TONE.amber.pill : TONE.emerald.pill)}>
+                      <TrendingUp className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span>Com a alta, você pode vender até <b>{pct1(sim.folgaVolume)} menos litros</b> e ainda lucrar o mesmo que hoje. Se a venda cair menos que isso, a alta compensa. Suba e acompanhe os litros nos primeiros dias.</span>
+                    </p>
                   ) : (
-                    <NotaLeitura variant="box" className="mt-2.5">Escolha subir ou reduzir e arraste o slider pra ver como o preço muda o fechamento do mês.</NotaLeitura>
+                    <p className={cn('mt-3 flex items-start gap-2 rounded-lg px-3 py-2.5 text-[12.5px] leading-snug ring-1', sim.belowBreakeven || sim.breakEvenGrowth > 0.2 ? TONE.red.pill : sim.breakEvenGrowth > 0.1 ? TONE.amber.pill : TONE.emerald.pill)}>
+                      <TrendingDown className="mt-0.5 h-4 w-4 shrink-0" />
+                      <span>{sim.belowBreakeven
+                        ? 'Com esse corte o preço fica no custo: nenhum volume a mais compensa.'
+                        : <>Para o corte não diminuir o lucro, você precisa vender <b>{pct1(sim.breakEvenGrowth)} mais litros</b> nos dias que faltam.</>}</span>
+                    </p>
                   )}
 
-                  {/* Honestidade de base: a projeção do drill é FÍSICA (bomba), não o
-                      fiscal da Central. Serve pra decidir a DIREÇÃO do corte, não como
-                      valor contábil exato — não deixar o dono crer num R$ que não bate. */}
-                  <NotaLeitura variant="box" className="mt-2">
-                    Base: <strong>venda física da bomba</strong> (a mesma do dia a dia desta tela). O fechamento <strong>fiscal</strong> do mês na Central da Rede pode diferir um pouco — use este número pra decidir a <strong>direção e o tamanho do ajuste</strong>, não como valor contábil exato.
-                  </NotaLeitura>
+                  {/* Vizinhos com o novo preço */}
+                  {concorrenciaVisivel && vsPraca && tem && (() => {
+                    const novo = sim.novoPreco
+                    const abaixo = vsPraca.vizinhos.filter((v) => !v.velho && v.preco > novo + 0.005).length
+                    const atualizados = vsPraca.vizinhos.filter((v) => !v.velho).length
+                    const media = vsPraca.media
+                    return (
+                      <p className="mt-2 flex items-start gap-1.5 px-1 text-[12px] leading-snug text-gray-600 dark:text-gray-300">
+                        <Target className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>
+                          Frente aos vizinhos: {media != null
+                            ? <>{novo < media ? `R$ ${moneyLraw(media - novo).slice(0, 4)}/L abaixo` : `R$ ${moneyLraw(novo - media).slice(0, 4)}/L acima`} da média, mais barato que {abaixo} de {atualizados} {atualizados === 1 ? 'vizinho atualizado' : 'vizinhos atualizados'}.</>
+                            : 'os preços dos vizinhos estão velhos; atualize para comparar.'}
+                        </span>
+                      </p>
+                    )
+                  })()}
+
+                  <p className="mt-3 text-[11px] leading-snug text-gray-400">
+                    A conta mantém o mesmo volume de litros. Base: venda física da bomba; o fechamento fiscal da Central pode diferir um pouco. Use para decidir a direção e o tamanho do ajuste.
+                  </p>
                 </div>
               )
             })()}
@@ -1214,30 +1126,6 @@ const RecomendacaoPreco = ({ rec, fuel, numeros }: { rec: RecVM; fuel: string; n
     </div>
   )
 }
-
-const SimStat = ({ label, value, from, foot, tone, help }: { label: string; value: string; from?: string; foot?: string; tone?: Tone; help: string }) => (
-  <div className="rounded-lg bg-white px-3 py-2.5 shadow-sm dark:bg-transparent">
-    <p className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
-      {label}
-      <InfoHint text={help} />
-    </p>
-    {from ? (
-      <div className="mt-1 space-y-0.5">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="text-[10px] text-gray-400">Hoje</span>
-          <span className="text-[13px] font-semibold tabular-nums text-gray-500 dark:text-gray-400">{from}</span>
-        </div>
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="text-[10px] text-gray-400">Depois</span>
-          <span className={cn('text-[17px] font-bold tabular-nums', tone ? TONE[tone].text : 'text-gray-900 dark:text-gray-100')}>{value}</span>
-        </div>
-      </div>
-    ) : (
-      <p className={cn('mt-0.5 text-[17px] font-bold tabular-nums', tone ? TONE[tone].text : 'text-gray-900 dark:text-gray-100')}>{value}</p>
-    )}
-    {foot && <p className="mt-1 text-[10px] leading-snug text-gray-400 dark:text-gray-500">{foot}</p>}
-  </div>
-)
 
 interface CenarioVM {
   id: string

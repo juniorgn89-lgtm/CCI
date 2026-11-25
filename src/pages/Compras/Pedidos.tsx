@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Plus, Search, Loader2, Gauge, AlertTriangle, Trash2 } from 'lucide-react'
 import RowActionButton from '@/components/tables/RowAction'
 import { Modal, Erro, ConfirmaAcao } from '@/pages/Gestao/comumUi'
@@ -7,7 +8,7 @@ import { formatCurrencyInt } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { CabecalhoFiltro, AvisoFiltros } from '@/components/tables/FiltroColuna'
 import { useFiltrosColuna, type DefColuna } from '@/lib/filtroColuna'
-import { SETOR_LABEL, STATUS_LABEL, STATUS_META, SITUACAO_NOTA_LABEL, apagarPedido, etapaDoPedido, type EtapaPedido, type PedidoRow, type ResumoNotas, type SetorCompra, type SituacaoNota, type StatusPedido } from '@/api/supabase/compras'
+import { fetchQtdPorPedido, SETOR_LABEL, STATUS_LABEL, STATUS_META, SITUACAO_NOTA_LABEL, apagarPedido, etapaDoPedido, type EtapaPedido, type PedidoRow, type ResumoNotas, type SetorCompra, type SituacaoNota, type StatusPedido } from '@/api/supabase/compras'
 import { useComprasBase, containerCls, inputCls, selectCls, btnPrimary, btnGhost, fmtDataHora, nomeProprio } from './comum'
 import { usePedidos } from './hooks/usePedidos'
 import NovoPedidoModal from './NovoPedidoModal'
@@ -63,6 +64,13 @@ export const Selo = ({ status }: { status: StatusPedido }) => (
 const Pedidos = () => {
   const base = useComprasBase()
   const { pedidos, tetos, notas, carregando, erro, invalidar } = usePedidos(base.redeId)
+  // Quantidades somadas por pedido (refaz quando a lista de pedidos muda).
+  const { data: qtdPedidos = new Map() } = useQuery({
+    queryKey: ['compras-qtd-pedidos', base.redeId, pedidos.length, pedidos.reduce((m, p) => (p.atualizado_em > m ? p.atualizado_em : m), '')],
+    queryFn: () => fetchQtdPorPedido(base.redeId!),
+    enabled: !!base.redeId,
+    staleTime: 60_000,
+  })
   // null = automática: a primeira aba (na ordem acima) que tem pedido.
   const [abaEscolhida, setAba] = useState<Aba | null>(null)
   const [busca, setBusca] = useState('')
@@ -210,8 +218,9 @@ const Pedidos = () => {
                   <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Situação" filtro={fc.de('situacao')} /></th>
                   <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Nota" filtro={fc.de('nota')} /></th>
                   <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Solicitante" filtro={fc.de('solicitante')} /></th>
-                  <th className="px-3 py-2 text-right font-semibold">Solicitado</th>
-                  <th className="px-3 py-2 text-right font-semibold">Liberado</th>
+                  <th className="px-3 py-2 text-right font-semibold">Qtd. solicitada</th>
+                  <th className="px-3 py-2 text-right font-semibold">Valor solicitado</th>
+                  <th className="px-3 py-2 text-right font-semibold">Valor liberado</th>
                   <th className="px-4 py-2 text-right font-semibold"><CabecalhoFiltro rotulo="Data" filtro={fc.de('data')} alinhar="direita" /></th>
                   {base.podeApagar && <th className="px-4 py-2 text-right font-semibold">Ação</th>}
                 </tr>
@@ -226,6 +235,7 @@ const Pedidos = () => {
                     <td className="px-3 py-2"><Selo status={p.status} /></td>
                     <td className="px-3 py-2"><CelulaNota p={p} r={notas.get(p.id)} /></td>
                     <td className="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-300">{p.solicitante_nome ?? '—'}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{(() => { const q = qtdPedidos.get(p.id); return q ? <span className="inline-flex flex-col items-end leading-tight"><span className="font-semibold">{q.solicitada.toLocaleString('pt-BR')}</span><span className="text-[10.5px] text-gray-400">{q.itens} {q.itens === 1 ? 'item' : 'itens'}{q.liberada != null ? ` · lib. ${q.liberada.toLocaleString('pt-BR')}` : ''}</span></span> : <span className="text-gray-400">—</span> })()}</td>
                     <td className="px-3 py-2 text-right font-semibold tabular-nums">{formatCurrencyInt(p.total_solicitado)}</td>
                     <td className={cn('px-3 py-2 text-right tabular-nums', p.total_liberado != null ? 'font-semibold text-emerald-700 dark:text-emerald-300' : 'text-gray-400')}>{p.total_liberado != null ? formatCurrencyInt(p.total_liberado) : '—'}</td>
                     <td className="whitespace-nowrap px-4 py-2 text-right text-[11px] text-gray-500">{fmtDataHora(p.criado_em)}</td>

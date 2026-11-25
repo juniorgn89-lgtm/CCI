@@ -15,6 +15,14 @@ import useCentralSazonal from '@/pages/Dashboard/hooks/useCentralSazonal'
 
 type SetorId = 'combustiveis' | 'automotivos' | 'conveniencias'
 
+/** Faixa no topo e ícone do bloco na cor do setor — igual aos cartões da Visão Geral. */
+const COR_BLOCO: Record<string, { faixa: string; icone: string }> = {
+  combustiveis: { faixa: 'dark:border-t-2 dark:border-t-[#5b7fb4]', icone: 'dark:bg-[#5b7fb4]/15 dark:text-[#9db5d6]' },
+  automotivos: { faixa: 'dark:border-t-2 dark:border-t-[#c79a4a]', icone: 'dark:bg-[#c79a4a]/15 dark:text-[#d6b673]' },
+  conveniencias: { faixa: 'dark:border-t-2 dark:border-t-[#4f9d84]', icone: 'dark:bg-[#4f9d84]/15 dark:text-[#86c5aa]' },
+  global: { faixa: 'dark:border-t-2 dark:border-t-[#8b7fc0]', icone: 'dark:bg-[#8b7fc0]/15 dark:text-[#b3a6d6]' },
+}
+
 interface ProdutoRow {
   produto: string
   grupo: string
@@ -288,7 +296,7 @@ const ProjecaoEmpresaTable = ({ rows, isProjetando, showQtd, qtdLabel, cmpShort,
       <tr
         className={cn(
           'border-b border-gray-100 dark:border-gray-800',
-          bold && 'border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100',
+          bold && 'border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 dark:border-[#3e4c63] dark:bg-[#0b1220] dark:text-[#f1f5f9]',
           expandable && 'cursor-pointer transition-colors hover:bg-gray-50/70 dark:hover:bg-gray-800/30',
           sub && 'bg-gray-50/40 dark:bg-gray-900/30',
         )}
@@ -512,9 +520,9 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
   })
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+    <div className={cn('overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black', COR_BLOCO[setorId]?.faixa)}>
       <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+        <span className={cn('flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300', COR_BLOCO[setorId]?.icone)}>
           <Icon className="h-4 w-4" />
         </span>
         <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{titulo}</h4>
@@ -713,7 +721,7 @@ const SetorRealizadoBloco = ({ data, setorId, titulo, Icon, cmpWord, cmpShort }:
               ticket={isComb ? null : aggregated.ticketMedio}
               plain
               rowClass={cn(
-                'border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 transition dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100',
+                'border-t-2 border-gray-300 bg-gray-50 font-bold text-gray-900 transition dark:border-[#3e4c63] dark:bg-[#0b1220] dark:text-[#f1f5f9]',
                 anyExpanded && 'opacity-40 hover:opacity-100',
               )}
             />
@@ -907,9 +915,9 @@ const BenchmarkSetor = ({ expanded, onToggle }: BenchmarkSetorProps) => {
           )}
           <div className="space-y-6">
             {projBlocos.map((b) => (
-              <div key={b.id} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+              <div key={b.id} className={cn('overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black', COR_BLOCO[b.id]?.faixa)}>
                 <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+                  <span className={cn('flex h-7 w-7 items-center justify-center rounded-lg bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300', COR_BLOCO[b.id]?.icone)}>
                     <b.Icon className="h-4 w-4" />
                   </span>
                   <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-100">{b.titulo}</h4>

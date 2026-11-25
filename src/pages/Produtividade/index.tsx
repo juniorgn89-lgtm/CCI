@@ -10,6 +10,7 @@ import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import TopBarTabs, { type TopBarTab } from '@/components/layout/TopBarTabs'
+import ModuloAbas from '@/components/layout/ModuloAbas'
 import InfoHint from '@/components/ui/InfoHint'
 import { useFilterStore } from '@/store/filters'
 import useFrentistaProdutividade from '@/pages/Produtividade/hooks/useFrentistaProdutividade'
@@ -118,7 +119,7 @@ const Produtividade = () => {
   return (
     <div className="space-y-6">
       <PageHeaderTitle>
-        <TopBarTabs active={prodTab} onChange={(id) => setProdTab(id as ProdTab)} tabs={visibleTabs} />
+        <ModuloAbas active={prodTab} onChange={(id) => setProdTab(id as ProdTab)} tabs={visibleTabs} />
       </PageHeaderTitle>
       <PageHeaderActions>
         <DateRangeToolbar />

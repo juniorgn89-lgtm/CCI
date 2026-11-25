@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { Search, MapPin, Store, ChevronRight, ArrowUpDown, Globe, Navigation, Table2, Map as MapIcon, RefreshCw } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import TopBarTabs from '@/components/layout/TopBarTabs'
+import ModuloAbas from '@/components/layout/ModuloAbas'
 import InfoHint from '@/components/ui/InfoHint'
 import { Skeleton } from '@/components/ui/skeleton'
 import useTabParam from '@/hooks/useTabParam'
@@ -83,7 +84,7 @@ const Rede = () => {
         <TopBarTabs active={tab} onChange={(id) => setTab(id as RedeTab)} tabs={visibleTabs} />
       ) : (
         <PageHeaderTitle>
-          <TopBarTabs active={tab} onChange={(id) => setTab(id as RedeTab)} tabs={visibleTabs} />
+          <ModuloAbas active={tab} onChange={(id) => setTab(id as RedeTab)} tabs={visibleTabs} />
         </PageHeaderTitle>
       )}
 

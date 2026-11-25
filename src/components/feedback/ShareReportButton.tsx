@@ -11,6 +11,8 @@ interface Props {
   build: () => ReportPayload
   label?: string
   className?: string
+  /** 'atalho' = botão de duas linhas com ícone em quadrado (padrão da Central). */
+  variante?: 'padrao' | 'atalho'
 }
 
 interface Preview { url: string; blob: Blob; title: string; text?: string }
@@ -26,7 +28,7 @@ const secondaryBtn =
  * (WhatsApp e cia. no celular) ou baixa. jsPDF e o gerador entram por import
  * dinâmico — só baixam no 1º clique.
  */
-const ShareReportButton = ({ filename, build, label = 'Compartilhar', className }: Props) => {
+const ShareReportButton = ({ filename, build, label = 'Compartilhar', className, variante = 'padrao' }: Props) => {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(false)
   const [preview, setPreview] = useState<Preview | null>(null)
@@ -103,17 +105,37 @@ const ShareReportButton = ({ filename, build, label = 'Compartilhar', className 
   const shareLabel = shareState === 'sharing' ? 'Abrindo…' : shareState === 'shared' ? 'Enviado' : shareState === 'downloaded' ? 'Baixado' : 'Compartilhar'
   const ShareIcon = shareState === 'sharing' ? Loader2 : shareState === 'shared' || shareState === 'downloaded' ? Check : Share2
 
+  const IconeBotao = busy ? Loader2 : error ? AlertCircle : Share2
+  const textoBotao = busy ? 'Gerando…' : error ? 'Tentar de novo' : label
+
   return (
     <>
-      <button
-        type="button"
-        onClick={gerar}
-        disabled={busy}
-        className={cn(secondaryBtn, error && 'border-red-300 text-red-600 dark:border-red-800 dark:text-red-400', className)}
-      >
-        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : error ? <AlertCircle className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
-        {busy ? 'Gerando…' : error ? 'Tentar de novo' : label}
-      </button>
+      {variante === 'atalho' ? (
+        <button
+          type="button"
+          onClick={gerar}
+          disabled={busy}
+          className={cn('group inline-flex items-center gap-2.5 rounded-xl border border-gray-200 bg-white py-1.5 pl-1.5 pr-3 text-left transition-colors hover:border-gray-300 hover:bg-gray-50 disabled:opacity-60 dark:border-[#2f3b4f] dark:bg-[#1e293b] dark:hover:border-[#3e4c63] dark:hover:bg-[#223049]', className)}
+        >
+          <span className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', error ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-300' : 'bg-teal-50 text-teal-700 dark:bg-teal-500/[0.12] dark:text-[#8cc7bf]')}>
+            <IconeBotao className={cn('h-4 w-4', busy && 'animate-spin')} />
+          </span>
+          <span className="flex flex-col leading-tight">
+            <span className="text-[13px] font-semibold text-gray-900 dark:text-[#e2e8f0]">{textoBotao}</span>
+            <span className="text-[11px] text-gray-500 dark:text-[#94a3b8]">PDF para enviar ou baixar</span>
+          </span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={gerar}
+          disabled={busy}
+          className={cn(secondaryBtn, error && 'border-red-300 text-red-600 dark:border-red-800 dark:text-red-400', className)}
+        >
+          <IconeBotao className={cn('h-3.5 w-3.5', busy && 'animate-spin')} />
+          {textoBotao}
+        </button>
+      )}
 
       {preview && createPortal(
         <div

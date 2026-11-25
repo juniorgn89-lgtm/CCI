@@ -128,6 +128,8 @@ const CalendarioVencimentos = ({ titulo, itens, onDia, corVencido = 'red', nomeI
           'relative flex flex-col items-stretch overflow-hidden rounded-lg border p-2 text-left transition-colors',
           altura,
           g ? 'border-gray-200 bg-white hover:border-[#1e3a5f]/40 dark:border-gray-700 dark:bg-[#0b0b0b]' : 'border-dashed border-gray-200 bg-transparent dark:border-gray-800',
+          // Coluna do dia da semana de hoje (ex.: todas as terças) no tom escuro; muda sozinha a cada dia.
+          new Date(`${dia}T12:00:00`).getDay() === new Date(`${hoje}T12:00:00`).getDay() && 'dark:!bg-[#0b1220]',
           foraDoMes && 'opacity-40',
           ehHoje && 'ring-2 ring-emerald-500/70',
           g && cn('border-l-[3px]', sit === 'vencido' ? (corVencido === 'orange' ? 'border-l-orange-500' : 'border-l-red-500') : sit === 'ate7' ? 'border-l-amber-500' : 'border-l-emerald-500'),
@@ -204,7 +206,7 @@ const CalendarioVencimentos = ({ titulo, itens, onDia, corVencido = 'red', nomeI
       <div className="mt-3 overflow-x-auto">
         <div className="min-w-[760px]">
           <div className="grid grid-cols-[repeat(7,minmax(0,1fr))_96px] gap-1.5">
-            {DIAS.map((d) => <div key={d} className="py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400">{d}</div>)}
+            {DIAS.map((d, i) => <div key={d} className={cn('py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400', i === (new Date(`${hoje}T12:00:00`).getDay() + 6) % 7 && 'dark:text-[#5eead4]')}>{d}</div>)}
             <div className="py-1 text-center text-[10px] font-semibold uppercase tracking-wider text-gray-400">Semana</div>
             {semanas.map((sem) => {
               const totSem = sem.reduce((s, d) => s + ((modo === 'semana' || (d >= mesIni && d <= mesFim)) ? (porDia.get(d)?.total ?? 0) : 0), 0)

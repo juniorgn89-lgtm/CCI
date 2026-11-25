@@ -6,7 +6,7 @@ import { usePersonalizedTabs } from '@/hooks/usePersonalizedTabs'
 import { Skeleton } from '@/components/ui/skeleton'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
-import TopBarTabs from '@/components/layout/TopBarTabs'
+import ModuloAbas from '@/components/layout/ModuloAbas'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 
 const MargemPosto = lazy(() => import('@/pages/Comercial/components/MargemPosto'))
@@ -52,7 +52,7 @@ const Comercial = () => {
   return (
     <div className="space-y-4">
       <PageHeaderTitle>
-        <TopBarTabs
+        <ModuloAbas
           active={activeTab}
           onChange={(id) => setActiveTab(id as TabId)}
           tabs={visibleTabs.map((t) => ({ id: t.id, label: t.label, Icon: t.Icon }))}

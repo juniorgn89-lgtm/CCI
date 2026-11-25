@@ -105,7 +105,7 @@ export const useConvenienciasLayout = createModuleLayoutStore('visor360-convenie
 ])
 
 export const useEstoquesLayout = createModuleLayoutStore('visor360-estoques-layout', [
-  { id: 'visao', label: 'Visão Geral', visible: true },
+  { id: 'visao', label: 'Visão de Estoques', visible: true },
   { id: 'produtos', label: 'Produtos', visible: true },
 ])
 
@@ -116,7 +116,7 @@ export const useEstoquesLayout = createModuleLayoutStore('visor360-estoques-layo
 // pros usuários existentes. -v8: aba "Fechamento" entrou entre Pagar e Cartões. -v7:
 // Dashboard Mensal removido; a antiga "Inteligência" virou "Dashboard".
 export const useFinanceiroLayout = createModuleLayoutStore('visor360-financeiro-layout-v9', [
-  { id: 'dashboard', label: 'Dashboard', visible: true },
+  { id: 'dashboard', label: 'Visão Financeira', visible: true },
   { id: 'receber', label: 'Receber', visible: true },
   { id: 'pagar', label: 'Pagar', visible: true },
   { id: 'fechamento', label: 'Fechamento', visible: false },

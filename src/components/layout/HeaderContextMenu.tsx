@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown, Network, Check, Fuel, Layers, MapPinOff } from 'lucide-react'
+import { ChevronDown, Network, Fuel, Layers, MapPinOff } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { nomeLegivel } from '@/lib/nomeLegivel'
-import { useFilters } from '@/hooks/useFilters'
 import { useFilterStore } from '@/store/filters'
 import { useTenantStore } from '@/store/tenant'
 import { useTopbarUi } from '@/store/topbarUi'
@@ -12,51 +11,7 @@ import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
 import { useRedeNomeExibicao } from '@/hooks/useDemo'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { moduloPermiteTodos, moduloRedeWide } from '@/lib/moduleScope'
-import RedeSwitcher from '@/components/layout/RedeSwitcher'
-import CompanySelect from '@/components/filters/CompanySelect'
-import ComoFuncionaButton from '@/components/help/ComoFuncionaButton'
-
-/**
- * Atalho "Todos os postos" (rede consolidada = empresaCodigos vazio) — vive fora
- * do dropdown de posto, logo abaixo da Rede. É um toggle radial: marcar consolida
- * a rede inteira e limpa a seleção específica; escolher um posto no dropdown de
- * baixo desmarca este atalho sozinho (a seleção passa a ter comprimento > 0).
- */
-const TodosPostosToggle = ({ disabled }: { disabled?: boolean }) => {
-  const { empresaCodigos, setEmpresas } = useFilters()
-  const active = empresaCodigos.length === 0
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={() => { if (!active) setEmpresas([]) }}
-      className={cn(
-        'flex h-7 w-full items-center justify-between rounded-md border px-2 text-[11px] font-normal transition-colors xl:text-xs',
-        active
-          ? 'border-[#2563eb] bg-blue-50 text-[#1e3a5f] dark:border-blue-500/50 dark:bg-blue-950/30 dark:text-blue-100'
-          : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-800',
-        disabled && 'pointer-events-none opacity-40',
-      )}
-    >
-      <span className="flex min-w-0 items-center gap-1.5">
-        <Network className="h-3.5 w-3.5 shrink-0 text-gray-500 dark:text-gray-400" />
-        <span className="shrink-0">Todos os postos</span>
-        <span className="truncate text-[10px] text-gray-400">{active ? 'rede consolidada' : 'desmarcado'}</span>
-      </span>
-      {/* Caixinha explícita: quadrado vazio = desmarcado; azul c/ check = marcado. */}
-      <span
-        className={cn(
-          'flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors',
-          active
-            ? 'border-[#2563eb] bg-[#2563eb] text-white'
-            : 'border-gray-300 bg-transparent dark:border-gray-600',
-        )}
-      >
-        {active && <Check className="h-3 w-3" />}
-      </span>
-    </button>
-  )
-}
+import PainelRedePosto from '@/components/layout/PainelRedePosto'
 
 /**
  * Pílula de contexto (posto/rede) — mostra o posto atual e, ao clicar, abre um
@@ -75,7 +30,6 @@ const HeaderContextMenu = () => {
   const liveLock = useTopbarUi((s) => s.liveLock)
   const pathname = useLocation().pathname
   const redeWide = moduloRedeWide(pathname)
-  const showCompanySelect = empresasPermitidas.length !== 1 && !redeWide
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
   const tenantNome = useRedeNomeExibicao(useTenantStore((s) => s.rede?.nome)) ?? undefined
   const fantasiasSel = empresaCodigos
@@ -106,11 +60,10 @@ const HeaderContextMenu = () => {
   const sobretitulo = {
     posto: 'Posto',
     varios: `${empresaCodigos.length} postos`,
-    rede: redeWide ? 'Este módulo usa' : 'Posto',
+    rede: redeWide ? 'Rede · todos os postos' : 'Todos os postos',
     escolher: 'Escolha o posto',
   }[tipo]
-  // A rede agora fica fixa no topo (RedeChip); aqui a pílula fala só do posto.
-  const titulo = tipo === 'escolher' ? 'Nenhum posto aberto' : tipo === 'rede' ? 'Todos os postos' : nomeLegivel(label)
+  const titulo = tipo === 'escolher' ? 'Nenhum posto aberto' : nomeLegivel(label)
   const Icone = { posto: Fuel, varios: Layers, rede: Network, escolher: MapPinOff }[tipo]
 
   // Fecha ao clicar fora — mas ignora cliques nos dropdowns portalizados
@@ -141,7 +94,7 @@ const HeaderContextMenu = () => {
         aria-expanded={open}
         aria-label={`${sobretitulo}: ${titulo}. Trocar rede ou posto`}
         className={cn(
-          'flex h-9 max-w-[300px] items-center gap-2 rounded-xl border pl-1 pr-2.5 text-left transition-colors',
+          'flex h-10 w-[150px] items-center gap-2.5 rounded-xl border pl-1.5 pr-3 text-left transition-colors sm:w-[260px] lg:w-[300px]',
           tipo === 'escolher'
             ? 'border-amber-300 bg-amber-50 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:hover:bg-amber-500/15'
             : open
@@ -150,7 +103,7 @@ const HeaderContextMenu = () => {
         )}
       >
         <span className={cn(
-          'flex h-7 w-7 shrink-0 items-center justify-center rounded-lg',
+          'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
           tipo === 'escolher'
             ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
             : tipo === 'posto'
@@ -159,40 +112,21 @@ const HeaderContextMenu = () => {
         )}>
           <Icone className="h-4 w-4" />
         </span>
-        <span className="flex min-w-0 flex-col leading-tight">
+        <span className="flex min-w-0 flex-1 flex-col leading-tight">
           <span className={cn(
             'truncate text-[10px] font-semibold uppercase tracking-wider',
             tipo === 'escolher' ? 'text-amber-700 dark:text-amber-300' : 'text-gray-400 dark:text-gray-500',
           )}>{sobretitulo}</span>
           <span className={cn(
-            'truncate text-[13.5px] font-semibold',
+            'truncate text-[14px] font-semibold',
             tipo === 'escolher' ? 'text-amber-900 dark:text-amber-100' : 'text-gray-900 dark:text-white',
           )}>{titulo}</span>
         </span>
-        <ChevronDown className={cn('ml-0.5 h-4 w-4 shrink-0 text-gray-400 transition-transform', open && 'rotate-180')} />
+        <ChevronDown className={cn('h-4 w-4 shrink-0 text-gray-400 transition-transform', open && 'rotate-180')} />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1.5 w-72 rounded-xl border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-700 dark:bg-gray-900">
-          <p className="mb-2 px-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-            Contexto
-          </p>
-          <div className="flex flex-col gap-2">
-            <RedeSwitcher />
-            {redeWide && (
-              <p className="rounded-md bg-gray-50 px-2 py-1.5 text-[11px] leading-snug text-gray-500 dark:bg-[#0f0f0f] dark:text-gray-400">
-                Este módulo compara <span className="font-medium text-gray-600 dark:text-gray-300">todos os postos</span> — o filtro de posto não se aplica aqui.
-              </p>
-            )}
-            {showCompanySelect && allowTodos && <TodosPostosToggle disabled={liveLock} />}
-            {showCompanySelect && (
-              <span className={cn('block', liveLock && 'pointer-events-none opacity-40')} aria-disabled={liveLock}>
-                <CompanySelect allowTodos={allowTodos} hideTodosRow={allowTodos} fullWidth onApplied={() => setOpen(false)} />
-              </span>
-            )}
-            <ComoFuncionaButton />
-          </div>
-        </div>
+        <PainelRedePosto postos={empresasPermitidas} allowTodos={allowTodos} redeWide={redeWide} liveLock={liveLock} onClose={() => setOpen(false)} />
       )}
     </div>
   )

@@ -1,19 +1,19 @@
 import { lazy, Suspense, useEffect } from 'react'
+import useVisivel from '@/hooks/useVisivel'
 import { useQueryClient } from '@tanstack/react-query'
-import { Activity, Layers, Fuel, Wrench, Store, Tag, Stethoscope } from 'lucide-react'
+import { Activity, Layers, Fuel, Wrench, Store, Tag, Stethoscope, ArrowUpRight } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import useTabParam from '@/hooks/useTabParam'
 import { Skeleton } from '@/components/ui/skeleton'
 import ProjecoesPainel from '@/pages/Dashboard/components/ProjecoesPainel'
+import RealizadoChave from '@/components/kpi/RealizadoChave'
 import SecaoTitulo from './components/SecaoTitulo'
 import ServicosCci from './components/ServicosCci'
 import useIsMobile from '@/hooks/useIsMobile'
 import CentralMobile from '@/pages/Dashboard/CentralMobile'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
-import TopBarTabs from '@/components/layout/TopBarTabs'
-import HeaderTray from '@/components/layout/HeaderTray'
-import ModuleSettings from '@/components/layout/ModuleSettings'
+import ModuloAbas from '@/components/layout/ModuloAbas'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import { useModuleTabSettings } from '@/hooks/usePersonalizedTabs'
 import useBoolParam from '@/hooks/useBoolParam'
@@ -30,7 +30,6 @@ const GestaoPrecos = lazy(() => import('@/pages/Dashboard/components/GestaoPreco
 const VisaoGeralGraficos = lazy(() => import('@/pages/Dashboard/components/VisaoGeralGraficos'))
 const TanquesRedeCard = lazy(() => import('@/pages/Dashboard/components/TanquesRedeCard'))
 const ContasRedeCard = lazy(() => import('@/pages/Dashboard/components/ContasRedeCard'))
-const CentralCompartilhar = lazy(() => import('@/pages/Dashboard/components/CentralCompartilhar'))
 
 type TabId = 'setor' | 'combustivel' | 'pista' | 'conveniencia' | 'precos'
 
@@ -60,11 +59,13 @@ const Dashboard = () => {
   const isMobile = useIsMobile()
   // "Diagnóstico anual" abre em nova guia: com o posto do filtro quando há um só, senão a rede inteira.
   const empresaCodigos = useFilterStore((s) => s.empresaCodigos)
+  // Pedaços de outros módulos na Central somem junto quando o módulo é ocultado.
+  const financeiroVisivel = useVisivel().modulo('/financeiro')
   const diagnosticoHref = `/diagnostico?empresa=${empresaCodigos.length === 1 ? empresaCodigos[0] : 'rede'}`
 
   // Layout das abas (engrenagem no HeaderTray permite reordenar/ocultar) —
   // fonte única compartilhada com a tela de Personalização (Configurações).
-  const { tabs: knownTabs, toggleVisibility, moveUp, moveDown, reset } = useModuleTabSettings('/dashboard')
+  const { tabs: knownTabs } = useModuleTabSettings('/dashboard')
   const visibleTabs = knownTabs.filter((t) => t.visible)
   // Aba controlada pela URL (?tab=) — permite deep-link das sub-opções da sidebar.
   // 'setor' é o default (sem ?tab=).
@@ -98,11 +99,11 @@ const Dashboard = () => {
   return (
     <div className="space-y-4">
       <>
-          {/* Título + Modo Foco vêm do ModuleHeaderChrome global (via rota). */}
+          {/* Sem título de módulo no topo (removido em 24/11/2026, a pedido). */}
           {/* Abas continuam na TopBar (slot esquerdo padrão). */}
           {visibleTabs.length > 0 && (
             <PageHeaderTitle>
-              <TopBarTabs
+              <ModuloAbas
                 active={activeTab}
                 onChange={(id) => setActiveTab(id as TabId)}
                 tabs={visibleTabs.map((t) => ({
@@ -116,44 +117,37 @@ const Dashboard = () => {
           <PageHeaderActions>
             <DateRangeToolbar />
           </PageHeaderActions>
-          {knownTabs.length > 0 && (
-            <HeaderTray>
-              <ModuleSettings
-                title="Central da Rede"
-                tabs={knownTabs}
-                toggleVisibility={toggleVisibility}
-                moveUp={moveUp}
-                moveDown={moveDown}
-                reset={reset}
-              />
-            </HeaderTray>
-          )}
 
           {/* Cards de segmento rede-wide (Combustível, Automotivos, Conveniência,
               Global, Projeção) — só na "Visão Geral". As abas ao vivo e as de
               vendas por-posto têm seus próprios painéis/projeções. */}
           {activeTab === 'setor' && (
-            <>
+            <div className="acetinado contents">
               {/* Ações desta tela (diagnóstico anual e PDF) ficam no conteúdo, à
                   direita, acima dos cartões — a barra do topo fica só com abas e
                   filtros, sem espremer nada em telas menores. */}
-              <SecaoTitulo titulo="Resultado do período" subtitulo="Lucro bruto por setor e a projeção de fechamento do mês">
-              <div className="flex flex-wrap items-center justify-end gap-1.5">
+              {/* Atalho do diagnóstico na altura do título (não colado nos cartões). */}
+              <SecaoTitulo titulo="Resultado do período" subtitulo="Lucro bruto por setor e a projeção de fechamento do mês" className="items-center pb-1">
                 <a
                   href={diagnosticoHref}
                   target="_blank"
                   rel="noreferrer"
-                  title="Um ano contra o anterior, com os achados — abre em nova guia"
-                  className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[12px] font-semibold text-gray-600 transition-colors hover:border-[#2563eb] hover:text-[#2563eb] dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:border-blue-500 dark:hover:text-blue-300"
+                  aria-label="Diagnóstico anual: este ano comparado ao anterior, abre em nova guia"
+                  className="group inline-flex items-center gap-2.5 rounded-xl border border-gray-200 bg-white py-1.5 pl-1.5 pr-3 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-[#2f3b4f] dark:bg-[#1e293b] dark:hover:border-[#3e4c63] dark:hover:bg-[#223049]"
                 >
-                  <Stethoscope className="h-3.5 w-3.5" /> Diagnóstico anual
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-500/[0.12] dark:text-[#8cc7bf]">
+                    <Stethoscope className="h-4 w-4" />
+                  </span>
+                  <span className="flex flex-col text-left leading-tight">
+                    <span className="text-[13px] font-semibold text-gray-900 dark:text-[#e2e8f0]">Diagnóstico anual</span>
+                    <span className="text-[11px] text-gray-500 dark:text-[#94a3b8]">este ano × o anterior</span>
+                  </span>
+                  <ArrowUpRight className="h-4 w-4 shrink-0 text-gray-400 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 dark:text-[#64748b]" />
                 </a>
-                <Suspense fallback={null}><CentralCompartilhar /></Suspense>
-              </div>
               </SecaoTitulo>
               <ProjecoesPainel />
               <ServicosCci />
-            </>
+            </div>
           )}
 
           {/* Conteúdo da aba ativa (abas no header, padrão TopBarTabs). Todas as
@@ -161,23 +155,29 @@ const Dashboard = () => {
           {visibleTabs.length > 0 && (
             <Suspense fallback={<TabSkeleton />}>
               {activeTab === 'setor' && (
-                <div className="space-y-4" style={{ animation: 'chartIn .35s cubic-bezier(.4,0,.2,1) both' }}>
+                <div className="acetinado space-y-4" style={{ animation: 'chartIn .35s cubic-bezier(.4,0,.2,1) both' }}>
                   {/* MODO EXECUTIVO (default): KPIs → gráficos → Detalhamento fechado.
                       MODO ANÁLISE (?detalhe=1): KPIs → Detalhamento expandido; os
                       gráficos ficam MONTADOS e só recolhem (sem refetch/flicker). */}
                   <CollapseTransition open={!detalhe}>
                     <div className="space-y-4">
                       <SecaoTitulo titulo="Vendas e lucro" subtitulo="Evolução, participação de cada setor e ranking dos postos" />
+                      <RealizadoChave label="Realizado · Período selecionado" className="-mb-2" />
                       <VisaoGeralGraficos />
                       <SecaoTitulo titulo="Estoque de combustível" subtitulo="Nível dos tanques de cada posto" />
                       {/* Tanques da rede: nível de cada tanque por posto (abaixo dos gráficos). */}
+                      <RealizadoChave label="Agora · nível atual dos tanques" className="-mb-2" />
                       <TanquesRedeCard />
                       {/* Contas a pagar × a receber da rede (abaixo dos tanques). */}
+                      {financeiroVisivel && (<>
                       <SecaoTitulo titulo="Financeiro" subtitulo="Contas a pagar e a receber da rede" />
+                      {/* Cada bloco (saldo, a pagar, a receber) traz a própria chave "Hoje". */}
                       <ContasRedeCard />
+                      </>)}
                     </div>
                   </CollapseTransition>
                   <SecaoTitulo titulo="Posto a posto" subtitulo="Vendas de cada setor detalhadas por posto, grupo e produto" />
+                  <RealizadoChave label="Realizado · Período selecionado" className="-mb-2" />
                   <BenchmarkSetor expanded={detalhe} onToggle={() => setDetalhe(!detalhe)} />
                 </div>
               )}

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useFilterStore } from '@/store/filters'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   TrendingUp, TrendingDown, DollarSign, Plus, Save, ShieldCheck, AlertTriangle, X, Trash2, Check, History, RotateCcw, User, ChevronDown,
@@ -288,15 +289,15 @@ const HistoricoExclusoes = ({ empresaCodigo }: { empresaCodigo: number }) => {
 }
 
 const Concorrencia = () => {
-  const [posto, setPosto] = useState<number | null>(null)
-  // `data.postos` vem do useRedeSetores (independe do posto), então a 1ª render
-  // já lista os postos. Seleciona o primeiro AJUSTANDO O ESTADO NO RENDER (padrão
-  // React p/ default derivado de dado assíncrono) — guardado por `posto == null`,
-  // então dispara uma única vez e re-renderiza na hora, sem effect nem cascata.
+  // O TOPO manda: com um posto lá em cima, a Concorrência fica nele (sem trocar aqui).
+  // Com "Todos" no topo, escolhe-se o posto aqui (o 1º por padrão), sem mexer no topo.
+  const filtroPostos = useFilterStore((s) => s.empresaCodigos)
+  const postoDoTopo = filtroPostos.length === 1 ? filtroPostos[0] : null
+  const [postoLocal, setPosto] = useState<number | null>(null)
+  const posto: number | null = postoDoTopo ?? postoLocal
+  // data.postos vem rede-wide (independe do posto): 1º posto como padrão, ajustado no render.
   const data = useConcorrencia(posto)
-  if (posto == null && data.postos.length > 0) {
-    setPosto(data.postos[0].empresaCodigo)
-  }
+  if (posto == null && data.postos.length > 0) setPosto(data.postos[0].empresaCodigo)
   const redeId = useTenantStore((s) => s.rede?.id ?? null)
 
   const atualPivot = useMemo(() => {
@@ -321,7 +322,7 @@ const Concorrencia = () => {
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[12px] font-semibold text-gray-500 dark:text-gray-400">Meu posto:</span>
         <div className="flex flex-wrap items-center gap-1 rounded-lg bg-gray-50 p-0.5 dark:bg-[#0f0f0f]">
-          {data.postos.map((p) => (
+          {data.postos.filter((p) => postoDoTopo == null || p.empresaCodigo === postoDoTopo).map((p) => (
             <button key={p.empresaCodigo} type="button" onClick={() => setPosto(p.empresaCodigo)}
               className={cn('rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors', posto === p.empresaCodigo ? 'bg-[#1e3a5f] text-white shadow-sm' : 'text-gray-600 hover:text-gray-900 dark:text-gray-300')}>
               {p.posto}

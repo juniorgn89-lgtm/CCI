@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import useReabastecimento, { type ReabastTanque } from '@/pages/Dashboard/hooks/useReabastecimento'
-import { TanqueIcone } from '@/pages/Dashboard/components/TanqueIcone'
-import { COR_NIVEL, nivelDe } from '@/pages/Dashboard/components/tanqueNivel'
+import { TanqueSvg } from '@/pages/Dashboard/components/TanqueIcone'
+import { COR_NIVEL, nivelDe, produtoBonito } from '@/pages/Dashboard/components/tanqueNivel'
 import TanquesPostoModal from '@/pages/Dashboard/components/modais/TanquesPostoModal'
 
 const COR = COR_NIVEL
@@ -31,6 +31,24 @@ interface PostoLinha {
   pct: number
 }
 
+/** Um tanque legível: produto por extenso, nível grande, litros e quanto cabe. */
+const TanqueCartao = ({ t, onClick }: { t: ReabastTanque; onClick: () => void }) => {
+  const pct = Math.max(0, Math.min(100, t.nivelPct))
+  const cor = COR[t.nivel]
+  return (
+    <button type="button" onClick={onClick} aria-label={`${t.produtoNome}: ${Math.round(pct)}%. Ver ao vivo`}
+      className={cn('flex items-center gap-2.5 rounded-xl border bg-white p-2.5 text-left transition-colors hover:bg-gray-50 dark:bg-[#1e293b] dark:hover:bg-[#223049]',
+        t.nivel === 'critico' ? 'border-red-200 dark:border-[#c07a7a]/50' : t.nivel === 'alerta' ? 'border-amber-200 dark:border-[#c79a4a]/50' : 'border-gray-200 dark:border-[#2f3b4f]')}>
+      <TanqueSvg pct={pct} nivel={t.nivel} id={`tqc-${t.empresaCodigo}-${t.tanqueCodigo}`} className="h-12 w-11 shrink-0" />
+      <span className="min-w-0 flex-1">
+        <span className="line-clamp-2 text-[12px] font-semibold leading-tight text-gray-800 dark:text-[#e2e8f0]">{produtoBonito(t.produtoNome).replace(/\.+$/, '')}</span>
+        <span className={cn('mt-0.5 block text-[17px] font-bold tabular-nums leading-tight', cor.text)}>{Math.round(pct)}%</span>
+        <span className="block text-[10.5px] tabular-nums text-gray-500 dark:text-[#94a3b8]">{formatNumber(Math.round(t.estoqueAtual))} de {formatNumber(Math.round(t.capacidade))} L</span>
+      </span>
+    </button>
+  )
+}
+
 const TanquesRedeCard = () => {
   const { tanques, isLoading } = useReabastecimento({ respeitarFiltro: true })
   const [busca, setBusca] = useState('')
@@ -49,7 +67,8 @@ const TanquesRedeCard = () => {
       m.set(t.empresaCodigo, p)
     }
     const out = Array.from(m.values()).map((p) => ({ ...p, pct: p.capacidade > 0 ? (p.atual / p.capacidade) * 100 : 0 }))
-    for (const p of out) p.tanques.sort((a, b) => a.tanqueNome.localeCompare(b.tanqueNome, 'pt-BR', { numeric: true }))
+    // Dentro do posto: do tanque mais vazio para o mais cheio (empate: pelo nome).
+    for (const p of out) p.tanques.sort((a, b) => a.nivelPct - b.nivelPct || a.tanqueNome.localeCompare(b.tanqueNome, 'pt-BR', { numeric: true }))
     // Pior posto primeiro: quem tem crítico, depois menor nível.
     return out.sort((a, b) => b.criticos - a.criticos || a.pct - b.pct)
   }, [tanques])
@@ -143,61 +162,47 @@ const TanquesRedeCard = () => {
         </div>
       )}
 
-      {/* Tabela */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="border-y border-gray-100 text-[10px] uppercase tracking-wider text-gray-400 dark:border-gray-800">
-            <tr>
-              <th className="px-5 py-2 text-left font-semibold">Posto</th>
-              <th className="px-3 py-2 text-left font-semibold">Níveis dos tanques</th>
-              <th className="px-3 py-2 text-left font-semibold">Alertas</th>
-              <th className="px-3 py-2 text-right font-semibold">Atual (L)</th>
-              <th className="px-3 py-2 text-right font-semibold">Capacidade (L)</th>
-              <th className="px-3 py-2 text-right font-semibold">Cabe (L)</th>
-              <th className="px-5 py-2 text-right font-semibold">Nível</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-            {visiveis.length === 0 && (
-              <tr><td colSpan={7} className="px-5 py-6 text-center text-xs text-gray-400">Nenhum posto com esse nome.</td></tr>
-            )}
-            {visiveis.map((p) => {
-              const nivel = nivelDe(p.pct)
-              return (
-                <tr key={p.codigo} className="cursor-pointer align-middle transition-colors hover:bg-gray-50 dark:hover:bg-white/5" onClick={() => setSel({ p, foco: null })} title="Ver os tanques deste posto ao vivo">
-                  <td className="px-5 py-3">
-                    <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{p.nome}</p>
-                    <p className="text-[11px] text-gray-400">{p.tanques.length} tanque{p.tanques.length > 1 ? 's' : ''}</p>
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex flex-wrap gap-1">
-                      {p.tanques.map((t) => <TanqueIcone key={`${t.empresaCodigo}-${t.tanqueCodigo}`} t={t} onClick={() => setSel({ p, foco: t.tanqueCodigo })} />)}
-                    </div>
-                  </td>
-                  <td className="px-3 py-3">
-                    {p.criticos === 0 && p.baixos === 0 ? <span className="text-gray-300 dark:text-gray-600">—</span> : (
-                      <span className="flex flex-wrap gap-1">
-                        {p.criticos > 0 && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-300">{p.criticos} crít.</span>}
-                        {p.baixos > 0 && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{p.baixos} baixo{p.baixos > 1 ? 's' : ''}</span>}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-3 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatNumber(Math.round(p.atual))}</td>
-                  <td className="px-3 py-3 text-right tabular-nums text-gray-500 dark:text-gray-400">{formatNumber(Math.round(p.capacidade))}</td>
-                  <td className="px-3 py-3 text-right font-semibold tabular-nums text-blue-700 dark:text-blue-400">{formatNumber(Math.round(Math.max(0, p.capacidade - p.atual)))}</td>
-                  <td className="px-5 py-3">
-                    <span className="flex items-center justify-end gap-2">
-                      <span className="h-1.5 w-16 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                        <span className={cn('block h-full rounded-full', COR[nivel].bar)} style={{ width: `${Math.max(2, Math.min(100, p.pct))}%` }} />
-                      </span>
-                      <span className={cn('w-9 text-right text-xs font-bold tabular-nums', COR[nivel].text)}>{Math.round(p.pct)}%</span>
-                    </span>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+      {/* Postos: um bloco por posto, com os tanques em cartões legíveis */}
+      <div className="space-y-3 border-t border-gray-100 p-4 dark:border-[#2f3b4f]">
+        {visiveis.length === 0 && <p className="px-5 py-6 text-center text-xs text-gray-400">Nenhum posto com esse nome.</p>}
+        {visiveis.map((p) => {
+          const nivel = nivelDe(p.pct)
+          return (
+            <div key={p.codigo} className={cn('grid items-start overflow-hidden rounded-xl border border-l-4 bg-gray-50/50 lg:grid-cols-[260px_minmax(0,1fr)] dark:bg-[#0b1220]',
+              nivel === 'critico' || p.criticos > 0 ? 'border-gray-200 border-l-red-400 dark:border-[#2f3b4f] dark:border-l-[#c07a7a]' : nivel === 'alerta' || p.baixos > 0 ? 'border-gray-200 border-l-amber-400 dark:border-[#2f3b4f] dark:border-l-[#c79a4a]' : 'border-gray-200 border-l-emerald-400 dark:border-[#2f3b4f] dark:border-l-[#4f9d84]')}>
+              {/* Resumo do posto */}
+              <button type="button" onClick={() => setSel({ p, foco: null })}
+                className="flex h-full flex-col gap-2 border-b border-gray-200 p-4 text-left transition-colors hover:bg-white lg:border-b-0 lg:border-r dark:border-[#2f3b4f] dark:hover:bg-white/[0.03]">
+                <span className="flex items-start justify-between gap-2">
+                  <span className="min-w-0">
+                    <span className="block truncate text-[14px] font-semibold text-gray-900 dark:text-[#f1f5f9]">{p.nome}</span>
+                    <span className="block text-[11.5px] text-gray-500 dark:text-[#94a3b8]">{p.tanques.length} tanque{p.tanques.length > 1 ? 's' : ''} · clique para ver ao vivo</span>
+                  </span>
+                  <span className={cn('text-[20px] font-bold tabular-nums leading-none', COR[nivel].text)}>{Math.round(p.pct)}%</span>
+                </span>
+                <span className="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-[#172234]">
+                  <span className={cn('block h-full rounded-full', COR[nivel].bar)} style={{ width: `${Math.max(2, Math.min(100, p.pct))}%` }} />
+                </span>
+                <span className="grid grid-cols-3 gap-2 text-[11px] text-gray-500 dark:text-[#94a3b8]">
+                  <span>Atual<b className="block text-[13px] font-semibold tabular-nums text-gray-900 dark:text-[#f1f5f9]">{formatNumber(Math.round(p.atual))} L</b></span>
+                  <span>Capacidade<b className="block text-[13px] font-semibold tabular-nums text-gray-700 dark:text-[#cbd5e1]">{formatNumber(Math.round(p.capacidade))} L</b></span>
+                  <span>Cabe<b className="block text-[13px] font-semibold tabular-nums text-sky-700 dark:text-[#9db5d6]">{formatNumber(Math.round(Math.max(0, p.capacidade - p.atual)))} L</b></span>
+                </span>
+                {(p.criticos > 0 || p.baixos > 0) && (
+                  <span className="flex flex-wrap gap-1">
+                    {p.criticos > 0 && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-300">{p.criticos} crítico{p.criticos > 1 ? 's' : ''}</span>}
+                    {p.baixos > 0 && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">{p.baixos} baixo{p.baixos > 1 ? 's' : ''}</span>}
+                  </span>
+                )}
+              </button>
+
+              {/* Tanques */}
+              <div className="grid content-start items-start gap-2 p-3 [grid-template-columns:repeat(auto-fill,minmax(180px,1fr))]">
+                {p.tanques.map((t) => <TanqueCartao key={`${t.empresaCodigo}-${t.tanqueCodigo}`} t={t} onClick={() => setSel({ p, foco: t.tanqueCodigo })} />)}
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       {/* Legenda */}

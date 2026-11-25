@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
+import useVisivel from '@/hooks/useVisivel'
 import { useNavigate } from 'react-router-dom'
 import {
   X, Sparkles, Users, Fuel, Package, Scale, Wallet, Gauge, TrendingUp, TrendingDown, ChevronRight, Droplets, Lock, LayoutDashboard,
@@ -12,6 +13,8 @@ import { useFilterStore } from '@/store/filters'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import { nomeLegivel } from '@/lib/nomeLegivel'
 import useResumoOntem, { type GrupoRecebimento } from '@/components/briefing/useResumoOntem'
+import DetalheOntem, { type TipoDetalhe } from '@/components/briefing/DetalheOntem'
+import { linkFinanceiro } from '@/pages/Financeiro/lib/filtroLink'
 
 /**
  * Briefing do dia — "Resumo de ontem" da REDE (Central), no padrão visual dos
@@ -69,8 +72,12 @@ const BriefingModal = () => {
   const open = !seenToday && onboardingSeen && !!rede && !closed
   const r = useResumoOntem(open)
   const [naoMostrar, setNaoMostrar] = useState(true)
+  // Detalhe dentro do resumo (caixas/recebimento): a lista exata do que foi contado.
+  const [detalhe, setDetalhe] = useState<TipoDetalhe | null>(null)
+  const ver = (d: TipoDetalhe) => setDetalhe(d)
 
   const dismiss = () => {
+    setDetalhe(null)
     setClosed(true)
     if (naoMostrar) {
       setSeen(true)
@@ -85,21 +92,27 @@ const BriefingModal = () => {
     navigate(path)
   }
 
+  const vis = useVisivel()
+  const receberVisivel = vis.aba('/financeiro', 'receber')
+  const RECEBER_VENCIDOS = linkFinanceiro('receber', { faixas: ['vencidas'], rotulo: 'Vencidos (resumo de ontem)' })
+  const RECEBER_HOJE = linkFinanceiro('receber', { faixas: ['hoje'], rotulo: 'Vencem hoje (resumo de ontem)' })
+  const RECEBER_ABERTO = '/financeiro?tab=receber'
+
   // ── Principais pontos (alertas primeiro; no máximo 3) ──
   const pontos: Ponto[] = []
-  if (r.prazo && r.prazo.vencidosQtd > 0) {
-    pontos.push({ chave: 'vencidos', Icone: Users, alerta: true, ir: () => ir('/financeiro?tab=receber', false),
+  if (receberVisivel && r.prazo && r.prazo.vencidosQtd > 0) {
+    pontos.push({ chave: 'vencidos', Icone: Users, alerta: true, ir: () => ir(RECEBER_VENCIDOS, false),
       texto: <>{formatNumber(r.prazo.vencidosQtd)} {r.prazo.vencidosQtd === 1 ? 'título vencido' : 'títulos vencidos'} de clientes a prazo · <b className="font-semibold">{formatCurrency(r.prazo.vencidosValor)}</b></> })
   }
   if (r.caixa && Math.abs(r.caixa.diferenca) >= 20) {
-    pontos.push({ chave: 'caixa', Icone: Scale, alerta: r.caixa.diferenca < 0, ir: () => ir('/fechamento-caixa'),
+    pontos.push({ chave: 'caixa', Icone: Scale, alerta: r.caixa.diferenca < 0, ir: () => ver({ tipo: 'diferenca' }),
       texto: <>Caixa {r.caixa.diferenca < 0 ? 'faltou' : 'sobrou'} <b className="font-semibold">{formatCurrency(Math.abs(r.caixa.diferenca))}</b> ontem, somando {r.caixa.caixas} {r.caixa.caixas === 1 ? 'caixa' : 'caixas'}</> })
   }
   if (r.caixa && r.caixa.abertos > 0) {
-    pontos.push({ chave: 'abertos', Icone: Lock, alerta: true, ir: () => ir('/fechamento-caixa'),
+    pontos.push({ chave: 'abertos', Icone: Lock, alerta: true, ir: () => ver({ tipo: 'abertos' }),
       texto: <>{r.caixa.abertos} {r.caixa.abertos === 1 ? 'caixa de ontem ainda está aberto' : 'caixas de ontem ainda estão abertos'}</> })
   }
-  if (r.vendasSemanaPassada) {
+  if (r.vendasSemanaPassada && vis.aba('/dashboard', 'setor')) {
     const d = ((r.vendas - r.vendasSemanaPassada) / r.vendasSemanaPassada) * 100
     const dia = diaCurto(r.ontem)
     const passada = dia === 'domingo' || dia === 'sábado' ? 'passado' : 'passada'
@@ -107,12 +120,13 @@ const BriefingModal = () => {
       texto: <>Vendas {d >= 0 ? 'subiram' : 'caíram'} <b className="font-semibold">{pct1(Math.abs(d))}</b> em relação a {dia} {passada}</> })
   }
   const comb = r.setores.find((s) => s.id === 'combustivel')
-  if (comb && r.vendas > 0) {
+  if (comb && r.vendas > 0 && vis.aba('/dashboard', 'combustivel')) {
     pontos.push({ chave: 'comb', Icone: Fuel, ir: () => ir('/dashboard?tab=combustivel'),
       texto: <>Combustíveis foram <b className="font-semibold">{pct1((comb.valor / r.vendas) * 100)}</b> das vendas · {litros(r.litros)}</> })
   }
-  if (r.topProduto) {
-    const tab = r.topProduto.setor === 'automotivos' ? 'pista' : 'conveniencia'
+  const tabTop = r.topProduto?.setor === 'automotivos' ? 'pista' : 'conveniencia'
+  if (r.topProduto && vis.aba('/dashboard', tabTop)) {
+    const tab = tabTop
     pontos.push({ chave: 'top', Icone: Package, ir: () => ir(`/dashboard?tab=${tab}`),
       texto: <>Mais vendido fora os combustíveis: <b className="font-semibold">{nomeLegivel(r.topProduto.nome)}</b> · {formatCurrency(r.topProduto.valor)}</> })
   }
@@ -145,7 +159,7 @@ const BriefingModal = () => {
             </button>
             <div className="flex gap-6 text-right">
               {r.recebido > 0 && (
-                <button type="button" onClick={() => ir('/fechamento-caixa')} className="text-right hover:opacity-80">
+                <button type="button" onClick={() => ver({ tipo: 'recebido' })} className="text-right hover:opacity-80">
                   <p className="text-[11.5px] text-white/70">Recebido</p>
                   <p className="text-[15px] font-bold tabular-nums text-white">{formatCurrency(r.recebido)}</p>
                 </button>
@@ -161,8 +175,11 @@ const BriefingModal = () => {
         </div>
 
         {/* Corpo */}
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
-          {r.carregando ? (
+        {/* Rolagem sem barra visível: a pessoa rola por intuição (roda do mouse/dedo). */}
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {detalhe ? (
+            <DetalheOntem detalhe={detalhe} caixas={r.caixasRows} formas={r.formasRows} nomePosto={r.nomePosto} onVoltar={() => setDetalhe(null)} />
+          ) : r.carregando ? (
             <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="h-24 animate-pulse rounded-2xl bg-[#1e293b]" />)}</div>
           ) : !r.temDados ? (
             <div className={cn(CARD, 'p-6 text-center text-[13px] text-[#94a3b8]')}>Ontem ainda não fechou na apuração. Confira mais tarde.</div>
@@ -189,13 +206,13 @@ const BriefingModal = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 {r.caixa && (
-                  <Kpi Icone={Scale} titulo="Diferença de caixa" onClick={() => ir('/fechamento-caixa')}
+                  <Kpi Icone={Scale} titulo="Diferença de caixa" onClick={() => ver({ tipo: 'diferenca' })}
                     valor={`${r.caixa.diferenca > 0 ? '+' : r.caixa.diferenca < 0 ? '−' : ''}${formatCurrency(Math.abs(r.caixa.diferenca))}`}
                     corValor={Math.abs(r.caixa.diferenca) < 1 ? 'text-[#5eead4]' : r.caixa.diferenca < 0 ? 'text-[#fda4af]' : 'text-[#5eead4]'}
                     sub={Math.abs(r.caixa.diferenca) < 1 ? 'caixa batido' : `${r.caixa.caixas} ${r.caixa.caixas === 1 ? 'caixa' : 'caixas'}`} />
                 )}
                 {r.recebido > 0 && (
-                  <Kpi Icone={Wallet} titulo="Recebido" valor={formatCurrency(r.recebido)} onClick={() => ir('/fechamento-caixa')}
+                  <Kpi Icone={Wallet} titulo="Recebido" valor={formatCurrency(r.recebido)} onClick={() => ver({ tipo: 'recebido' })}
                     sub={r.vendas > 0 ? `${pct((r.recebido / r.vendas) * 100)} das vendas` : undefined} />
                 )}
                 {r.litros > 0 && (
@@ -234,7 +251,7 @@ const BriefingModal = () => {
                   <p className={ROTULO}><Wallet className="h-4 w-4" /> Como recebeu</p>
                   <div className="mt-3 space-y-2.5">
                     {r.recebimento.map((x) => (
-                      <button key={x.grupo} type="button" onClick={() => ir('/fechamento-caixa')} className="block w-full rounded-lg px-1 py-0.5 text-left hover:bg-white/[0.04]">
+                      <button key={x.grupo} type="button" onClick={() => ver({ tipo: 'recebido', grupo: x.grupo })} className="block w-full rounded-lg px-1 py-0.5 text-left hover:bg-white/[0.04]">
                         <span className="flex items-baseline gap-2 text-[13.5px]">
                           <span className="min-w-0 flex-1 text-[#e2e8f0]">{RECEB[x.grupo]}</span>
                           <span className="text-[11.5px] tabular-nums text-[#64748b]">{pct((x.valor / r.recebido) * 100)}</span>
@@ -249,20 +266,20 @@ const BriefingModal = () => {
                 </section>
               )}
 
-              {(r.prazo || r.carregandoPrazo) && (
+              {receberVisivel && (r.prazo || r.carregandoPrazo) && (
                 <section className={cn(CARD, 'p-4')}>
                   <div className="flex items-center justify-between">
                     <p className={ROTULO}><Users className="h-4 w-4" /> Clientes a prazo</p>
-                    <button type="button" onClick={() => ir('/financeiro?tab=receber', false)} className="inline-flex items-center gap-0.5 text-[12.5px] font-semibold text-[#5eead4] hover:underline">
+                    <button type="button" onClick={() => ir(RECEBER_ABERTO, false)} className="inline-flex items-center gap-0.5 text-[12.5px] font-semibold text-[#5eead4] hover:underline">
                       Ver <ChevronRight className="h-3.5 w-3.5" />
                     </button>
                   </div>
                   {r.prazo ? (
                     <div className="mt-3 grid grid-cols-3 gap-2">
                       <Caixinha titulo="Vencidos" valor={formatCurrency(r.prazo.vencidosValor)} sub={`${r.prazo.vencidosQtd} ${r.prazo.vencidosQtd === 1 ? 'título' : 'títulos'}`}
-                        alerta={r.prazo.vencidosQtd > 0} onClick={() => ir('/financeiro?tab=receber', false)} />
-                      <Caixinha titulo="Vencem hoje" valor={formatCurrency(r.prazo.hojeValor)} sub={`${r.prazo.hojeQtd} ${r.prazo.hojeQtd === 1 ? 'título' : 'títulos'}`} onClick={() => ir('/financeiro?tab=receber', false)} />
-                      <Caixinha titulo="Em aberto" valor={formatCurrency(r.prazo.abertoValor)} onClick={() => ir('/financeiro?tab=receber', false)} />
+                        alerta={r.prazo.vencidosQtd > 0} onClick={() => ir(RECEBER_VENCIDOS, false)} />
+                      <Caixinha titulo="Vencem hoje" valor={formatCurrency(r.prazo.hojeValor)} sub={`${r.prazo.hojeQtd} ${r.prazo.hojeQtd === 1 ? 'título' : 'títulos'}`} onClick={() => ir(RECEBER_HOJE, false)} />
+                      <Caixinha titulo="Em aberto" valor={formatCurrency(r.prazo.abertoValor)} onClick={() => ir(RECEBER_ABERTO, false)} />
                     </div>
                   ) : (
                     <div className="mt-3 h-16 animate-pulse rounded-xl bg-[#172234]" />

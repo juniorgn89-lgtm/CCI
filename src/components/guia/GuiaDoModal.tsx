@@ -36,7 +36,17 @@ const GuiaDoModal = ({ guia, contentRef }: { guia: GuiaModal; contentRef: RefObj
   }, [contentRef])
 
   const cabeAoLado = caixa != null && caixa.left >= LARGURA + MARGEM
-  const corpo = guia.texto.map((p, i) => <p key={i}>{p}</p>)
+  const corpo = (
+    <>
+      {guia.texto.map((p, i) => <p key={i}>{p}</p>)}
+      {guia.topicos?.map((t) => (
+        <div key={t.titulo} className="mt-1 space-y-1.5 border-t border-gray-200 pt-2 dark:border-white/10">
+          <p className="font-semibold text-[#0f766e] dark:text-[#5eead4]">{t.titulo}</p>
+          {t.texto.map((p, i) => <p key={i}>{p}</p>)}
+        </div>
+      ))}
+    </>
+  )
 
   return (
     <>

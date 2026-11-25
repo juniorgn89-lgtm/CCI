@@ -1,7 +1,8 @@
 import { ShoppingCart, Lock, ArrowLeftRight, PackageSearch } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
-import TopBarTabs, { type TopBarTab } from '@/components/layout/TopBarTabs'
+import { type TopBarTab } from '@/components/layout/TopBarTabs'
+import ModuloAbas from '@/components/layout/ModuloAbas'
 import InfoHint from '@/components/ui/InfoHint'
 import { useComprasBase, containerCls } from './comum'
 import Pedidos from './Pedidos'
@@ -42,7 +43,7 @@ const Compras = () => {
     <div className="space-y-6">
       <PageHeaderTitle>
         <div className="flex items-center gap-1.5">
-          <TopBarTabs active={tab} onChange={(id) => setTab(id as ComprasTab)} tabs={tabs} />
+          <ModuloAbas active={tab} onChange={(id) => setTab(id as ComprasTab)} tabs={tabs} />
           <InfoHint side="bottom" text="Análise de estoque para comprar: compara o saldo do posto com a média de venda e sugere quanto pedir; marque os produtos e monte o pedido dali. Pedidos de compra com liberação: quem pede monta o pedido a partir das sugestões de reposição do estoque; quem libera aprova inteiro, parcial ou recusa. Transferências: um posto manda, o outro confere. Nada é enviado ao ERP: nota e movimentação de estoque entram no WebPosto pelo fluxo normal." />
         </div>
       </PageHeaderTitle>

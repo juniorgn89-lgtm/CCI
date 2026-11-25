@@ -2,7 +2,6 @@ import { lazy, Suspense, useMemo, useState, type ReactNode } from 'react'
 import { Store, CircleDollarSign, DollarSign, PieChart, Ticket, TrendingUp, TrendingDown, Minus, Package, BarChart3, ListOrdered, LayoutDashboard, CalendarDays } from 'lucide-react'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
-import FocusModeToggle from '@/components/layout/FocusModeToggle'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
 import RouteFallback from '@/components/feedback/RouteFallback'
 import KpiSkeleton from '@/components/feedback/KpiSkeleton'
@@ -19,7 +18,6 @@ import PistaDiaModal, { type PistaDiaData } from '@/pages/Comercial/Vendas/Pista
 import { fimDoMesIso, expectedDailySeries } from '@/lib/projection'
 import { todayLocal } from '@/lib/period'
 import { useFilterStore } from '@/store/filters'
-import { useEmpresaNome } from '@/hooks/useEmpresaNome'
 import { formatCurrency, formatCurrencyInt, formatNumber, formatDate } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 import VendasNav from '@/pages/Comercial/Vendas/VendasNav'
@@ -140,7 +138,6 @@ const DOW_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', '
 const diaSemanaLabel = (iso: string): string => DOW_FULL[new Date(`${iso}T00:00:00`).getDay()] ?? ''
 
 const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConvenienciaProps = {}) => {
-  const empresaNome = useEmpresaNome()
   const { dataFinal } = useFilterStore()
   const [activeTab, setActiveTab] = useState<TabId>('diadia')
   // Tabela dia a dia abre RECOLHIDA: gráfico primeiro; a tabela sob demanda.
@@ -269,23 +266,6 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
     <div className="space-y-6">
       {!embedded && (
         <>
-          <PageHeaderTitle placement="header">
-            <div className="flex items-center gap-2.5">
-              <span className="h-7 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-              <Store className="h-5 w-5 shrink-0 text-[#1e3a5f] dark:text-gray-300" />
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <h1 className="truncate text-sm font-bold text-gray-900 dark:text-gray-100">
-                    Vendas · Conveniência{empresaNome ? ` · ${empresaNome}` : ''}
-                  </h1>
-                  <FocusModeToggle />
-                </div>
-                <p className="truncate text-[11px] text-gray-500 dark:text-gray-400">
-                  Análise de Pareto, Curva ABC e catálogo de produtos da loja
-                </p>
-              </div>
-            </div>
-          </PageHeaderTitle>
           <PageHeaderActions>
             <DateRangeToolbar />
           </PageHeaderActions>

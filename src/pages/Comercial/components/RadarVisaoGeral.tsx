@@ -1,8 +1,12 @@
 import { useMemo, useState } from 'react'
-import { Radar, ArrowRight, ChevronDown, AlertTriangle, CheckCircle2, TrendingUp, Hand, ArrowDownRight, ShoppingBag, HelpCircle } from 'lucide-react'
+import { useFilterStore } from '@/store/filters'
+import useVisivel from '@/hooks/useVisivel'
+import FechamentoMesRadar from '@/pages/Comercial/components/FechamentoMesRadar'
+import { Radar, ArrowRight, ChevronDown, AlertTriangle, CheckCircle2, TrendingUp, Hand, ArrowDownRight, ShoppingBag, HelpCircle, Columns3, List } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import InfoHint from '@/components/ui/InfoHint'
+import { nomeLegivel } from '@/lib/nomeLegivel'
 import useReguaPreco, { milShort, moneyL, FRESCOR_OK, FRESCOR_WARN, type CardPreco, type Veredito, type Frescor } from '@/pages/Comercial/hooks/useReguaPreco'
 
 /**
@@ -34,6 +38,35 @@ const TONE = {
   gray: { text: 'text-gray-700 dark:text-gray-200', dot: 'bg-gray-400', pill: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' },
 } as const
 
+/**
+ * Cores das colunas do quadro. No escuro: coluna no azul dos menus (#1e293b)
+ * com contorno e faixa no topo na cor fosca do veredito; cartões pretos dentro.
+ */
+const COLUNA: Record<'emerald' | 'red' | 'blue' | 'amber', { fundo: string; borda: string; faixa: string; numero: string; titulo: string; destaque: string }> = {
+  emerald: { fundo: 'bg-emerald-50/60 dark:bg-[#1e293b]', borda: 'border-emerald-200 dark:border-[#4f9d84]/40', faixa: 'dark:border-t-2 dark:border-t-[#4f9d84]', numero: 'text-emerald-600 dark:text-[#86c5aa]', titulo: 'dark:text-[#86c5aa]', destaque: 'ring-emerald-400 dark:ring-[#4f9d84]' },
+  red: { fundo: 'bg-red-50/60 dark:bg-[#1e293b]', borda: 'border-red-200 dark:border-[#c07a7a]/40', faixa: 'dark:border-t-2 dark:border-t-[#c07a7a]', numero: 'text-red-600 dark:text-[#d9a3a3]', titulo: 'dark:text-[#d9a3a3]', destaque: 'ring-red-400 dark:ring-[#c07a7a]' },
+  blue: { fundo: 'bg-blue-50/60 dark:bg-[#1e293b]', borda: 'border-blue-200 dark:border-[#5b7fb4]/40', faixa: 'dark:border-t-2 dark:border-t-[#5b7fb4]', numero: 'text-blue-600 dark:text-[#9db5d6]', titulo: 'dark:text-[#9db5d6]', destaque: 'ring-blue-400 dark:ring-[#5b7fb4]' },
+  amber: { fundo: 'bg-amber-50/60 dark:bg-[#1e293b]', borda: 'border-amber-200 dark:border-[#c79a4a]/40', faixa: 'dark:border-t-2 dark:border-t-[#c79a4a]', numero: 'text-amber-600 dark:text-[#d6b673]', titulo: 'dark:text-[#d6b673]', destaque: 'ring-amber-400 dark:ring-[#c79a4a]' },
+}
+/** Ação curta do cartão do quadro: o número que o dono executa. */
+const acaoCurta = (c: CardPreco) => {
+  if (c.veredito === 'segurar') return 'Não cortar'
+  if ((c.veredito === 'ceder' || c.veredito === 'confirmar') && c.quantoL > 0) return `Até ${moneyL(c.quantoL)}/L`
+  return c.acao
+}
+const CHAVE_VISTA = 'visor360.radar.vista'
+const CHAVE_AGRUPAR = 'visor360.radar.agrupar'
+const nomeFuel = (f: string) => nomeLegivel(f.replace(/\.$/, ''))
+/** Agrupa mantendo a ordem dos cartões (o grupo entra na posição do 1º cartão dele). */
+const agruparPor = (lista: CardPreco[], por: 'posto' | 'combustivel') => {
+  const m = new Map<string, CardPreco[]>()
+  for (const c of lista) {
+    const k = por === 'posto' ? nomeLegivel(c.posto) : nomeFuel(c.fuel)
+    m.set(k, [...(m.get(k) ?? []), c])
+  }
+  return [...m.entries()]
+}
+
 const Sel = ({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) => (
   <div className="relative">
     <select value={value} onChange={(e) => onChange(e.target.value)} className="appearance-none rounded-lg border border-gray-200 bg-white py-1.5 pl-3 pr-8 text-[12px] font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-200 dark:hover:bg-gray-800">{children}</select>
@@ -53,10 +86,21 @@ interface Props { onAnalisar: (postoCodigo: number, fuel: string) => void }
 
 const RadarVisaoGeral = ({ onAnalisar }: Props) => {
   const r = useReguaPreco()
-  const [fPosto, setFPosto] = useState<number | 'todos'>('todos')
+  const concorrenciaVisivel = useVisivel().aba('/comercial', 'concorrencia')
+  // O TOPO manda: com um posto lá em cima, a tela fica nele e o filtro daqui trava.
+  // Com "Todos os postos" no topo, o filtro daqui afunila livremente (sem mexer no topo).
+  const filtroPostos = useFilterStore((s) => s.empresaCodigos)
+  const postoDoTopo = filtroPostos.length === 1 ? filtroPostos[0] : null
+  const [fPostoLocal, setFPosto] = useState<number | 'todos'>('todos')
+  const fPosto: number | 'todos' = postoDoTopo ?? fPostoLocal
   const [fFuel, setFFuel] = useState('todos')
   const [fVer, setFVer] = useState<Veredito | 'todos'>('todos')
   const [aberto, setAberto] = useState<string | null>(null)
+  const [lojaAberta, setLojaAberta] = useState(false)
+  const [vista, setVistaSel] = useState<'quadro' | 'lista'>(() => { try { return localStorage.getItem(CHAVE_VISTA) === 'lista' ? 'lista' : 'quadro' } catch { return 'quadro' } })
+  const setVista = (v: 'quadro' | 'lista') => { setVistaSel(v); try { localStorage.setItem(CHAVE_VISTA, v) } catch { /* ignore */ } }
+  const [agrupar, setAgruparSel] = useState<'posto' | 'combustivel'>(() => { try { return localStorage.getItem(CHAVE_AGRUPAR) === 'combustivel' ? 'combustivel' : 'posto' } catch { return 'posto' } })
+  const setAgrupar = (v: 'posto' | 'combustivel') => { setAgruparSel(v); try { localStorage.setItem(CHAVE_AGRUPAR, v) } catch { /* ignore */ } }
 
   const postos = useMemo(() => { const m = new Map<number, string>(); for (const c of r.cards) if (!m.has(c.empresaCodigo)) m.set(c.empresaCodigo, c.posto); return [...m.entries()].map(([codigo, nome]) => ({ codigo, nome })) }, [r.cards])
   const fuels = useMemo(() => [...new Set(r.cards.map((c) => c.fuel))], [r.cards])
@@ -66,13 +110,35 @@ const RadarVisaoGeral = ({ onAnalisar }: Props) => {
   if (r.isLoading) return <div className="space-y-4"><Skeleton className="h-24 rounded-2xl" /><Skeleton className="h-96 rounded-2xl" /></div>
   if (!r.hasRede || r.cards.length === 0) return <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">Sem venda de combustível com custo no período para montar a régua.</div>
 
-  const t = r.totais
-  const refTexto = r.postosComVizinhos > 0
+  // Totais do ESCOPO na tela (posto escolhido ou a rede), não sempre da rede.
+  const cardsEscopo = fPosto === 'todos' ? r.cards : r.cards.filter((c) => c.empresaCodigo === fPosto)
+  const contar = (v: Veredito) => cardsEscopo.filter((c) => c.veredito === v).length
+  const t = fPosto === 'todos' ? r.totais : {
+    ...r.totais,
+    postos: 1,
+    subir: contar('subir'),
+    subirValor: cardsEscopo.filter((c) => c.veredito === 'subir').reduce((acc, c) => acc + c.valor, 0),
+    segurar: contar('segurar'), ceder: contar('ceder'), confirmar: contar('confirmar'),
+    custoVelho: cardsEscopo.filter((c) => c.frescor === 'old').length,
+    semData: cardsEscopo.filter((c) => c.frescor === 'unknown').length,
+  }
+  const lojaVisivel = r.loja.filter((l) => fPosto === 'todos' || l.empresaCodigo === fPosto)
+  const refTexto = !concorrenciaVisivel
+    ? 'Referência: média da rede para o mesmo combustível.'
+    : r.postosComVizinhos > 0
     ? `Referência: ${r.postosComVizinhos} de ${r.totalPostos} postos usam os próprios vizinhos (${r.comPraca} ${r.comPraca === 1 ? 'combustível' : 'combustíveis'} com vizinho atualizado); nos demais, a média da rede.`
     : 'Referência: média da rede em todos os postos. Para um posto usar os vizinhos dele, ligue na análise do posto ou na aba Concorrência.'
 
   return (
     <div className="space-y-4">
+      {/* Como o mês vai fechar (mesmo número da Central) + o que o Radar faz pelos dias que faltam */}
+      <FechamentoMesRadar
+        cards={cardsEscopo}
+        segurar={t.segurar}
+        loja={fPosto === 'todos' ? r.loja : r.loja.filter((l) => l.empresaCodigo === fPosto)}
+        postoCodigo={fPosto === 'todos' ? undefined : fPosto}
+        postoNome={fPosto === 'todos' ? undefined : nomeLegivel(postos.find((p) => p.codigo === fPosto)?.nome ?? '')}
+      />
       {/* Cabeçalho */}
       <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
@@ -102,14 +168,93 @@ const RadarVisaoGeral = ({ onAnalisar }: Props) => {
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Filtrar</span>
-        <Sel value={String(fPosto)} onChange={(v) => setFPosto(v === 'todos' ? 'todos' : Number(v))}><option value="todos">Todos os postos</option>{postos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome}</option>)}</Sel>
+        {postoDoTopo != null
+          ? <><span className="inline-flex h-[30px] items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 text-[12px] font-medium text-gray-700 dark:border-[#2f3b4f] dark:bg-[#172234] dark:text-[#e2e8f0]">{nomeLegivel(postos.find((p) => p.codigo === postoDoTopo)?.nome ?? 'Posto')}</span><InfoHint text="O posto vem do seletor do topo. Para ver outros postos aqui, escolha Todos os postos lá em cima." /></>
+          : <Sel value={String(fPosto)} onChange={(v) => setFPosto(v === 'todos' ? 'todos' : Number(v))}><option value="todos">Todos os postos</option>{postos.map((p) => <option key={p.codigo} value={p.codigo}>{p.nome}</option>)}</Sel>}
         <Sel value={fFuel} onChange={setFFuel}><option value="todos">Todos os combustíveis</option>{fuels.map((f) => <option key={f} value={f}>{f}</option>)}</Sel>
         <Sel value={fVer} onChange={(v) => setFVer(v as Veredito | 'todos')}><option value="todos">Todos os vereditos</option>{GRUPOS.map((g) => <option key={g.id} value={g.id}>{g.titulo}</option>)}</Sel>
         <span className="text-[11px] text-gray-400">{filtrados.length} {filtrados.length === 1 ? 'item' : 'itens'}</span>
+        {vista === 'quadro' && (
+          <div className="ml-auto inline-flex items-center gap-1.5">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Agrupar por</span>
+            <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]" role="tablist" aria-label="Agrupar por">
+              {([['posto', 'Posto'], ['combustivel', 'Combustível']] as const).map(([id, label]) => (
+                <button key={id} type="button" role="tab" aria-selected={agrupar === id} onClick={() => setAgrupar(id)}
+                  className={cn('h-7 rounded-md px-2.5 text-[12px] font-semibold transition-colors',
+                    agrupar === id ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-gray-100' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200')}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className={cn('inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-[#0f0f0f]', vista !== 'quadro' && 'ml-auto')} role="tablist" aria-label="Forma de ver">
+          {([['quadro', 'Quadro', Columns3], ['lista', 'Lista', List]] as const).map(([id, label, Ic]) => (
+            <button key={id} type="button" role="tab" aria-selected={vista === id} onClick={() => setVista(id)}
+              className={cn('inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12px] font-semibold transition-colors',
+                vista === id ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-gray-100' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200')}>
+              <Ic className="h-3.5 w-3.5" />{label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Grupos por veredito */}
-      <div className="space-y-5">
+      {/* Quadro (kanban): uma coluna por veredito */}
+      {vista === 'quadro' && (
+        <div className={cn('grid gap-2', fVer === 'todos' ? 'md:grid-cols-2 xl:grid-cols-4' : 'md:grid-cols-1')}>
+          {GRUPOS.filter((g) => fVer === 'todos' || g.id === fVer).map((g) => {
+            const lista = ordenar(g.id, filtrados.filter((c) => c.veredito === g.id))
+            const col = COLUNA[g.tone]
+            const tc = TONE[g.tone]
+            const soma = g.id === 'subir' ? lista.reduce((s, c) => s + c.valor, 0) : 0
+            return (
+              <div key={g.id} className="flex min-w-0 flex-col gap-1.5">
+                <div className={cn('flex items-center gap-2.5 rounded-xl border bg-white px-3 py-2 dark:bg-[#1e293b] dark:shadow-[0_10px_24px_-12px_rgba(0,0,0,0.8)]', col.borda, col.faixa)}>
+                  <span className={cn('text-[22px] font-bold leading-none tabular-nums', col.numero)}>{lista.length}</span>
+                  <div className="min-w-0">
+                    <p className={cn('inline-flex items-center gap-1 text-[13px] font-semibold leading-tight', tc.text, col.titulo)}><g.Icon className="h-3.5 w-3.5" />{g.titulo}</p>
+                    <p className="truncate text-[10.5px] text-gray-500 dark:text-[#94a3b8]">{soma > 0 ? `+${milShort(soma)} no período · ` : ''}{g.sub.split(':')[0]}</p>
+                  </div>
+                </div>
+                <div className={cn('radar-coluna flex flex-1 flex-col gap-1.5 rounded-xl border p-1.5 md:max-h-[72vh] md:overflow-y-auto', col.fundo, col.borda)}>
+                  {lista.length === 0 ? (
+                    <p className="px-2 py-3 text-center text-[11.5px] text-gray-400 dark:text-[#64748b]">Nenhum combustível aqui.</p>
+                  ) : agruparPor(lista, agrupar).map(([grupo, cards]) => (
+                    <div key={grupo} className="space-y-1">
+                      <p className="flex items-center gap-1.5 px-1 pt-0.5 text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#94a3b8]">
+                        <span className="truncate">{grupo}</span>
+                        <span className="rounded-full bg-white/70 px-1.5 text-[10px] tabular-nums text-gray-500 dark:bg-[#0b1220] dark:text-[#cbd5e1]">{cards.length}</span>
+                      </p>
+                      {cards.map((c) => (
+                    <button key={c.id} type="button" onClick={() => onAnalisar(c.empresaCodigo, c.fuel)}
+                      className={cn('group block w-full rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-left shadow-sm transition-all hover:shadow-md hover:ring-2 dark:border-[#2f3b4f] dark:!bg-[#0b1220] dark:hover:ring-1', col.destaque)}>
+                      <p className="truncate text-[12.5px] font-semibold leading-tight text-gray-900 dark:text-gray-100">{agrupar === 'posto' ? nomeFuel(c.fuel) : nomeLegivel(c.posto)}</p>
+                      <p className="truncate text-[10.5px] tabular-nums text-gray-500 dark:text-gray-400">
+                        Preço {moneyL(c.preco)}{c.referencia ? ` · ref. ${c.referencia.tipo === 'praca' ? 'vizinhos' : 'rede'} ${moneyL(c.referencia.preco)}` : ''} · margem {pct(c.margemPct)}
+                      </p>
+                      <div className="mt-1 flex items-center justify-between gap-2">
+                        <p className={cn('text-[14px] font-bold leading-tight tabular-nums', tc.text, col.titulo)}>{acaoCurta(c)}</p>
+                        <span className="inline-flex shrink-0 items-center gap-0.5 text-[11px] font-semibold text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200">Analisar <ArrowRight className="h-3 w-3" /></span>
+                      </div>
+                      {(c.veredito === 'subir' && c.valor > 0) || c.frescor !== 'ok' ? (
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-2">
+                          {c.veredito === 'subir' && c.valor > 0 && <span className="text-[10.5px] font-semibold tabular-nums text-emerald-600 dark:text-[#86c5aa]">+{milShort(c.valor)} no período</span>}
+                          {c.frescor !== 'ok' && <CustoFrescor c={c} />}
+                        </div>
+                      ) : null}
+                    </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Grupos por veredito (vista Lista) */}
+      {vista === 'lista' && <div className="space-y-5">
         {GRUPOS.map((g) => {
           const lista = ordenar(g.id, filtrados.filter((c) => c.veredito === g.id))
           if (lista.length === 0) return null
@@ -171,27 +316,43 @@ const RadarVisaoGeral = ({ onAnalisar }: Props) => {
           )
         })}
         {filtrados.length === 0 && <p className="rounded-xl border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700">Nada com estes filtros.</p>}
-      </div>
+      </div>}
 
-      {/* Loja: a oportunidade que não é de bomba */}
-      {r.loja.length > 0 && fVer === 'todos' && fFuel === 'todos' && (
-        <div>
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <span className="h-2.5 w-2.5 rounded-full bg-teal-500" />
-            <h4 className="inline-flex items-center gap-1.5 text-sm font-bold text-teal-700 dark:text-teal-300"><ShoppingBag className="h-4 w-4" /> Loja com margem abaixo da rede</h4>
-            <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] font-semibold text-gray-500 dark:bg-gray-800 dark:text-gray-300">{r.loja.filter((l) => fPosto === 'todos' || l.empresaCodigo === fPosto).length}</span>
-            <span className="text-[11px] text-gray-400">é mix e exposição, não preço de bomba</span>
-          </div>
-          <div className="space-y-2">
-            {r.loja.filter((l) => fPosto === 'todos' || l.empresaCodigo === fPosto).map((l) => (
-              <div key={l.empresaCodigo} className="relative flex flex-col gap-2 overflow-hidden rounded-xl sm:flex-row sm:items-center sm:gap-4 border border-gray-200 bg-white px-4 py-3 pl-5 shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-                <span className="absolute inset-y-0 left-0 w-[3px] bg-teal-500" />
-                <div className="sm:w-44 sm:shrink-0"><p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">{l.posto}</p><p className="text-[11px] text-gray-500 dark:text-gray-400">Conveniência</p></div>
-                <div className="min-w-0 sm:flex-1"><p className="text-[13px] font-bold text-teal-700 dark:text-teal-300">Puxar a margem da loja para {l.redeMargemPct.toFixed(0)}%</p><p className="text-[12px] leading-snug text-gray-600 dark:text-gray-300">{l.porque[0]} {l.porque[1]}</p></div>
-                <div className="hidden w-24 shrink-0 text-right sm:block"><p className="text-[9px] font-semibold uppercase tracking-wide text-gray-400">Vale</p><p className="text-[13px] font-bold tabular-nums text-teal-700 dark:text-teal-300">+{milShort(l.valor)}</p></div>
-              </div>
-            ))}
-          </div>
+      {/* Loja: oportunidade que não é de bomba — faixa recolhível, cartões no estilo do quadro */}
+      {lojaVisivel.length > 0 && fVer === 'todos' && fFuel === 'todos' && (
+        <div className="overflow-hidden rounded-xl border border-teal-200 bg-teal-50/50 dark:border-teal-500/25 dark:bg-teal-500/[0.05]">
+          <button type="button" onClick={() => setLojaAberta((v) => !v)} aria-expanded={lojaAberta}
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-left transition-colors hover:bg-teal-50 dark:hover:bg-teal-500/[0.08]">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-teal-600 text-white"><ShoppingBag className="h-3.5 w-3.5" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13px] font-bold leading-tight text-teal-800 dark:text-teal-200">
+                Loja com margem abaixo da rede <span className="font-semibold text-teal-700/70 dark:text-teal-300/70">· {lojaVisivel.length} {lojaVisivel.length === 1 ? 'posto' : 'postos'}</span>
+              </span>
+              <span className="block truncate text-[10.5px] text-gray-500 dark:text-gray-400">É mix de produtos e exposição na conveniência, não preço de bomba</span>
+            </span>
+            <span className="shrink-0 text-right">
+              <span className="block text-[13px] font-bold tabular-nums text-teal-700 dark:text-teal-300">+{milShort(lojaVisivel.reduce((s, l) => s + l.valor, 0))}</span>
+              <span className="block text-[10px] text-gray-500 dark:text-gray-400">possível no período</span>
+            </span>
+            <ChevronDown className={cn('h-4 w-4 shrink-0 text-teal-700 transition-transform dark:text-teal-300', lojaAberta && 'rotate-180')} />
+          </button>
+          {lojaAberta && (
+            <div className="grid gap-1.5 border-t border-teal-200 p-1.5 md:grid-cols-2 xl:grid-cols-4 dark:border-teal-500/25">
+              {lojaVisivel.map((l) => (
+                <div key={l.empresaCodigo} className="rounded-lg border border-gray-200 bg-white px-2.5 py-2 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                  <p className="truncate text-[12.5px] font-semibold leading-tight text-gray-900 dark:text-gray-100">{nomeLegivel(l.posto)}</p>
+                  <p className="truncate text-[10.5px] tabular-nums text-gray-500 dark:text-gray-400">
+                    Margem da loja {pct(l.margemPct)} · rede {pct(l.redeMargemPct)} · venda {milShort(l.faturamento)}
+                  </p>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <p className="text-[14px] font-extrabold leading-tight text-teal-700 dark:text-teal-300">Margem para {l.redeMargemPct.toFixed(0)}%</p>
+                    <span className="text-[10.5px] font-semibold tabular-nums text-teal-700 dark:text-teal-300">+{milShort(l.valor)}</span>
+                  </div>
+                  <p className="mt-0.5 line-clamp-2 text-[10.5px] leading-snug text-gray-500 dark:text-gray-400">{l.porque.slice(1).join(' ')}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

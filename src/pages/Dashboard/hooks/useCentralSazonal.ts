@@ -43,8 +43,10 @@ export interface CentralSazonal {
   modo: (setor: SetorId) => ProjecaoModo
 }
 
-const useCentralSazonal = (): CentralSazonal => {
-  const { empresaCodigos, dataInicial } = useFilterStore()
+/** `options.empresaCodigos` troca o filtro de posto (ex.: o Radar com um posto escolhido na própria tela). */
+const useCentralSazonal = (options?: { empresaCodigos?: number[] }): CentralSazonal => {
+  const { empresaCodigos: empresaCodigosStore, dataInicial } = useFilterStore()
+  const empresaCodigos = options?.empresaCodigos ?? empresaCodigosStore
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const permitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
   const permittedCodes = useMemo(() => new Set(permitidas.map((e) => e.codigo)), [permitidas])

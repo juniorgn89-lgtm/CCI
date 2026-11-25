@@ -107,64 +107,64 @@
      ============================================= */
 
   /* Backgrounds (light grays remapeados pra dark) */
-  .dark .bg-white { background-color: hsl(200 22% 10%); }       /* cards */
-  .dark .bg-gray-50 { background-color: hsl(200 24% 7%); }     /* page bg interno */
-  .dark .bg-gray-100 { background-color: hsl(200 20% 18%); }    /* sub-accents */
-  .dark .bg-gray-200 { background-color: hsl(200 20% 22%); }    /* chips, badges */
+  .dark .bg-white { background-color: #1e293b; }       /* cards */
+  .dark .bg-gray-50 { background-color: #0b1220; }     /* page bg interno */
+  .dark .bg-gray-100 { background-color: #172234; }    /* sub-accents */
+  .dark .bg-gray-200 { background-color: #2f3b4f; }    /* chips, badges */
 
   /* Backgrounds (dark grays explícitos) */
-  .dark .bg-gray-700 { background-color: hsl(200 20% 22%); }
-  .dark .bg-gray-800 { background-color: hsl(200 22% 14%); }
-  .dark .bg-gray-900 { background-color: hsl(200 22% 10%); }
-  .dark .bg-gray-950 { background-color: hsl(200 26% 5%); }     /* outer frame — #171717 (igual sideBar VSCode) */
+  .dark .bg-gray-700 { background-color: #2f3b4f; }
+  .dark .bg-gray-800 { background-color: #172234; }
+  .dark .bg-gray-900 { background-color: #1e293b; }
+  .dark .bg-gray-950 { background-color: #0b1220; }     /* outer frame — #171717 (igual sideBar VSCode) */
 
   /* Backgrounds com opacity */
-  .dark .bg-gray-50\/50 { background-color: hsl(200 20% 13% / 0.5); }
-  .dark .bg-gray-50\/70 { background-color: hsl(200 20% 13% / 0.7); }
-  .dark .bg-gray-800\/30 { background-color: hsl(200 20% 18% / 0.3); }
-  .dark .bg-gray-800\/40 { background-color: hsl(200 20% 18% / 0.4); }
-  .dark .bg-gray-800\/50 { background-color: hsl(200 20% 18% / 0.5); }
-  .dark .bg-gray-800\/60 { background-color: hsl(200 20% 18% / 0.6); }
-  .dark .bg-blue-50\/50 { background-color: hsl(220 40% 22% / 0.3); }
+  .dark .bg-gray-50\/50 { background-color: rgb(23 34 52 / 0.5); }
+  .dark .bg-gray-50\/70 { background-color: rgb(23 34 52 / 0.7); }
+  .dark .bg-gray-800\/30 { background-color: rgb(47 59 79 / 0.3); }
+  .dark .bg-gray-800\/40 { background-color: rgb(47 59 79 / 0.4); }
+  .dark .bg-gray-800\/50 { background-color: rgb(47 59 79 / 0.5); }
+  .dark .bg-gray-800\/60 { background-color: rgb(47 59 79 / 0.6); }
+  .dark .bg-blue-50\/50 { background-color: rgba(20, 184, 166, 0.12); }
 
   /* Text — escala de cinzas neutra */
-  .dark .text-gray-50 { color: hsl(200 20% 96%); }
-  .dark .text-gray-100 { color: hsl(200 20% 90%); }
-  .dark .text-gray-200 { color: hsl(200 20% 84%); }
-  .dark .text-gray-300 { color: hsl(200 20% 72%); }
-  .dark .text-gray-400 { color: hsl(200 20% 60%); }
-  .dark .text-gray-500 { color: hsl(200 20% 52%); }
-  .dark .text-gray-600 { color: hsl(200 20% 62%); }
-  .dark .text-gray-700 { color: hsl(200 20% 72%); }
-  .dark .text-gray-800 { color: hsl(200 20% 84%); }
-  .dark .text-gray-900 { color: hsl(200 20% 90%); }
+  .dark .text-gray-50 { color: #f8fafc; }
+  .dark .text-gray-100 { color: #f1f5f9; }
+  .dark .text-gray-200 { color: #e2e8f0; }
+  .dark .text-gray-300 { color: #cbd5e1; }
+  .dark .text-gray-400 { color: #94a3b8; }
+  .dark .text-gray-500 { color: #8391a7; }
+  .dark .text-gray-600 { color: #94a3b8; }
+  .dark .text-gray-700 { color: #cbd5e1; }
+  .dark .text-gray-800 { color: #e2e8f0; }
+  .dark .text-gray-900 { color: #f1f5f9; }
 
   /* Borders */
-  .dark .border-gray-100 { border-color: hsl(200 20% 20%); }
-  .dark .border-gray-200 { border-color: hsl(200 20% 24%); }
-  .dark .border-gray-300 { border-color: hsl(200 20% 30%); }
-  .dark .border-gray-700 { border-color: hsl(200 20% 24%); }
-  .dark .border-gray-800 { border-color: hsl(200 20% 20%); }
+  .dark .border-gray-100 { border-color: #2f3b4f; }
+  .dark .border-gray-200 { border-color: #2f3b4f; }
+  .dark .border-gray-300 { border-color: #3e4c63; }
+  .dark .border-gray-700 { border-color: #2f3b4f; }
+  .dark .border-gray-800 { border-color: #2f3b4f; }
 
   /* Divide */
-  .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(200 20% 20%); }
-  .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(200 20% 24%); }
-  .dark .divide-gray-700 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(200 20% 24%); }
-  .dark .divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: hsl(200 20% 20%); }
+  .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]) { border-color: #2f3b4f; }
+  .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: #2f3b4f; }
+  .dark .divide-gray-700 > :not([hidden]) ~ :not([hidden]) { border-color: #2f3b4f; }
+  .dark .divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: #2f3b4f; }
 
   /* Hover states */
-  .dark .hover\:bg-gray-50:hover { background-color: hsl(200 20% 18%); }
-  .dark .hover\:bg-gray-100:hover { background-color: hsl(200 20% 20%); }
-  .dark .hover\:bg-gray-700:hover { background-color: hsl(200 20% 26%); }
-  .dark .hover\:bg-gray-800:hover { background-color: hsl(200 20% 20%); }
-  .dark .hover\:bg-gray-800\/50:hover { background-color: hsl(200 20% 18% / 0.5); }
-  .dark .hover\:text-gray-200:hover { color: hsl(200 20% 88%); }
-  .dark .hover\:text-gray-300:hover { color: hsl(200 20% 78%); }
-  .dark .hover\:text-gray-700:hover { color: hsl(200 20% 80%); }
+  .dark .hover\:bg-gray-50:hover { background-color: #172234; }
+  .dark .hover\:bg-gray-100:hover { background-color: #172234; }
+  .dark .hover\:bg-gray-700:hover { background-color: #3e4c63; }
+  .dark .hover\:bg-gray-800:hover { background-color: #172234; }
+  .dark .hover\:bg-gray-800\/50:hover { background-color: rgb(23 34 52 / 0.6); }
+  .dark .hover\:text-gray-200:hover { color: #f1f5f9; }
+  .dark .hover\:text-gray-300:hover { color: #e2e8f0; }
+  .dark .hover\:text-gray-700:hover { color: #e2e8f0; }
 
   /* Specific component patterns */
   /* Sidebar (dark:bg-[#1e3a5f]) — mais escuro que o resto pra criar separação clara */
-  .dark .bg-\[\#1e3a5f\] { background-color: hsl(200 20% 6%); }
+  .dark .bg-\[\#1e3a5f\] { background-color: #0d9488; }
   .dark .shadow-sm { --tw-shadow-color: hsl(200 20% 0% / 0.5); }
   .dark .shadow-lg { --tw-shadow-color: hsl(200 20% 0% / 0.6); }
 
@@ -275,24 +275,143 @@ tbody > tr[data-marcada] > th:first-child {
 }
 
 /* =============================================
-   PADRÃO VISUAL DOS APPS CCI — SÓ NO CELULAR (<768px, onde entra o app mobile).
-   Igual ao NotaOK: neutros em ardósia azulada + petróleo (teal) como marca;
-   fontes Geist (texto), Sora (títulos) e Geist Mono (identificadores).
-   No computador continuam o escuro antigo e a Inter.
-     Escuro: fundo #0b1220 · topo/cartões/campos #1e293b · menu #0f172a
-             trilho/hover #172234 · borda #2f3b4f · borda forte #3e4c63
-             texto #f1f5f9 / #94a3b8 / #64748b · destaque #0d9488 (hover #14b8a6)
-             texto de destaque #5eead4 · fundo suave rgba(20,184,166,.12)
-     Claro:  fundo #f9fafb · casca #f3f4f6 · cartões #fff · borda #e5e7eb
-             destaque #0d9488 (hover #0f766e) · suave #f0fdfa · texto destaque #0f766e
+   PADRÃO VISUAL DOS APPS CCI (igual ao NotaOK): neutros em ardósia azulada +
+   petróleo (teal) como marca; fontes Geist (texto), Sora (títulos) e
+   Geist Mono (identificadores).
+     Escuro (computador e celular): fundo/conteúdo #0b1220 · topo, casca, menu,
+             cartões e campos #1e293b · trilho/hover #172234 · borda #2f3b4f ·
+             borda forte #3e4c63 · texto #f1f5f9 / #94a3b8 / #64748b ·
+             destaque #0d9488 (hover #14b8a6) · texto de destaque #5eead4
+     Claro: no CELULAR o destaque vira petróleo; no computador o claro segue o
+             de antes (navy/azul) por enquanto.
+   Desde a 1.2.30 o escuro e as fontes valem também no computador (antes só <768px).
    ============================================= */
-@media (max-width: 767px) {
-  /* ── Fontes ── */
-  html, body, .font-sans { font-family: 'Geist Variable', system-ui, -apple-system, 'Segoe UI', sans-serif; }
-  body { font-variant-numeric: tabular-nums; }
-  h1, h2, h3 { font-family: 'Sora Variable', 'Geist Variable', system-ui, sans-serif; letter-spacing: -0.015em; }
-  .font-mono, code, kbd { font-family: 'Geist Mono Variable', ui-monospace, 'SFMono-Regular', monospace; }
+/* ── Fontes ── */
+html, body, .font-sans { font-family: 'Geist Variable', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+body { font-variant-numeric: tabular-nums; }
+h1, h2, h3 { font-family: 'Sora Variable', 'Geist Variable', system-ui, sans-serif; letter-spacing: -0.015em; }
+.font-mono, code, kbd { font-family: 'Geist Mono Variable', ui-monospace, 'SFMono-Regular', monospace; }
 
+/* ── Escuro: variáveis do shadcn ── */
+.dark {
+  --background: 220 49% 8%;
+  --foreground: 210 40% 96%;
+  --card: 217 33% 17%;
+  --card-foreground: 210 40% 96%;
+  --popover: 217 33% 17%;
+  --popover-foreground: 210 40% 96%;
+  --primary: 175 84% 32%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 217 39% 15%;
+  --secondary-foreground: 210 40% 96%;
+  --muted: 217 39% 15%;
+  --muted-foreground: 215 20% 65%;
+  --accent: 217 39% 15%;
+  --accent-foreground: 210 40% 96%;
+  --border: 218 25% 25%;
+  --input: 218 25% 25%;
+  --ring: 173 80% 40%;
+}
+
+/* ── Escuro: classes cinza (as mesmas que o computador remapeia) ── */
+.dark .bg-white { background-color: #1e293b; }
+.dark .bg-gray-50 { background-color: #0b1220; }
+.dark .bg-gray-100 { background-color: #172234; }
+.dark .bg-gray-200 { background-color: #2f3b4f; }
+.dark .bg-gray-700 { background-color: #2f3b4f; }
+.dark .bg-gray-800 { background-color: #172234; }
+.dark .bg-gray-900 { background-color: #1e293b; }
+.dark .bg-gray-950 { background-color: #0b1220; }
+.dark .bg-gray-50\/50 { background-color: rgb(23 34 52 / 0.5); }
+.dark .bg-gray-50\/70 { background-color: rgb(23 34 52 / 0.7); }
+.dark .bg-gray-800\/30 { background-color: rgb(47 59 79 / 0.3); }
+.dark .bg-gray-800\/40 { background-color: rgb(47 59 79 / 0.4); }
+.dark .bg-gray-800\/50 { background-color: rgb(47 59 79 / 0.5); }
+.dark .bg-gray-800\/60 { background-color: rgb(47 59 79 / 0.6); }
+.dark .text-gray-50 { color: #f8fafc; }
+.dark .text-gray-100 { color: #f1f5f9; }
+.dark .text-gray-200 { color: #e2e8f0; }
+.dark .text-gray-300 { color: #cbd5e1; }
+.dark .text-gray-400 { color: #94a3b8; }
+.dark .text-gray-500 { color: #8391a7; }
+.dark .text-gray-600 { color: #94a3b8; }
+.dark .text-gray-700 { color: #cbd5e1; }
+.dark .text-gray-800 { color: #e2e8f0; }
+.dark .text-gray-900 { color: #f1f5f9; }
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-700,
+.dark .border-gray-800 { border-color: #2f3b4f; }
+.dark .border-gray-300 { border-color: #3e4c63; }
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-gray-700 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: #2f3b4f; }
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-gray-800:hover { background-color: #172234; }
+.dark .hover\:bg-gray-700:hover { background-color: #3e4c63; }
+.dark .hover\:bg-gray-800\/50:hover { background-color: rgb(23 34 52 / 0.6); }
+.dark .hover\:text-gray-200:hover { color: #f1f5f9; }
+.dark .hover\:text-gray-300:hover,
+.dark .hover\:text-gray-700:hover { color: #e2e8f0; }
+
+/* Escuro: destaque petróleo (navy/azul viram teal) */
+.dark .bg-\[\#1e3a5f\],
+.dark .bg-blue-600,
+html.dark .dark\:bg-blue-600,
+html.dark .dark\:bg-blue-700,
+html.dark .dark\:bg-\[\#2563eb\],
+html.dark .dark\:bg-\[\#60a5fa\] { background-color: #0d9488; }
+.dark .hover\:bg-blue-700:hover,
+html.dark .dark\:hover\:bg-blue-700:hover { background-color: #14b8a6; }
+.dark .text-blue-300,
+.dark .text-blue-400,
+.dark .text-blue-500,
+.dark .text-blue-600,
+html.dark .dark\:text-blue-300,
+html.dark .dark\:text-blue-400,
+html.dark .dark\:text-\[\#60a5fa\] { color: #5eead4; }
+.dark .border-blue-400,
+.dark .border-blue-500,
+html.dark .dark\:border-\[\#60a5fa\] { border-color: #0d9488; }
+.dark .bg-blue-50,
+.dark .bg-blue-100,
+.dark .bg-blue-50\/40,
+.dark .bg-blue-50\/60 { background-color: rgba(20, 184, 166, 0.12); }
+
+/* ── Escuro: tokens fixos do restyle preto (classes dark:) ──
+   html.dark (e não só .dark): o Tailwind emite as variantes dark: no FIM do CSS,
+   depois deste bloco; com a mesma especificidade elas venceriam. */
+html.dark .dark\:bg-gray-950,
+html.dark .dark\:bg-black { background-color: #0b1220; }
+html.dark .dark\:bg-gray-900 { background-color: #1e293b; }
+html.dark .dark\:bg-gray-800 { background-color: #172234; }
+html.dark .dark\:bg-gray-700 { background-color: #2f3b4f; }
+html.dark .dark\:bg-\[\#0f0f0f\],
+html.dark .dark\:bg-\[\#0b0b0b\],
+html.dark .dark\:bg-\[\#111\],
+html.dark .dark\:bg-\[\#161616\],
+html.dark .dark\:bg-\[\#1c1c1c\] { background-color: #172234; }
+html.dark .dark\:bg-\[\#131316\],
+html.dark .dark\:bg-\[\#1f1f22\],
+html.dark .dark\:bg-\[\#242424\] { background-color: #1e293b; }
+html.dark .dark\:bg-\[\#303030\] { background-color: #2f3b4f; }
+html.dark .dark\:border-\[\#3a3a3a\],
+html.dark .dark\:border-\[\#303030\],
+html.dark .dark\:border-gray-700,
+html.dark .dark\:border-gray-800 { border-color: #2f3b4f; }
+html.dark .dark\:divide-gray-700 > :not([hidden]) ~ :not([hidden]),
+html.dark .dark\:divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: #2f3b4f; }
+html.dark .dark\:hover\:bg-gray-800:hover { background-color: #172234; }
+html.dark .dark\:hover\:bg-gray-700:hover { background-color: #3e4c63; }
+/* Containers (gradiente gray-900 → black no computador): cartão liso #1e293b. */
+html.dark .dark\:from-gray-900 { --tw-gradient-from: #1e293b var(--tw-gradient-from-position); }
+html.dark .dark\:to-black,
+html.dark .dark\:to-gray-900 { --tw-gradient-to: #1e293b var(--tw-gradient-to-position); }
+
+/* Claro do celular: destaque em petróleo no lugar do navy/azul. */
+@media (max-width: 767px) {
   /* ── Claro: destaque em petróleo no lugar do navy/azul ── */
   :root:not(.dark) .bg-blue-600,
   :root:not(.dark) .bg-\[\#2563eb\],
@@ -307,122 +426,119 @@ tbody > tr[data-marcada] > th:first-child {
   :root:not(.dark) .border-blue-500,
   :root:not(.dark) .border-\[\#2563eb\],
   :root:not(.dark) .border-\[\#1e3a5f\] { border-color: #0d9488; }
+}
 
-  /* ── Escuro: variáveis do shadcn ── */
-  .dark {
-    --background: 220 49% 8%;
-    --foreground: 210 40% 96%;
-    --card: 217 33% 17%;
-    --card-foreground: 210 40% 96%;
-    --popover: 217 33% 17%;
-    --popover-foreground: 210 40% 96%;
-    --primary: 175 84% 32%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 217 39% 15%;
-    --secondary-foreground: 210 40% 96%;
-    --muted: 217 39% 15%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 39% 15%;
-    --accent-foreground: 210 40% 96%;
-    --border: 218 25% 25%;
-    --input: 218 25% 25%;
-    --ring: 173 80% 40%;
-  }
+/* =============================================
+   ACABAMENTO ACETINADO (fosco) — em todos os módulos do computador (classe no <main> do AppLayout), 1.2.30.
+   Tira o "brilho" do escuro: sem sombras e degradês nos cartões, números sem
+   peso extra, branco puro vira gelo, e as cores de destaque ficam menos
+   saturadas. Vale só dentro de .acetinado; quando aprovado, estende aos módulos.
+   ============================================= */
+html.dark .acetinado .shadow-sm,
+html.dark .acetinado .shadow,
+html.dark .acetinado .shadow-md,
+html.dark .acetinado .shadow-lg,
+html.dark .acetinado .shadow-xl { box-shadow: none; }
+html.dark .acetinado [class*="dark:bg-gradient-to"][class*="rounded"] { background-image: none; background-color: #1e293b; }
+html.dark .acetinado .font-extrabold { font-weight: 700; }
+html.dark .acetinado .text-white,
+html.dark .acetinado .dark\:text-white,
+html.dark .acetinado .dark\:text-gray-50,
+html.dark .acetinado .dark\:text-gray-100 { color: #e2e8f0; }
+html.dark .acetinado .dark\:text-emerald-300,
+html.dark .acetinado .dark\:text-emerald-400 { color: #86c5aa; }
+html.dark .acetinado .dark\:text-red-300,
+html.dark .acetinado .dark\:text-red-400,
+html.dark .acetinado .dark\:text-rose-300,
+html.dark .acetinado .dark\:text-rose-400 { color: #e0a0a0; }
+html.dark .acetinado .dark\:text-amber-300,
+html.dark .acetinado .dark\:text-amber-400 { color: #d6b673; }
+html.dark .acetinado .dark\:text-blue-300,
+html.dark .acetinado .dark\:text-blue-400,
+html.dark .acetinado .dark\:text-sky-300,
+html.dark .acetinado .dark\:text-sky-400 { color: #9db5d6; }
+html.dark .acetinado .dark\:text-violet-300,
+html.dark .acetinado .dark\:text-violet-400 { color: #b3a6d6; }
+html.dark .acetinado .dark\:text-teal-300,
+html.dark .acetinado .dark\:text-teal-400 { color: #8cc7bf; }
 
-  /* ── Escuro: classes cinza (as mesmas que o computador remapeia) ── */
-  .dark .bg-white { background-color: #1e293b; }
-  .dark .bg-gray-50 { background-color: #0b1220; }
-  .dark .bg-gray-100 { background-color: #172234; }
-  .dark .bg-gray-200 { background-color: #2f3b4f; }
-  .dark .bg-gray-700 { background-color: #2f3b4f; }
-  .dark .bg-gray-800 { background-color: #172234; }
-  .dark .bg-gray-900 { background-color: #1e293b; }
-  .dark .bg-gray-950 { background-color: #0b1220; }
-  .dark .bg-gray-50\/50 { background-color: rgb(23 34 52 / 0.5); }
-  .dark .bg-gray-50\/70 { background-color: rgb(23 34 52 / 0.7); }
-  .dark .bg-gray-800\/30 { background-color: rgb(47 59 79 / 0.3); }
-  .dark .bg-gray-800\/40 { background-color: rgb(47 59 79 / 0.4); }
-  .dark .bg-gray-800\/50 { background-color: rgb(47 59 79 / 0.5); }
-  .dark .bg-gray-800\/60 { background-color: rgb(47 59 79 / 0.6); }
-  .dark .text-gray-50 { color: #f8fafc; }
-  .dark .text-gray-100 { color: #f1f5f9; }
-  .dark .text-gray-200 { color: #e2e8f0; }
-  .dark .text-gray-300 { color: #cbd5e1; }
-  .dark .text-gray-400 { color: #94a3b8; }
-  .dark .text-gray-500 { color: #8391a7; }
-  .dark .text-gray-600 { color: #94a3b8; }
-  .dark .text-gray-700 { color: #cbd5e1; }
-  .dark .text-gray-800 { color: #e2e8f0; }
-  .dark .text-gray-900 { color: #f1f5f9; }
-  .dark .border-gray-100,
-  .dark .border-gray-200,
-  .dark .border-gray-700,
-  .dark .border-gray-800 { border-color: #2f3b4f; }
-  .dark .border-gray-300 { border-color: #3e4c63; }
-  .dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
-  .dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
-  .dark .divide-gray-700 > :not([hidden]) ~ :not([hidden]),
-  .dark .divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: #2f3b4f; }
-  .dark .hover\:bg-gray-50:hover,
-  .dark .hover\:bg-gray-100:hover,
-  .dark .hover\:bg-gray-800:hover { background-color: #172234; }
-  .dark .hover\:bg-gray-700:hover { background-color: #3e4c63; }
-  .dark .hover\:bg-gray-800\/50:hover { background-color: rgb(23 34 52 / 0.6); }
-  .dark .hover\:text-gray-200:hover { color: #f1f5f9; }
-  .dark .hover\:text-gray-300:hover,
-  .dark .hover\:text-gray-700:hover { color: #e2e8f0; }
+/* Acetinado · Detalhamento (tabelas posto a posto): barras atrás dos números e
+   linhas tingidas viram películas leves nas cores foscas — antes eram blocos
+   escuros (blue-900/emerald-900/slate-700) que encardiam sobre a ardósia. */
+html.dark .acetinado .dark\:bg-blue-900\/30 { background-color: rgba(91, 127, 180, 0.16); }
+html.dark .acetinado .dark\:bg-emerald-900\/30 { background-color: rgba(79, 157, 132, 0.15); }
+html.dark .acetinado .dark\:bg-slate-700\/40 { background-color: rgba(148, 163, 184, 0.08); }
+html.dark .acetinado .dark\:bg-red-900\/30 { background-color: rgba(224, 160, 160, 0.12); }
+html.dark .acetinado .dark\:bg-amber-900\/30 { background-color: rgba(214, 182, 115, 0.12); }
+html.dark .acetinado .dark\:bg-violet-900\/30 { background-color: rgba(179, 166, 214, 0.12); }
+html.dark .acetinado .dark\:bg-blue-950\/25,
+html.dark .acetinado .dark\:bg-blue-950\/20,
+html.dark .acetinado .dark\:bg-blue-950\/15,
+html.dark .acetinado .dark\:bg-gray-800\/30,
+html.dark .acetinado .dark\:bg-gray-800\/20 { background-color: rgba(255, 255, 255, 0.02); }
+html.dark .acetinado .dark\:hover\:bg-blue-900\/25:hover,
+html.dark .acetinado .dark\:hover\:bg-blue-900\/20:hover,
+html.dark .acetinado .dark\:hover\:bg-blue-900\/15:hover { background-color: rgba(255, 255, 255, 0.04); }
 
-  /* Escuro: destaque petróleo (navy/azul viram teal) */
-  .dark .bg-\[\#1e3a5f\],
-  .dark .bg-blue-600,
-  html.dark .dark\:bg-blue-600,
-  html.dark .dark\:bg-blue-700,
-  html.dark .dark\:bg-\[\#2563eb\],
-  html.dark .dark\:bg-\[\#60a5fa\] { background-color: #0d9488; }
-  .dark .hover\:bg-blue-700:hover,
-  html.dark .dark\:hover\:bg-blue-700:hover { background-color: #14b8a6; }
-  .dark .text-blue-300,
-  .dark .text-blue-400,
-  .dark .text-blue-500,
-  .dark .text-blue-600,
-  html.dark .dark\:text-blue-300,
-  html.dark .dark\:text-blue-400,
-  html.dark .dark\:text-\[\#60a5fa\] { color: #5eead4; }
-  .dark .border-blue-400,
-  .dark .border-blue-500,
-  html.dark .dark\:border-\[\#60a5fa\] { border-color: #0d9488; }
-  .dark .bg-blue-50,
-  .dark .bg-blue-100,
-  .dark .bg-blue-50\/40,
-  .dark .bg-blue-50\/60 { background-color: rgba(20, 184, 166, 0.12); }
+/* =============================================
+   PADRÃO DA CENTRAL EM TODOS OS MÓDULOS (escuro, dentro do acetinado).
+   Cartões tingidos por cor (dark:from-{cor}-950 → …) viram o cartão da
+   Central: fundo da janela, contorno fino + faixa no topo na cor fosca do tom
+   e sombra de elevação. Linhas de total (traço duplo em cima) ganham o fundo
+   escuro da janela, como no Detalhamento.
+   ============================================= */
+html.dark .acetinado [class*="dark:from-blue-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-sky-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-cyan-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-amber-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-orange-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-yellow-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-emerald-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-green-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-teal-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-violet-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-purple-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-indigo-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-rose-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-red-950"][class*="rounded"] {
+  background-image: none !important;
+  background-color: #0b1220 !important;
+  border-width: 1px;
+  border-top-width: 2px !important;
+  box-shadow: 0 16px 36px -14px rgba(0, 0, 0, 0.9), 0 2px 6px rgba(0, 0, 0, 0.35) !important;
+}
+html.dark .acetinado [class*="dark:from-blue-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-sky-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-cyan-950"][class*="rounded"] { border-color: rgba(91, 127, 180, 0.45) !important; border-top-color: #5b7fb4 !important; }
+html.dark .acetinado [class*="dark:from-amber-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-orange-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-yellow-950"][class*="rounded"] { border-color: rgba(199, 154, 74, 0.45) !important; border-top-color: #c79a4a !important; }
+html.dark .acetinado [class*="dark:from-emerald-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-green-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-teal-950"][class*="rounded"] { border-color: rgba(79, 157, 132, 0.45) !important; border-top-color: #4f9d84 !important; }
+html.dark .acetinado [class*="dark:from-violet-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-purple-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-indigo-950"][class*="rounded"] { border-color: rgba(139, 127, 192, 0.45) !important; border-top-color: #8b7fc0 !important; }
+html.dark .acetinado [class*="dark:from-rose-950"][class*="rounded"],
+html.dark .acetinado [class*="dark:from-red-950"][class*="rounded"] { border-color: rgba(192, 122, 122, 0.45) !important; border-top-color: #c07a7a !important; }
 
-  /* ── Escuro: tokens fixos do restyle preto (classes dark:) ──
-     html.dark (e não só .dark): o Tailwind emite as variantes dark: no FIM do CSS,
-     depois deste bloco; com a mesma especificidade elas venceriam. */
-  html.dark .dark\:bg-gray-950,
-  html.dark .dark\:bg-black { background-color: #0b1220; }
-  html.dark .dark\:bg-gray-900 { background-color: #1e293b; }
-  html.dark .dark\:bg-gray-800 { background-color: #172234; }
-  html.dark .dark\:bg-gray-700 { background-color: #2f3b4f; }
-  html.dark .dark\:bg-\[\#0f0f0f\],
-  html.dark .dark\:bg-\[\#0b0b0b\],
-  html.dark .dark\:bg-\[\#111\],
-  html.dark .dark\:bg-\[\#161616\],
-  html.dark .dark\:bg-\[\#1c1c1c\] { background-color: #172234; }
-  html.dark .dark\:bg-\[\#131316\],
-  html.dark .dark\:bg-\[\#1f1f22\],
-  html.dark .dark\:bg-\[\#242424\] { background-color: #1e293b; }
-  html.dark .dark\:bg-\[\#303030\] { background-color: #2f3b4f; }
-  html.dark .dark\:border-\[\#3a3a3a\],
-  html.dark .dark\:border-\[\#303030\],
-  html.dark .dark\:border-gray-700,
-  html.dark .dark\:border-gray-800 { border-color: #2f3b4f; }
-  html.dark .dark\:divide-gray-700 > :not([hidden]) ~ :not([hidden]),
-  html.dark .dark\:divide-gray-800 > :not([hidden]) ~ :not([hidden]) { border-color: #2f3b4f; }
-  html.dark .dark\:hover\:bg-gray-800:hover { background-color: #172234; }
-  html.dark .dark\:hover\:bg-gray-700:hover { background-color: #3e4c63; }
-  /* Containers (gradiente gray-900 → black no computador): cartão liso #1e293b. */
-  html.dark .dark\:from-gray-900 { --tw-gradient-from: #1e293b var(--tw-gradient-from-position); }
-  html.dark .dark\:to-black,
-  html.dark .dark\:to-gray-900 { --tw-gradient-to: #1e293b var(--tw-gradient-to-position); }
+/* Linhas de total das tabelas: fundo da janela + traço ardósia. */
+html.dark .acetinado tr[class*="border-t-2"],
+html.dark .acetinado tfoot tr {
+  background-color: #0b1220 !important;
+  border-top-color: #3e4c63 !important;
+  color: #f1f5f9;
+}
+
+/* Radar de Preços (quadro): cada coluna rola por dentro, com a moldura inteira
+   à vista; barra de rolagem fina na cor da borda. */
+.radar-coluna { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+html.dark .radar-coluna { scrollbar-color: #3e4c63 transparent; }
+
+/* Tabelas: linhas alternadas no escuro do computador (zebra), no tom do rodapé
+   dos menus — mesmo padrão da tabela "Por categoria" das contas. :where() deixa
+   a especificidade baixa: linhas com fundo próprio (hover, marcada, total,
+   destaque) continuam vencendo. */
+@media (min-width: 768px) {
+  :where(html.dark) tbody > tr:nth-child(even) { background-color: #172234; }
 }

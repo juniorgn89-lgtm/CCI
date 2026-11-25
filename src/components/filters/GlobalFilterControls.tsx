@@ -1,7 +1,3 @@
-import { useLocation } from 'react-router-dom'
-import ComparisonSelect from '@/components/filters/ComparisonSelect'
-import { showsComparison } from '@/lib/globalFilters'
-import { useTopbarUi } from '@/store/topbarUi'
 import { cn } from '@/lib/utils'
 
 interface GlobalFilterControlsProps {
@@ -21,23 +17,9 @@ interface GlobalFilterControlsProps {
  * Inteligência — mesmo layout/ordem sem duplicar markup.
  */
 const GlobalFilterControls = ({ dateSlot, className }: GlobalFilterControlsProps) => {
-  // Comparativo só nas telas que de fato o consomem (senão vira controle morto).
-  const { pathname } = useLocation()
-  const showComparison = showsComparison(pathname)
-  // Modo "ao vivo" desabilita o comparativo. O período (dateSlot) se
-  // desabilita sozinho via liveLock.
-  const liveLock = useTopbarUi((s) => s.liveLock)
-
-  return (
-    <div className={cn('flex flex-wrap items-center gap-2', className)}>
-      {dateSlot}
-      {showComparison && (
-        <span className={cn(liveLock && 'pointer-events-none opacity-40')} aria-disabled={liveLock}>
-          <ComparisonSelect />
-        </span>
-      )}
-    </div>
-  )
+  // A comparação (vs mês ant. / vs ano ant.) mudou para dentro do menu de
+  // período (PeriodPresetSelect). Aqui fica só o período.
+  return <div className={cn('flex flex-wrap items-center gap-2', className)}>{dateSlot}</div>
 }
 
 export default GlobalFilterControls

@@ -1,4 +1,6 @@
 import { useMemo } from 'react'
+import { useFilterStore } from '@/store/filters'
+import useVisivel from '@/hooks/useVisivel'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, CloudOff } from 'lucide-react'
@@ -29,7 +31,8 @@ const RadarAnalise = ({ postoCodigo, fuelInicial, onVoltar, onTrocarPosto }: {
   postoCodigo: number
   fuelInicial?: string
   onVoltar: () => void
-  onTrocarPosto: (codigo: number) => void
+  /** Ausente = posto travado pelo seletor do topo. */
+  onTrocarPosto?: (codigo: number) => void
 }) => {
   const { data: empresasData } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
   const postos = useEmpresasPermitidas(empresasData?.resultados ?? [])
@@ -43,6 +46,7 @@ const RadarAnalise = ({ postoCodigo, fuelInicial, onVoltar, onTrocarPosto }: {
   // concorrente ao drill por combustível. Lê o mesmo `concorrencia_precos` da aba
   // Concorrência; não depende da Quality (é dado manual em Supabase).
   const concorrencia = useConcorrencia(selectedCodigo)
+  const concorrenciaVisivel = useVisivel().aba('/comercial', 'concorrencia')
   // Régua da Visão Geral (cache fiscal, já carregada): o veredito do posto tem
   // de ser o MESMO da lista, e o simulador abre já com o valor sugerido.
   const regua = useReguaPreco()
@@ -58,14 +62,14 @@ const RadarAnalise = ({ postoCodigo, fuelInicial, onVoltar, onTrocarPosto }: {
         >
           <ArrowLeft className="h-3.5 w-3.5" />Visão Geral
         </button>
-        {postos.length > 1 && (
+        {postos.length > 1 && onTrocarPosto && (
           <div className="flex flex-wrap items-center gap-1.5">
             <PostoLocalSelect postos={postos} value={selectedCodigo} onChange={onTrocarPosto} />
           </div>
         )}
       </div>
 
-      {selectedCodigo != null && !concorrencia.trocandoPosto && (
+      {concorrenciaVisivel && selectedCodigo != null && !concorrencia.trocandoPosto && (
         <UsoVizinhosToggle compacto empresaCodigo={selectedCodigo} posto={postos.find((p) => p.codigo === selectedCodigo)?.fantasia ?? 'posto'} temVizinhos={concorrencia.hasPraca} />
       )}
 
@@ -99,6 +103,9 @@ const RadarPrecos = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const postoParam = searchParams.get('posto')
   const fuelParam = searchParams.get('fuel') ?? undefined
+  // O TOPO manda: com um posto lá em cima, a análise é sempre desse posto.
+  const filtroPostos = useFilterStore((s) => s.empresaCodigos)
+  const postoDoTopo = filtroPostos.length === 1 ? filtroPostos[0] : null
 
   const abrirAnalise = (postoCodigo: number, fuel: string) => {
     const next = new URLSearchParams(searchParams)
@@ -112,15 +119,16 @@ const RadarPrecos = () => {
     setSearchParams(next)
   }
 
-  if (postoParam == null) {
+  const postoAnalise = postoParam == null ? null : (postoDoTopo ?? Number(postoParam))
+  if (postoAnalise == null) {
     return <RadarVisaoGeral onAnalisar={abrirAnalise} />
   }
   return (
     <RadarAnalise
-      postoCodigo={Number(postoParam)}
+      postoCodigo={postoAnalise}
       fuelInicial={fuelParam}
       onVoltar={voltar}
-      onTrocarPosto={(c) => abrirAnalise(c, fuelParam ?? '')}
+      onTrocarPosto={postoDoTopo != null ? undefined : (c) => abrirAnalise(c, fuelParam ?? '')}
     />
   )
 }

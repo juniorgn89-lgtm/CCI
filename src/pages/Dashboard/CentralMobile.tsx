@@ -31,6 +31,7 @@ const CentralOverview = () => {
   // Modais de detalhe (mesmos do desktop): setor posto a posto / resumo do posto.
   const [setorSel, setSetorSel] = useState<SetorModal | null>(null)
   const [postoSel, setPostoSel] = useState<number | null>(null)
+  const [setorDoPosto, setSetorDoPosto] = useState<'combustivel' | 'automotivos' | 'conveniencia' | null>(null)
 
   // Período pra projeção (linear por dias decorridos — método da Central).
   const periodo = useMemo(() => {
@@ -205,8 +206,9 @@ const CentralOverview = () => {
         </Section>
       )}
 
-      <SetorPostosModal setor={setorSel} onClose={() => setSetorSel(null)} onPosto={(c) => { setSetorSel(null); setPostoSel(c) }} />
-      <PostoResumoModal empresaCodigo={postoSel} onClose={() => setPostoSel(null)} />
+      <SetorPostosModal setor={setorSel} onClose={() => setSetorSel(null)} onPosto={(c) => { setSetorDoPosto(setorSel && setorSel !== 'global' ? setorSel : null); setSetorSel(null); setPostoSel(c) }} />
+      <PostoResumoModal empresaCodigo={postoSel} onClose={() => { setPostoSel(null); setSetorDoPosto(null) }} setor={setorDoPosto}
+        onVoltar={setorDoPosto ? () => { setPostoSel(null); setSetorSel(setorDoPosto); setSetorDoPosto(null) } : undefined} />
     </div>
   )
 }

@@ -13,7 +13,8 @@ import SelectCompanyState from '@/components/feedback/SelectCompanyState'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import PageHeaderActions from '@/components/layout/PageHeaderActions'
 import DateRangeToolbar from '@/components/filters/DateRangeToolbar'
-import TopBarTabs, { type TopBarTab } from '@/components/layout/TopBarTabs'
+import { type TopBarTab } from '@/components/layout/TopBarTabs'
+import ModuloAbas from '@/components/layout/ModuloAbas'
 import OperacaoMobile from '@/pages/Operacao/OperacaoMobile'
 import { useEscopoSegmento } from '@/hooks/useEscopoSegmento'
 
@@ -59,7 +60,7 @@ const Operacao = () => {
   const permTab: OperacaoTab = tab === 'reabastecimento' ? 'geral' : tab
 
   const tabs: TopBarTab[] = [
-    { id: 'geral', label: 'Visão Geral', Icon: LayoutGrid },
+    { id: 'geral', label: 'Visão Operacional', Icon: LayoutGrid },
     { id: 'bombas', label: 'Manutenção', Icon: Gauge },
     { id: 'afericoes', label: 'Aferições', Icon: FlaskConical },
   ]
@@ -78,7 +79,7 @@ const Operacao = () => {
     <div className="space-y-6">
       <PageHeaderTitle>
         <div className="flex items-center gap-1.5">
-          <TopBarTabs active={activeTab} onChange={(id) => setTab(id as OperacaoTab)} tabs={visibleTabs} />
+          <ModuloAbas active={activeTab} onChange={(id) => setTab(id as OperacaoTab)} tabs={visibleTabs} />
           <InfoHint side="bottom" text="Visão Geral: o nível dos tanques de cada posto; clique no posto para o detalhe e o pedido sugerido. Manutenção: o desgaste de cada bomba, em grupos por posto (todos os do filtro do topo). Aferições: os testes de bomba do período, por rodada (dia × posto), e os bicos sem teste." />
         </div>
       </PageHeaderTitle>

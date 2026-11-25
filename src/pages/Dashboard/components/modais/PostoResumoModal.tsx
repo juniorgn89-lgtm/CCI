@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Building2, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { Building2, TrendingUp, TrendingDown, Minus, ArrowLeft } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt, formatLiters, formatNumber } from '@/lib/formatters'
@@ -15,6 +15,10 @@ const SETOR_LABEL: Record<SetorId, string> = { combustivel: 'Combustível', conv
 interface Props {
   empresaCodigo: number | null
   onClose: () => void
+  /** Aberto a partir de um setor (ex.: card Combustível): mostra só aquele setor. */
+  setor?: SetorId | null
+  /** Volta para a lista do setor posto a posto. */
+  onVoltar?: () => void
 }
 
 export const Delta = ({ value, label }: { value: number | null; label: string }) => {
@@ -33,12 +37,12 @@ export const Delta = ({ value, label }: { value: number | null; label: string })
  * bruto, margem, quantidade, comparativo) e os produtos que mais dão lucro,
  * tudo do que a Visão Geral já carregou (nenhuma busca nova).
  */
-const PostoResumoModal = ({ empresaCodigo, onClose }: Props) => {
+const PostoResumoModal = ({ empresaCodigo, onClose, setor, onVoltar }: Props) => {
   if (empresaCodigo == null) return null
-  return <Inner empresaCodigo={empresaCodigo} onClose={onClose} />
+  return <Inner empresaCodigo={empresaCodigo} onClose={onClose} setor={setor ?? null} onVoltar={onVoltar} />
 }
 
-const Inner = ({ empresaCodigo, onClose }: { empresaCodigo: number; onClose: () => void }) => {
+const Inner = ({ empresaCodigo, onClose, setor, onVoltar }: { empresaCodigo: number; onClose: () => void; setor: SetorId | null; onVoltar?: () => void }) => {
   const rede = useRedeSetores()
   const dataInicial = useFilterStore((s) => s.dataInicial)
   const dataFinal = useFilterStore((s) => s.dataFinal)
@@ -50,48 +54,67 @@ const Inner = ({ empresaCodigo, onClose }: { empresaCodigo: number; onClose: () 
       { id: 'automotivos', row: rede.automotivos.postos.find((p) => p.empresaCodigo === empresaCodigo), lbLabel: rede.automotivos.lbLabel, redeLb: rede.automotivos.lucroBruto },
       { id: 'conveniencia', row: rede.conveniencia.postos.find((p) => p.empresaCodigo === empresaCodigo), lbLabel: rede.conveniencia.lbLabel, redeLb: rede.conveniencia.lucroBruto },
     ]
-    const nome = setores.find((s) => s.row)?.row?.posto ?? `Posto ${empresaCodigo}`
+    const todos = setores
+    const nome = todos.find((s) => s.row)?.row?.posto ?? `Posto ${empresaCodigo}`
+    if (setor) setores.splice(0, setores.length, ...todos.filter((x) => x.id === setor))
     const fat = setores.reduce((s, x) => s + (x.row?.faturamento ?? 0), 0)
     const fatAnt = setores.reduce((s, x) => s + (x.row?.faturamentoAnoAnterior ?? 0), 0)
     const lb = setores.reduce((s, x) => s + (x.row?.lucroBruto ?? 0), 0)
     const lbAnt = setores.reduce((s, x) => s + (x.row?.lucroBrutoAnoAnterior ?? 0), 0)
-    const litros = setores[0].row?.qtd ?? 0
-    const litrosAnt = setores[0].row?.qtdAnoAnterior ?? 0
-    const fatiaRede = rede.global.lucroBruto > 0 ? (lb / rede.global.lucroBruto) * 100 : 0
+    // 4º cartão: litros (combustível / posto inteiro) ou unidades (automotivos, conveniência).
+    const qtdSetor = setor ? setores[0] : todos[0]
+    const litros = qtdSetor?.row?.qtd ?? 0
+    const litrosAnt = qtdSetor?.row?.qtdAnoAnterior ?? 0
+    const baseRede = setor ? setores[0].redeLb : rede.global.lucroBruto
+    const fatiaRede = baseRede > 0 ? (lb / baseRede) * 100 : 0
     // Posição no ranking de lucro bruto da rede.
     const porPosto = new Map<number, number>()
-    for (const s of [rede.combustivel, rede.automotivos, rede.conveniencia]) for (const p of s.postos) porPosto.set(p.empresaCodigo, (porPosto.get(p.empresaCodigo) ?? 0) + p.lucroBruto)
+    for (const s of (setor ? [rede[setor]] : [rede.combustivel, rede.automotivos, rede.conveniencia])) for (const p of s.postos) porPosto.set(p.empresaCodigo, (porPosto.get(p.empresaCodigo) ?? 0) + p.lucroBruto)
     const ordem = [...porPosto.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c)
     const posicao = ordem.indexOf(empresaCodigo) + 1
     const produtos = setores.flatMap((s) => (s.row?.produtos ?? []).map((p) => ({ ...p, setor: s.id })))
-      .filter((p) => p.lucroBruto > 0).sort((a, b) => b.lucroBruto - a.lucroBruto).slice(0, 8)
+      .filter((p) => p.lucroBruto > 0).sort((a, b) => b.lucroBruto - a.lucroBruto).slice(0, setor ? 12 : 8)
     const diasOperados = Math.max(...setores.map((s) => s.row?.diasOperados ?? 0))
     return { setores, nome, fat, fatAnt, lb, lbAnt, litros, litrosAnt, fatiaRede, posicao, totalPostos: ordem.length, produtos, diasOperados }
-  }, [rede, empresaCodigo])
+  }, [rede, empresaCodigo, setor])
 
   const kpis = [
     { label: 'Faturamento', valor: formatCurrencyInt(dados.fat), delta: varPct(dados.fat, dados.fatAnt) },
     { label: 'Lucro bruto', valor: formatCurrencyInt(dados.lb), delta: varPct(dados.lb, dados.lbAnt) },
     { label: 'Margem', valor: pctFmt(dados.fat > 0 ? (dados.lb / dados.fat) * 100 : 0, 2), delta: null },
-    { label: 'Litros', valor: formatLiters(dados.litros), delta: varPct(dados.litros, dados.litrosAnt) },
+    setor && setor !== 'combustivel'
+      ? { label: 'Unidades', valor: `${formatNumber(Math.round(dados.litros))} un`, delta: varPct(dados.litros, dados.litrosAnt) }
+      : { label: 'Litros', valor: formatLiters(dados.litros), delta: varPct(dados.litros, dados.litrosAnt) },
+    // Lucro bruto por litro (ou por unidade): a mesma média da tela do setor posto a posto.
+    ...(setor ? [{
+      label: setor === 'combustivel' ? 'L.B./litro' : 'L.B./un',
+      valor: formatCurrency(dados.litros > 0 ? dados.lb / dados.litros : 0),
+      delta: varPct(dados.litros > 0 ? dados.lb / dados.litros : 0, dados.litrosAnt > 0 ? dados.lbAnt / dados.litrosAnt : 0),
+    }] : []),
   ]
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
       <DialogContent guia={GUIAS.postoResumo} className={MODAL_CLS}>
         <DialogHeader className="px-6 pt-6">
+          {onVoltar && (
+            <button type="button" onClick={onVoltar} className="mb-1 inline-flex w-fit items-center gap-1 text-[12.5px] font-semibold text-teal-700 hover:underline dark:text-[#5eead4]">
+              <ArrowLeft className="h-3.5 w-3.5" /> Voltar para {setor ? SETOR_LABEL[setor].toLowerCase() : 'a lista'} posto a posto
+            </button>
+          )}
           <DialogTitle className="flex flex-wrap items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1e3a5f]/[0.07] text-[#1e3a5f] dark:bg-white/10 dark:text-blue-300"><Building2 className="h-4 w-4" /></span>
             {dados.nome}
-            {dados.posicao > 0 && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">{dados.posicao}º de {dados.totalPostos} em lucro bruto</span>}
+            {setor && <span className="inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-700 dark:bg-white/[0.06] dark:text-gray-200"><span className="h-2 w-2 rounded-full" style={{ background: SETOR_COR[setor] }} />{SETOR_LABEL[setor]}</span>}
+            {dados.posicao > 0 && <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">{dados.posicao}º de {dados.totalPostos} em lucro bruto{setor ? ` de ${SETOR_LABEL[setor].toLowerCase()}` : ''}</span>}
           </DialogTitle>
           <DialogDescription>
-            {brDateShort(dataInicial)} a {brDateShort(dataFinal)} · {dados.diasOperados} dia{dados.diasOperados === 1 ? '' : 's'} com venda · {pctFmt(dados.fatiaRede)} do lucro bruto da rede
+            {brDateShort(dataInicial)} a {brDateShort(dataFinal)} · {dados.diasOperados} dia{dados.diasOperados === 1 ? '' : 's'} com venda · {pctFmt(dados.fatiaRede)} do lucro bruto {setor ? `de ${SETOR_LABEL[setor].toLowerCase()} ` : ''}da rede
           </DialogDescription>
         </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-auto px-6 pb-4">
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <div className={cn('grid grid-cols-2 gap-2', kpis.length > 4 ? 'md:grid-cols-5' : 'md:grid-cols-4')}>
             {kpis.map((k) => (
               <div key={k.label} className="rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-700">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{k.label}</p>
@@ -101,6 +124,7 @@ const Inner = ({ empresaCodigo, onClose }: { empresaCodigo: number; onClose: () 
             ))}
           </div>
 
+          {!setor && (<>
           <h4 className="mt-4 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Por setor</h4>
           <table className="w-full min-w-[640px] text-[12px]">
             <thead className="text-[10px] uppercase tracking-wider text-gray-400">
@@ -137,10 +161,11 @@ const Inner = ({ empresaCodigo, onClose }: { empresaCodigo: number; onClose: () 
               })}
             </tbody>
           </table>
+          </>)}
 
           {dados.produtos.length > 0 && (
             <>
-              <h4 className="mt-4 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Produtos que mais dão lucro</h4>
+              <h4 className="mt-4 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">{setor === 'combustivel' ? 'Combustíveis que mais dão lucro' : setor ? `Produtos de ${SETOR_LABEL[setor].toLowerCase()} que mais dão lucro` : 'Produtos que mais dão lucro'}</h4>
               <table className="w-full min-w-[640px] text-[12px]">
                 <thead className="text-[10px] uppercase tracking-wider text-gray-400">
                   <tr>
@@ -148,13 +173,13 @@ const Inner = ({ empresaCodigo, onClose }: { empresaCodigo: number; onClose: () 
                     <th className="px-3 py-1.5 text-right font-semibold">Qtde</th>
                     <th className="px-3 py-1.5 text-right font-semibold">Lucro bruto</th>
                     <th className="px-3 py-1.5 text-right font-semibold">Margem</th>
-                    <th className="py-1.5 pl-3 text-right font-semibold">L.B./un</th>
+                    <th className="py-1.5 pl-3 text-right font-semibold">{setor === 'combustivel' ? 'L.B./litro' : setor ? 'L.B./un' : 'L.B./un ou litro'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {dados.produtos.map((p) => (
                     <tr key={`${p.setor}-${p.produtoCodigo}`} className="text-gray-800 dark:text-gray-200">
-                      <td className="py-1.5 pr-3"><span className="inline-flex items-center gap-2"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: SETOR_COR[p.setor] }} /><span className="truncate">{p.produto}</span></span></td>
+                      <td className="py-1.5 pr-3"><span className="inline-flex items-center gap-2"><span className="h-2 w-2 shrink-0 rounded-full" style={{ background: SETOR_COR[p.setor] }} /><span className="truncate">{p.produto.replace(/\.+$/, '')}</span></span></td>
                       <td className="px-3 py-1.5 text-right tabular-nums">{p.setor === 'combustivel' ? formatLiters(p.qtd) : `${formatNumber(Math.round(p.qtd))} un`}</td>
                       <td className="px-3 py-1.5 text-right font-semibold tabular-nums">{formatCurrencyInt(p.lucroBruto)}</td>
                       <td className="px-3 py-1.5 text-right tabular-nums">{pctFmt(p.margem, 2)}</td>

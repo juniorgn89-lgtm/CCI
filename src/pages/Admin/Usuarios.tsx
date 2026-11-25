@@ -76,6 +76,8 @@ const Usuarios = () => {
 
   const [busyUserId, setBusyUserId] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
+  // Usuário aberto no editor (lista enxuta; as chaves ficam na janela).
+  const [editandoId, setEditandoId] = useState<string | null>(null)
   const [userSearch, setUserSearch] = useState('')
   const [editingEmpresasFor, setEditingEmpresasFor] = useState<ProfileRow | null>(null)
   const [editingModulosFor, setEditingModulosFor] = useState<ProfileRow | null>(null)
@@ -580,19 +582,35 @@ const Usuarios = () => {
                   <thead className="border-b border-gray-100 bg-gray-50/50 text-xs uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:bg-transparent dark:text-gray-400">
                     <tr>
                       <th className="px-3 py-2.5 text-left font-medium">Usuário</th>
-                      <th className="px-3 py-2.5 text-center font-medium">Acesso</th>
-                      <th className="px-3 py-2.5 text-left font-medium">Rede</th>
-                      <th className="px-3 py-2.5 text-center font-medium">Postos</th>
-                      <th className="px-3 py-2.5 text-center font-medium">Módulos</th>
-                      <th className="px-3 py-2.5 text-center font-medium" title="Apurar dados (cache) · Painel de Reabastecimento">Permissões</th>
-                      <th className="px-3 py-2.5 text-center font-medium">Tipo</th>
+                      <th className="px-3 py-2.5 text-left font-medium">Acesso</th>
+                      <th className="hidden px-3 py-2.5 text-left font-medium md:table-cell">Rede</th>
+                      <th className="hidden px-3 py-2.5 text-left font-medium lg:table-cell">Postos</th>
+                      <th className="hidden px-3 py-2.5 text-left font-medium lg:table-cell">Módulos</th>
+                      <th className="hidden px-3 py-2.5 text-left font-medium md:table-cell">Permissões</th>
+                      <th className="px-3 py-2.5 text-left font-medium">Tipo</th>
                       <th className="px-3 py-2.5 text-right font-medium">Ação</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                     {g.items.map((p) => (
-                      <UserRow
+                      <UserRow key={p.user_id} profile={p} isSelf={p.user_id === myUser?.id} redes={redesAtivas} onAbrir={() => setEditandoId(p.user_id)} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Editor do usuário (todas as chaves e ações) — abre ao clicar na linha */}
+      {(() => {
+        const p = profiles.find((x) => x.user_id === editandoId)
+        if (!p) return null
+        return (
+                      <UserEditor
                         key={p.user_id}
+                        onClose={() => setEditandoId(null)}
                         profile={p}
                         isSelf={p.user_id === myUser?.id}
                         redes={redesAtivas}
@@ -614,14 +632,8 @@ const Usuarios = () => {
                         onSenhaInicial={() => setSenhaInicialDe(p)}
                         onDelete={() => handleDelete(p)}
                       />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+        )
+      })()}
 
       <p className="text-xs text-gray-400 dark:text-gray-500">
         Supervisor de uma rede gerencia frentistas <strong>só dessa rede</strong>.
@@ -990,7 +1002,53 @@ interface UserRowProps {
   onDelete: () => void
 }
 
-const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRole, onMakeDiretor, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onTogglePodeDemo, onTogglePodeGerirTarefas, onTogglePodeLiberarCompras, onTogglePodeAbrirChamados, onToggleAtivo, onResetSenha, onSenhaInicial, onDelete }: UserRowProps) => {
+const UserRow = ({ profile: p, isSelf, redes, onAbrir }: { profile: ProfileRow; isSelf: boolean; redes: RedeRow[]; onAbrir: () => void }) => {
+  const inativo = p.ativo === false
+  const perms = [
+  { on: !!p.pode_apurar, Icon: Database, nome: 'Apurar dados' },
+  { on: !!p.pode_ver_reabastecimento, Icon: Fuel, nome: 'Ver reabastecimento' },
+  { on: !!p.pode_demonstrar, Icon: Presentation, nome: 'Modo Demonstração' },
+  { on: !!p.pode_gerir_tarefas, Icon: ClipboardList, nome: 'Gerir tarefas' },
+  { on: !!p.pode_liberar_compras, Icon: ShoppingCart, nome: 'Liberar compras' },
+  { on: !!p.pode_abrir_chamados, Icon: Bug, nome: 'Abrir chamados' },
+]
+  const ligadas = p.is_master ? perms.length : perms.filter((x) => x.on).length
+  const redeIds = p.redes_permitidas && p.redes_permitidas.length > 0 ? p.redes_permitidas : (p.rede_id ? [p.rede_id] : [])
+  const redeTxt = p.is_master || p.acesso_todas_redes ? 'Todas' : redeIds.length === 0 ? '—' : redeIds.length === 1 ? (redes.find((r) => r.id === redeIds[0])?.nome ?? '1 rede') : `${redeIds.length} redes`
+  const postosTxt = p.is_master || !p.empresa_codigos?.length ? 'Todos' : `${p.empresa_codigos.length} ${p.empresa_codigos.length === 1 ? 'posto' : 'postos'}`
+  const modulosTxt = p.is_master || !p.modulos_permitidos?.length ? 'Todos' : `${p.modulos_permitidos.length} de ${MODULOS.length}`
+  const tipo = p.is_master ? { t: 'Diretor', cls: 'bg-amber-100 text-amber-800 dark:bg-amber-400/10 dark:text-amber-300', Icon: Crown } : p.role === 'supervisor' ? { t: 'Supervisor', cls: 'bg-blue-50 text-blue-700 dark:bg-[#5b7fb4]/15 dark:text-[#9db5d6]', Icon: ShieldCheck } : { t: 'Usuário', cls: 'bg-gray-100 text-gray-700 dark:bg-white/[0.06] dark:text-gray-300', Icon: Shield }
+  return (
+    <tr onClick={onAbrir} className={cn('cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.03]', inativo && 'opacity-60')}>
+      <td className="px-3 py-2.5">
+        <span className="flex items-center gap-2">
+          <span className="truncate font-medium text-gray-900 dark:text-gray-100">{p.full_name || '—'}</span>
+          {isSelf && <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400">você</span>}
+          {inativo && <span className="rounded-full bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-gray-600 dark:bg-gray-700 dark:text-gray-300">inativo</span>}
+        </span>
+        <span className="block truncate text-[11px] text-gray-500 dark:text-gray-400">{p.email}</span>
+      </td>
+      <td className="px-3 py-2.5"><span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-semibold', p.approved ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300' : 'bg-amber-50 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300')}>{p.approved ? 'Aprovado' : 'Pendente'}</span></td>
+      <td className="hidden px-3 py-2.5 text-[12.5px] text-gray-700 md:table-cell dark:text-gray-300">{redeTxt}</td>
+      <td className="hidden px-3 py-2.5 text-[12.5px] text-gray-700 lg:table-cell dark:text-gray-300">{postosTxt}</td>
+      <td className="hidden px-3 py-2.5 text-[12.5px] text-gray-700 lg:table-cell dark:text-gray-300">{modulosTxt}</td>
+      <td className="hidden px-3 py-2.5 md:table-cell">
+        <span className="flex items-center gap-1.5">
+          <span className="flex items-center gap-0.5">
+            {perms.map((x) => <span key={x.nome} aria-label={`${x.nome}: ${p.is_master || x.on ? 'sim' : 'não'}`} className={cn('flex h-5 w-5 items-center justify-center rounded', p.is_master || x.on ? 'bg-teal-50 text-teal-700 dark:bg-[#0d9488]/[0.15] dark:text-[#5eead4]' : 'text-gray-300 dark:text-gray-600')}><x.Icon className="h-3 w-3" /></span>)}
+          </span>
+          <span className="text-[11.5px] tabular-nums text-gray-500 dark:text-gray-400">{ligadas} de {perms.length}</span>
+        </span>
+      </td>
+      <td className="px-3 py-2.5"><span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-semibold', tipo.cls)}><tipo.Icon className="h-3 w-3" />{tipo.t}</span></td>
+      <td className="px-3 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+        <RowActionButton icon={UserCog} label="Editar" onClick={onAbrir} aria-label={`Editar ${p.full_name || p.email}`} />
+      </td>
+    </tr>
+  )
+}
+
+const UserEditor = ({ profile: p, isSelf, redes, busy, onClose, onToggleApproved, onToggleRole, onMakeDiretor, onChangeRedes, onEditEmpresas, onEditModulos, onTogglePodeApurar, onTogglePodeReabast, onTogglePodeDemo, onTogglePodeGerirTarefas, onTogglePodeLiberarCompras, onTogglePodeAbrirChamados, onToggleAtivo, onResetSenha, onSenhaInicial, onDelete }: UserRowProps & { onClose: () => void }) => {
   const inativo = p.ativo === false
   const restricao = p.empresa_codigos && p.empresa_codigos.length > 0
     ? `${p.empresa_codigos.length} ${p.empresa_codigos.length === 1 ? 'posto' : 'postos'}`
@@ -998,10 +1056,14 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
   const restricaoModulos = p.modulos_permitidos && p.modulos_permitidos.length > 0
     ? `${p.modulos_permitidos.length} de ${MODULOS.length}`
     : null
+  // Inline (sem portal): as janelas de postos, módulos e senha abrem por cima dele.
   return (
-    <tr>
+    <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-10" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div role="dialog" aria-label={`Editar ${p.full_name || p.email}`} className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-[#2f3b4f] dark:bg-[#1e293b]">
+        <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-[#2f3b4f]">
+          <div className="min-w-0">
       {/* Usuário — nome + email empilhados pra economizar coluna */}
-      <td className="px-3 py-3">
+
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <span className="whitespace-nowrap font-medium text-gray-900 dark:text-gray-100">
@@ -1022,11 +1084,14 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
             {p.email}
           </span>
         </div>
-      </td>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Fechar" className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 dark:text-[#94a3b8] dark:hover:bg-white/[0.06]"><X className="h-4 w-4" /></button>
+        </div>
 
       {/* Acesso (toggle) */}
-      <td className="px-3 py-3">
-        <div className="flex items-center justify-center gap-2">
+      <section className="border-b border-gray-100 px-5 py-4 last:border-b-0 dark:border-[#2f3b4f]">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#94a3b8]">Acesso</p>
+        <div className="flex items-center gap-2">
           <button
             onClick={onToggleApproved}
             disabled={busy || isSelf || p.is_master}
@@ -1052,10 +1117,11 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
             {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : (p.approved ? 'Aprovado' : 'Pendente')}
           </span>
         </div>
-      </td>
+      </section>
 
       {/* Rede (dropdown) — gerente fica "—" porque vê todas */}
-      <td className="px-3 py-3">
+      <section className="border-b border-gray-100 px-5 py-4 last:border-b-0 dark:border-[#2f3b4f]">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#94a3b8]">Rede</p>
         {p.is_master ? (
           <span className="text-xs text-gray-400">— vê todas —</span>
         ) : (
@@ -1067,14 +1133,15 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
             onChange={onChangeRedes}
           />
         )}
-      </td>
+      </section>
 
       {/* Postos — atalho pra modal de checkboxes. Gerente vê todos por design. */}
-      <td className="px-3 py-3">
+      <section className="border-b border-gray-100 px-5 py-4 last:border-b-0 dark:border-[#2f3b4f]">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#94a3b8]">Postos</p>
         {p.is_master ? (
-          <span className="block text-center text-xs text-gray-400">— todos —</span>
+          <span className="block text-xs text-gray-400">— todos —</span>
         ) : (
-          <div className="flex items-center justify-center">
+          <div className="flex items-center">
             <button
               onClick={onEditEmpresas}
               disabled={busy}
@@ -1092,14 +1159,15 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
             </button>
           </div>
         )}
-      </td>
+      </section>
 
       {/* Módulos — mesmo padrão dos postos. Gerente vê todos por design. */}
-      <td className="px-3 py-3">
+      <section className="border-b border-gray-100 px-5 py-4 last:border-b-0 dark:border-[#2f3b4f]">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#94a3b8]">Módulos</p>
         {p.is_master ? (
-          <span className="block text-center text-xs text-gray-400">— todos —</span>
+          <span className="block text-xs text-gray-400">— todos —</span>
         ) : (
-          <div className="flex items-center justify-center">
+          <div className="flex items-center">
             <button
               onClick={onEditModulos}
               disabled={busy}
@@ -1117,13 +1185,14 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
             </button>
           </div>
         )}
-      </td>
+      </section>
 
       {/* Permissões — Apurar + Reabastecimento empilhados verticalmente
           pra economizar largura. Gerente sempre tem ambos. */}
-      <td className="px-3 py-3">
+      <section className="border-b border-gray-100 px-5 py-4 last:border-b-0 dark:border-[#2f3b4f]">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#94a3b8]">Permissões</p>
         {p.is_master ? (
-          <div className="flex flex-col items-center gap-1">
+          <div className="flex flex-wrap gap-1.5">
             <span
               title="Administrador já tem o poder de apurar"
               className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
@@ -1140,10 +1209,10 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
             </span>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-1.5">
+          <div className="grid gap-2 sm:grid-cols-2">
             {/* Apurar */}
-            <div className="flex items-center gap-1.5">
-              <Database className="h-3 w-3 text-gray-400" />
+            <div className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 dark:border-[#2f3b4f]">
+              <span className="flex flex-1 items-center gap-2 text-[13px] text-gray-700 dark:text-[#e2e8f0]"><Database className="h-3.5 w-3.5 text-gray-400" />Apurar dados</span>
               <button
                 onClick={onTogglePodeApurar}
                 disabled={busy}
@@ -1165,8 +1234,8 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
               </button>
             </div>
             {/* Reabastecimento */}
-            <div className="flex items-center gap-1.5">
-              <Fuel className="h-3 w-3 text-gray-400" />
+            <div className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 dark:border-[#2f3b4f]">
+              <span className="flex flex-1 items-center gap-2 text-[13px] text-gray-700 dark:text-[#e2e8f0]"><Fuel className="h-3.5 w-3.5 text-gray-400" />Ver reabastecimento</span>
               <button
                 onClick={onTogglePodeReabast}
                 disabled={busy}
@@ -1188,8 +1257,8 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
               </button>
             </div>
             {/* Demonstração (mascara nome da rede/postos pra apresentar o sistema) */}
-            <div className="flex items-center gap-1.5">
-              <Presentation className="h-3 w-3 text-gray-400" />
+            <div className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 dark:border-[#2f3b4f]">
+              <span className="flex flex-1 items-center gap-2 text-[13px] text-gray-700 dark:text-[#e2e8f0]"><Presentation className="h-3.5 w-3.5 text-gray-400" />Modo Demonstração</span>
               <button
                 onClick={onTogglePodeDemo}
                 disabled={busy}
@@ -1211,8 +1280,8 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
               </button>
             </div>
             {/* Gestão de tarefas (cria rotinas, setores e tarefas do módulo Tarefas) */}
-            <div className="flex items-center gap-1.5">
-              <ClipboardList className="h-3 w-3 text-gray-400" />
+            <div className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 dark:border-[#2f3b4f]">
+              <span className="flex flex-1 items-center gap-2 text-[13px] text-gray-700 dark:text-[#e2e8f0]"><ClipboardList className="h-3.5 w-3.5 text-gray-400" />Gerir tarefas</span>
               <button
                 onClick={onTogglePodeGerirTarefas}
                 disabled={busy}
@@ -1234,8 +1303,8 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
               </button>
             </div>
             {/* Liberação de compras (aprova pedidos e define tetos no módulo Compras) */}
-            <div className="flex items-center gap-1.5">
-              <ShoppingCart className="h-3 w-3 text-gray-400" />
+            <div className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 dark:border-[#2f3b4f]">
+              <span className="flex flex-1 items-center gap-2 text-[13px] text-gray-700 dark:text-[#e2e8f0]"><ShoppingCart className="h-3.5 w-3.5 text-gray-400" />Liberar compras</span>
               <button
                 onClick={onTogglePodeLiberarCompras}
                 disabled={busy}
@@ -1257,8 +1326,8 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
               </button>
             </div>
             {/* Chamados (botão do topo: bug/melhoria com print → Painel › Chamados) */}
-            <div className="flex items-center gap-1.5">
-              <Bug className="h-3 w-3 text-gray-400" />
+            <div className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 dark:border-[#2f3b4f]">
+              <span className="flex flex-1 items-center gap-2 text-[13px] text-gray-700 dark:text-[#e2e8f0]"><Bug className="h-3.5 w-3.5 text-gray-400" />Abrir chamados</span>
               <button
                 onClick={onTogglePodeAbrirChamados}
                 disabled={busy}
@@ -1281,19 +1350,20 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
             </div>
           </div>
         )}
-      </td>
+      </section>
 
       {/* Papel — badge Gerente pra is_master OR segmented control Usuário | Supervisor */}
-      <td className="px-3 py-3">
+      <section className="border-b border-gray-100 px-5 py-4 last:border-b-0 dark:border-[#2f3b4f]">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#94a3b8]">Tipo</p>
         {p.is_master ? (
-          <div className="flex items-center justify-center gap-1.5">
+          <div className="flex items-center gap-1.5">
             <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
               <Crown className="h-3 w-3" />
               Administrador
             </span>
           </div>
         ) : (
-          <div className="flex items-center justify-center">
+          <div className="flex items-center">
             <div className="inline-flex items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
               <RoleOption
                 active={p.role === 'user'}
@@ -1322,11 +1392,12 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
             </div>
           </div>
         )}
-      </td>
+      </section>
 
       {/* Ações — inativar/ativar + excluir (desabilitadas pra você mesmo e master) */}
-      <td className="px-4 py-3 text-right">
-        <div className="inline-flex items-center gap-1.5">
+      <section className="border-b border-gray-100 px-5 py-4 last:border-b-0 dark:border-[#2f3b4f]">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-[#94a3b8]">Ações</p>
+        <div className="flex flex-wrap items-center gap-1.5">
           <RowActionButton
             icon={inativo ? UserCheck : UserX}
             label={inativo ? 'Reativar' : 'Inativar'}
@@ -1372,8 +1443,9 @@ const UserRow = ({ profile: p, isSelf, redes, busy, onToggleApproved, onToggleRo
             aria-label={`Excluir ${p.full_name || p.email}`}
           />
         </div>
-      </td>
-    </tr>
+      </section>
+      </div>
+    </div>
   )
 }
 

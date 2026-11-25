@@ -1,7 +1,8 @@
 import { LayoutGrid, ClipboardList, Repeat } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
-import TopBarTabs, { type TopBarTab } from '@/components/layout/TopBarTabs'
+import { type TopBarTab } from '@/components/layout/TopBarTabs'
+import ModuloAbas from '@/components/layout/ModuloAbas'
 import InfoHint from '@/components/ui/InfoHint'
 import useIsMobile from '@/hooks/useIsMobile'
 import { cn } from '@/lib/utils'
@@ -45,7 +46,7 @@ const Gestao = () => {
       )}
       <PageHeaderTitle>
         <div className="flex items-center gap-1.5">
-          <TopBarTabs active={active} onChange={(id) => setTab(id as GestaoTab)} tabs={tabs} />
+          <ModuloAbas active={active} onChange={(id) => setTab(id as GestaoTab)} tabs={tabs} />
           <InfoHint side="bottom" text="Painel: execução das rotinas e tarefas no período. Tarefas: a lista do dia a dia, com checklist e conclusão. Rotinas: os modelos que geram as tarefas sozinhos, todos os dias." />
         </div>
       </PageHeaderTitle>
