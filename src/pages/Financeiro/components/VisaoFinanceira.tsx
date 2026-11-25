@@ -131,8 +131,8 @@ const VisaoFinanceira = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={v.fluxo.map((s) => ({ ...s, saidasNeg: -s.saidas }))} stackOffset="sign" margin={{ top: 30, right: 8, left: 8, bottom: 26 }}>
                   <CartesianGrid vertical={false} stroke={ct.grid} />
-                  <XAxis dataKey="rotulo" tick={{ fill: ct.axis, fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis yAxisId="f" hide />
+                  <XAxis dataKey="rotulo" tick={{ fill: ct.axis, fontSize: 11 }} axisLine={false} tickLine={false} tickMargin={10} />
+                  <YAxis yAxisId="f" hide domain={[(min: number) => (min < 0 ? min * 1.22 : 0), (max: number) => (max > 0 ? max * 1.18 : 0)]} />
                   <YAxis yAxisId="s" orientation="right" hide />
                   <ReferenceLine yAxisId="f" y={0} stroke={ct.grid} />
                   {v.fluxo.find((s) => s.projetada)?.rotulo && (

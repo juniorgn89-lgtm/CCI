@@ -79,7 +79,7 @@ const Estoques = () => {
   const isMobile = useIsMobile()
 
   // Link antigo da aba Comprar → Compras › Análise de estoque para comprar.
-  if (FOI_PARA_COMPRAS.has(tabParamBruto)) return <Navigate to="/compras?tab=analise" replace />
+  if (FOI_PARA_COMPRAS.has(tabParamBruto)) return <Navigate to="/estoques?tab=produtos" replace />
   // Mobile: tela própria (Reposição / Estoque / Giro).
   if (isMobile) return <EstoqueMobile />
   // Sem posto disponível (nenhuma empresa permitida) → estado de seleção.

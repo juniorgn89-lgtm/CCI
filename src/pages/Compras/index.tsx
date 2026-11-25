@@ -1,4 +1,4 @@
-import { ShoppingCart, Lock, ArrowLeftRight, PackageSearch } from 'lucide-react'
+import { ShoppingCart, Lock, ArrowLeftRight } from 'lucide-react'
 import useTabParam from '@/hooks/useTabParam'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
 import { type TopBarTab } from '@/components/layout/TopBarTabs'
@@ -7,7 +7,6 @@ import InfoHint from '@/components/ui/InfoHint'
 import { useComprasBase, containerCls } from './comum'
 import Pedidos from './Pedidos'
 import Transferencias from './Transferencias'
-import AnaliseCompra from './AnaliseCompra'
 
 /**
  * Módulo Compras (grupo Gestão): pedidos de compra com liberação. Dados
@@ -15,14 +14,15 @@ import AnaliseCompra from './AnaliseCompra'
  * Análise de estoque para comprar (veio do Estoques › Comprar), Pedidos de
  * compra e Transferências entre postos.
  */
-type ComprasTab = 'analise' | 'pedidos' | 'transferencias'
-const isTab = (v: string | null): v is ComprasTab => v === 'analise' || v === 'pedidos' || v === 'transferencias'
+// A "Análise de estoque para comprar" saiu (25/11/2026): a análise fica no módulo
+// Estoques, que já gera o pedido direto da lista de produtos.
+type ComprasTab = 'pedidos' | 'transferencias'
+const isTab = (v: string | null): v is ComprasTab => v === 'pedidos' || v === 'transferencias'
 
 const Compras = () => {
   const [tab, setTab] = useTabParam<ComprasTab>('pedidos', isTab)
   const { moduloLigado, rede } = useComprasBase()
   const tabs: TopBarTab[] = [
-    { id: 'analise', label: 'Análise de estoque para comprar', Icon: PackageSearch },
     { id: 'pedidos', label: 'Pedidos de compra', Icon: ShoppingCart },
     { id: 'transferencias', label: 'Transferências', Icon: ArrowLeftRight },
   ]
@@ -44,10 +44,9 @@ const Compras = () => {
       <PageHeaderTitle>
         <div className="flex items-center gap-1.5">
           <ModuloAbas active={tab} onChange={(id) => setTab(id as ComprasTab)} tabs={tabs} />
-          <InfoHint side="bottom" text="Análise de estoque para comprar: compara o saldo do posto com a média de venda e sugere quanto pedir; marque os produtos e monte o pedido dali. Pedidos de compra com liberação: quem pede monta o pedido a partir das sugestões de reposição do estoque; quem libera aprova inteiro, parcial ou recusa. Transferências: um posto manda, o outro confere. Nada é enviado ao ERP: nota e movimentação de estoque entram no WebPosto pelo fluxo normal." />
+          <InfoHint side="bottom" text="Pedidos de compra com liberação: quem pede monta o pedido a partir das sugestões de reposição do estoque; quem libera aprova inteiro, parcial ou recusa. Transferências: um posto manda, o outro confere. Nada é enviado ao ERP: nota e movimentação de estoque entram no WebPosto pelo fluxo normal." />
         </div>
       </PageHeaderTitle>
-      {tab === 'analise' && <AnaliseCompra />}
       {tab === 'pedidos' && <Pedidos />}
       {tab === 'transferencias' && <Transferencias />}
     </div>
