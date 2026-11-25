@@ -20,8 +20,8 @@
 //                devolucao = { geral?, nf?, boleto?, itens?: [{ codigo, descricao, motivo }] } (só em "devolvida")
 //   sem_pedido   { nota, motivo?, por_nome, desfazer? }         → registra (ou tira) "nota sem pedido"
 //   notas_espelho { notas: [{ chave, ..., status, desde, por_nome?, motivo?, observacao?, sem_pedido? }] }
-//                → espelho das notas AINDA NÃO LANÇADAS (Compras › Notas recebidas); status 'lancada'
-//                  (ou removida: true) tira do espelho. SQL: supabase/migrations/20261125000002_notaok_notas.sql
+//                → espelho das notas do NotaOK (Compras › Notas recebidas); lançadas ficam só os
+//                  últimos 90 dias (+ lancada_em, lancada_por_nome, lancada_conferencia); removida: true tira. SQL: supabase/migrations/20261125000002_notaok_notas.sql
 //   Todas as escritas são idempotentes (o NotaOK reenvia o que ficou pendente).
 //
 // Deploy:  npx supabase@latest functions deploy notaok-pedidos --no-verify-jwt --project-ref yzmorbfadoxowchkwspl
@@ -31,7 +31,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const TOLERANCIA_S = 300
 const ESCRITA = new Set(['vincular', 'desvincular', 'status_nota', 'sem_pedido', 'notas_espelho'])
-const STATUS_ESPELHO = new Set(['pendente', 'em_preenchimento', 'devolvida', 'enviada'])
+const STATUS_ESPELHO = new Set(['pendente', 'em_preenchimento', 'devolvida', 'enviada', 'lancada'])
+const LANCADAS_DIAS = 90
 const ABERTOS_PARA_NOTA = ['liberado', 'liberado_parcial', 'recebido_parcial']
 const SITUACOES = new Set(['vinculada', 'conferida', 'lancada', 'devolvida'])
 const JANELA_DIAS = 90
@@ -347,7 +348,9 @@ Deno.serve(async (req) => {
         const chave = digitos(n.chave)
         if (!/^[0-9]{44}$/.test(chave)) continue
         const status = String(n.status ?? '')
-        if (n.removida === true || status === 'lancada' || !STATUS_ESPELHO.has(status)) { tirar.push(chave); continue }
+        const lancadaEm = typeof n.lancada_em === 'string' && !Number.isNaN(Date.parse(n.lancada_em)) ? n.lancada_em : null
+        const lancadaVelha = status === 'lancada' && (!lancadaEm || Date.parse(lancadaEm) < Date.now() - LANCADAS_DIAS * 86400_000)
+        if (n.removida === true || !STATUS_ESPELHO.has(status) || lancadaVelha) { tirar.push(chave); continue }
         const desde = typeof n.desde === 'string' && !Number.isNaN(Date.parse(n.desde)) ? n.desde : null
         gravar.push({
           rede_id: redeId, nota_chave: chave,
@@ -357,6 +360,9 @@ Deno.serve(async (req) => {
           fornecedor_nome: texto(n.fornecedor_nome, 200), fornecedor_cnpj: digitos(n.cnpj) || null,
           status, desde, por_nome: texto(n.por_nome, 120), motivo: texto(n.motivo, 1000), observacao: texto(n.observacao, 1000),
           sem_pedido: n.sem_pedido === true, sem_pedido_motivo: texto(n.sem_pedido_motivo, 500), atualizado_em: agora,
+          lancada_em: status === 'lancada' ? lancadaEm : null,
+          lancada_por_nome: status === 'lancada' ? texto(n.lancada_por_nome, 120) : null,
+          lancada_conferencia: status === 'lancada' ? texto(n.lancada_conferencia, 20) : null,
         })
       }
       if (gravar.length) {

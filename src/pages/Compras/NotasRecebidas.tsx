@@ -1,24 +1,25 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Loader2, AlertTriangle, ExternalLink, RefreshCw } from 'lucide-react'
+import { Search, Loader2, AlertTriangle, ExternalLink, RefreshCw, CalendarClock } from 'lucide-react'
 import RowActionButton from '@/components/tables/RowAction'
 import InfoHint from '@/components/ui/InfoHint'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
 import { CabecalhoFiltro, AvisoFiltros } from '@/components/tables/FiltroColuna'
 import { useFiltrosColuna, type DefColuna } from '@/lib/filtroColuna'
-import { fetchNotasNotaok, fetchPedidosPorNota, NOTAOK_URL, STATUS_NOTAOK, type NotaOkRow, type PedidoDaNota, type StatusNotaOk } from '@/api/supabase/notaokNotas'
+import { fetchNotasNotaok, fetchPedidosPorNota, NOTAOK_URL, STATUS_NOTAOK, type NotaOkRow, type PedidoDaNota, type StatusNotaOk, LANCADAS_DIAS } from '@/api/supabase/notaokNotas'
 import { useComprasBase, containerCls, inputCls, btnGhost, fmtDataHora, fmtData, nomeProprio } from './comum'
 import { usePedidos } from './hooks/usePedidos'
 import PedidoModal from './PedidoModal'
 
 type Aba = StatusNotaOk | 'todas'
-// Na ordem do caminho da nota (como no NotaOK). Lançadas não aparecem.
+// Na ordem do caminho da nota (como no NotaOK). Lançadas: só os últimos 90 dias.
 const ABAS: { id: Aba; label: string }[] = [
   { id: 'pendente', label: 'A conferir' },
   { id: 'em_preenchimento', label: 'Em conferência' },
   { id: 'enviada', label: 'Aguardando lançamento' },
   { id: 'devolvida', label: 'Devolvidas' },
+  { id: 'lancada', label: 'Lançadas' },
   { id: 'todas', label: 'Todas' },
 ]
 const DIAS_ALERTA = 2
@@ -30,7 +31,21 @@ const rotuloPedido = (n: NotaOkRow, porNota: Map<string, PedidoDaNota[]>) => {
   if (l?.length) return l.map((p) => `Nº ${p.numero ?? '?'}`).join(', ')
   return n.sem_pedido ? 'Sem pedido' : 'Não ligada'
 }
-const nfDe = (n: NotaOkRow) => (n.numero != null ? `${n.numero}${n.serie != null ? `-${n.serie}` : ''}` : n.nota_chave.slice(25, 34))
+const diaLocal = (iso: string | null | undefined) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+const horaDe = (iso: string) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+/** Situação para mostrar: lançada sem conferência (ou com ela pela metade) aparece diferente. */
+const rotuloSituacao = (n: NotaOkRow) =>
+  n.status === 'lancada' && n.lancada_conferencia === 'sem' ? 'Lançada sem conferência'
+  : n.status === 'lancada' && n.lancada_conferencia === 'incompleta' ? 'Lançada · conferência incompleta'
+  : STATUS_NOTAOK[n.status].rotulo
+/** "Parada há" para as abertas; data do lançamento para as lançadas. */
+const rotuloQuando = (n: NotaOkRow) => (n.status === 'lancada' ? (n.lancada_em ? fmtData(diaLocal(n.lancada_em)) : '') : textoDias(diasDesde(n.desde)))
+const quemDe = (n: NotaOkRow) => (n.status === 'lancada' ? n.lancada_por_nome ?? '' : n.por_nome ?? '')
+const nfDe =(n: NotaOkRow) => (n.numero != null ? `${n.numero}${n.serie != null ? `-${n.serie}` : ''}` : n.nota_chave.slice(25, 34))
 
 /** Compras › Notas recebidas: as notas do NotaOK que ainda não foram lançadas no ERP. */
 const NotasRecebidas = () => {
@@ -55,10 +70,10 @@ const NotasRecebidas = () => {
     nf: nfDe,
     posto: (n) => base.nomePosto(n.empresa_codigo),
     fornecedor: (n) => nomeProprio(n.fornecedor_nome ?? '—'),
-    situacao: (n) => STATUS_NOTAOK[n.status].rotulo,
+    situacao: rotuloSituacao,
     pedido: (n) => rotuloPedido(n, porNota),
-    quem: (n) => n.por_nome ?? '',
-    parada: { valor: (n) => textoDias(diasDesde(n.desde)), ordem: (n) => String(diasDesde(n.desde) ?? 9999).padStart(5, '0') },
+    quem: quemDe,
+    parada: { valor: rotuloQuando, ordem: (n) => (n.status === 'lancada' ? `z${n.lancada_em ?? ''}` : String(diasDesde(n.desde) ?? 9999).padStart(5, '0')) },
     emissao: { valor: (n) => (n.emissao ? fmtData(n.emissao) : ''), ordem: (n) => n.emissao ?? '' },
   }), [base, porNota])
   const filtradas = useMemo(() => {
@@ -74,6 +89,16 @@ const NotasRecebidas = () => {
   // Sempre abre em "A conferir" (início do caminho da nota), como no NotaOK.
   const aba: Aba = abaEscolhida ?? 'pendente'
   const visiveis = fc.filtradas.filter((n) => naAba(n, aba))
+  const abaLancadas = aba === 'lancada'
+  // Lançadas: mais recentes primeiro, em "Lançadas hoje" e "antes de hoje" (como no NotaOK).
+  if (abaLancadas) visiveis.sort((a, b) => (b.lancada_em ?? '').localeCompare(a.lancada_em ?? ''))
+  const hoje = diaLocal(new Date().toISOString())
+  const grupos: { chave: string; rotulo: string | null; notas: NotaOkRow[] }[] = abaLancadas
+    ? [
+        { chave: 'hoje', rotulo: 'Lançadas hoje', notas: visiveis.filter((n) => diaLocal(n.lancada_em) === hoje) },
+        { chave: 'antes', rotulo: 'Lançadas antes de hoje', notas: visiveis.filter((n) => diaLocal(n.lancada_em) !== hoje) },
+      ].filter((g) => g.notas.length > 0)
+    : [{ chave: 'todas', rotulo: null, notas: visiveis }]
   const valorAba = visiveis.reduce((s, n) => s + (n.valor ?? 0), 0)
 
   const paradas = notas.filter((n) => n.status === 'enviada' && (diasDesde(n.desde) ?? 0) >= DIAS_ALERTA)
@@ -88,7 +113,7 @@ const NotasRecebidas = () => {
         <div className="min-w-0">
           <h2 className="text-base font-bold text-gray-900 dark:text-gray-100">Notas recebidas</h2>
           <p className="text-[12px] text-gray-500 dark:text-gray-400">
-            Notas de entrada do NotaOK que ainda não foram lançadas no ERP. Quem confere e lança continua sendo o NotaOK.
+            Notas de entrada do NotaOK: as que ainda faltam lançar no ERP e as lançadas nos últimos {LANCADAS_DIAS} dias. Quem confere e lança continua sendo o NotaOK.
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
@@ -126,7 +151,7 @@ const NotasRecebidas = () => {
             <span className="relative"><Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar fornecedor ou nº" aria-label="Buscar nota" className={cn(inputCls, 'h-8 w-48 pl-7 text-[12px]')} /></span>
             <AvisoFiltros qtd={fc.qtdAtivos} onLimpar={fc.limpar} />
             {visiveis.length > 0 && <span className="tabular-nums">{visiveis.length} {visiveis.length === 1 ? 'nota' : 'notas'} · {formatCurrencyInt(valorAba)}</span>}
-            <InfoHint text="A conferir: nota chegou do ERP e ninguém mexeu. Em conferência: o recebimento está conferindo a mercadoria. Devolvidas: o escritório devolveu para o recebimento corrigir. Aguardando lançamento: conferida, falta o escritório lançar no ERP. Parada há: tempo desde que a nota entrou na situação atual. As notas chegam do NotaOK sozinhas (em até 2 minutos); quando são lançadas, saem desta lista." />
+            <InfoHint text="A conferir: nota chegou do ERP e ninguém mexeu. Em conferência: o recebimento está conferindo a mercadoria. Devolvidas: o escritório devolveu para o recebimento corrigir. Aguardando lançamento: conferida, falta o escritório lançar no ERP. Parada há: tempo desde que a nota entrou na situação atual. Lançadas: só as dos últimos 90 dias, separadas em lançadas hoje e antes de hoje. As notas chegam do NotaOK sozinhas (em até 2 minutos)." />
           </span>
         </div>
         {notasQ.isLoading ? (
@@ -135,9 +160,17 @@ const NotasRecebidas = () => {
           <p className="px-5 py-6 text-sm text-red-600">Não foi possível ler as notas: {(notasQ.error as Error).message}</p>
         ) : notasQ.data === null ? (
           <p className="px-5 py-8 text-center text-sm text-gray-500">As notas do NotaOK ainda não estão ligadas no Visor. Avise o suporte da CCI.</p>
-        ) : visiveis.length === 0 ? (
+        ) : (
+          <>
+          {abaLancadas && (
+            <p className="flex items-center gap-2 border-b border-gray-100 bg-gray-50/70 px-4 py-2 text-[12px] text-gray-600 dark:border-gray-800 dark:text-gray-300">
+              <CalendarClock className="h-4 w-4 shrink-0 text-gray-400" />
+              <span>Aqui aparecem só as notas lançadas nos <b className="font-semibold">últimos {LANCADAS_DIAS} dias</b>. Para ver lançamentos mais antigos, abra o NotaOK.</span>
+            </p>
+          )}
+          {visiveis.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-gray-500">
-            {notas.length === 0 ? 'Nenhuma nota pendente vinda do NotaOK. Se a rede usa o NotaOK e nada aparece, a ligação entre os dois pode estar desligada: avise o suporte da CCI.' : 'Nenhuma nota nesta aba com estes filtros.'}
+            {abaLancadas ? `Nenhuma nota lançada nos últimos ${LANCADAS_DIAS} dias${fc.qtdAtivos > 0 || busca ? ' com estes filtros' : ''}.` : notas.length === 0 ? 'Nenhuma nota vinda do NotaOK. Se a rede usa o NotaOK e nada aparece, a ligação entre os dois pode estar desligada: avise o suporte da CCI.' : 'Nenhuma nota nesta aba com estes filtros.'}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -148,8 +181,8 @@ const NotasRecebidas = () => {
                   <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Posto" filtro={fc.de('posto')} /></th>
                   <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Fornecedor" filtro={fc.de('fornecedor')} /></th>
                   <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Situação" filtro={fc.de('situacao')} /></th>
-                  <th className="px-3 py-2 text-right font-semibold"><CabecalhoFiltro rotulo="Parada há" filtro={fc.de('parada')} alinhar="direita" /></th>
-                  <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Conferiu / devolveu" filtro={fc.de('quem')} /></th>
+                  <th className="px-3 py-2 text-right font-semibold"><CabecalhoFiltro rotulo={abaLancadas ? 'Lançada em' : 'Parada há'} filtro={fc.de('parada')} alinhar="direita" /></th>
+                  <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo={abaLancadas ? 'Lançou' : 'Conferiu / devolveu'} filtro={fc.de('quem')} /></th>
                   <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Pedido" filtro={fc.de('pedido')} /></th>
                   <th className="px-3 py-2 text-right font-semibold">Valor</th>
                   <th className="px-3 py-2 text-right font-semibold"><CabecalhoFiltro rotulo="Emissão" filtro={fc.de('emissao')} alinhar="direita" /></th>
@@ -157,7 +190,19 @@ const NotasRecebidas = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {visiveis.map((n) => {
+                {grupos.flatMap((g) => [
+                  ...(g.rotulo ? [(
+                    <tr key={`g-${g.chave}`} className={g.chave === 'hoje' ? '!bg-emerald-50/70 dark:!bg-emerald-950/30' : '!bg-gray-50 dark:!bg-[#0b1220]'}>
+                      <td colSpan={10} className={cn('px-4 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider', g.chave === 'hoje' ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-500 dark:text-gray-400')}>
+                        <span className="inline-flex items-center gap-2">
+                          {g.chave === 'hoje' && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
+                          {g.rotulo} · {g.notas.length}
+                          <span className="font-normal normal-case tracking-normal tabular-nums">{formatCurrencyInt(g.notas.reduce((t, n) => t + (n.valor ?? 0), 0))}</span>
+                        </span>
+                      </td>
+                    </tr>
+                  )] : []),
+                  ...g.notas.map((n) => {
                   const dias = diasDesde(n.desde)
                   const atrasada = n.status === 'enviada' && (dias ?? 0) >= DIAS_ALERTA
                   const ligados = porNota.get(n.nota_chave) ?? []
@@ -170,9 +215,13 @@ const NotasRecebidas = () => {
                         <span className="font-medium">{nomeProprio(n.fornecedor_nome ?? '—')}</span>
                         {nota && <span className={cn('mt-0.5 block text-[11px] leading-snug', n.status === 'devolvida' ? 'text-red-600 dark:text-red-300' : 'text-gray-500 dark:text-gray-400')}>{n.status === 'devolvida' ? 'Motivo: ' : 'Recado: '}{nota}</span>}
                       </td>
-                      <td className="px-3 py-2"><span className={cn('inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold', STATUS_NOTAOK[n.status].cor)}>{STATUS_NOTAOK[n.status].rotulo}</span></td>
-                      <td className={cn('whitespace-nowrap px-3 py-2 text-right tabular-nums', atrasada ? 'font-semibold text-amber-700 dark:text-amber-300' : 'text-gray-600 dark:text-gray-300')}>{textoDias(dias)}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-300">{n.por_nome ?? '—'}</td>
+                      <td className="px-3 py-2"><span className={cn('inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold', n.status === 'lancada' && n.lancada_conferencia && n.lancada_conferencia !== 'conferida' ? 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300' : STATUS_NOTAOK[n.status].cor)}>{rotuloSituacao(n)}</span></td>
+                      <td className={cn('whitespace-nowrap px-3 py-2 text-right tabular-nums', atrasada ? 'font-semibold text-amber-700 dark:text-amber-300' : 'text-gray-600 dark:text-gray-300')}>
+                        {n.status === 'lancada'
+                          ? (n.lancada_em ? <span className="inline-flex flex-col items-end leading-tight"><span>{fmtData(diaLocal(n.lancada_em))}</span><span className="text-[10.5px] text-gray-400">{horaDe(n.lancada_em)}</span></span> : '—')
+                          : textoDias(dias)}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-300">{quemDe(n) || '—'}</td>
                       <td className="whitespace-nowrap px-3 py-2">
                         {ligados.length ? ligados.map((p) => (
                           <button key={p.pedido_id} type="button" onClick={() => setPedidoAberto(p.pedido_id)} className="mr-1 font-mono text-[12px] font-semibold text-[#2563eb] hover:underline dark:text-blue-300">nº {p.numero ?? '?'}</button>
@@ -185,10 +234,13 @@ const NotasRecebidas = () => {
                       <td className="px-4 py-2 text-right"><RowActionButton icon={ExternalLink} label="Abrir no NotaOK" onClick={() => abrirNotaok(n)} /></td>
                     </tr>
                   )
-                })}
+                  }),
+                ])}
               </tbody>
             </table>
           </div>
+          )}
+          </>
         )}
       </div>
 

@@ -1,11 +1,11 @@
 import { supabase } from '@/lib/supabase'
 
 /**
- * Notas de entrada que ainda NÃO foram lançadas, espelhadas pelo NotaOK
- * (supabase/migrations/20261125000002_notaok_notas.sql). Só leitura no Visor:
+ * Notas de entrada espelhadas pelo NotaOK: as que ainda não foram lançadas e as
+ * lançadas nos últimos 90 dias (migrations 20261125000002/3_notaok_notas*.sql). Só leitura no Visor:
  * conferir, devolver e lançar continuam no NotaOK/ERP.
  */
-export type StatusNotaOk = 'pendente' | 'em_preenchimento' | 'devolvida' | 'enviada'
+export type StatusNotaOk = 'pendente' | 'em_preenchimento' | 'devolvida' | 'enviada' | 'lancada'
 
 export interface NotaOkRow {
   nota_chave: string
@@ -25,7 +25,14 @@ export interface NotaOkRow {
   sem_pedido: boolean
   sem_pedido_motivo: string | null
   atualizado_em: string
+  lancada_em?: string | null
+  lancada_por_nome?: string | null
+  /** 'conferida' | 'incompleta' | 'sem' */
+  lancada_conferencia?: string | null
 }
+
+/** Quantos dias de notas lançadas o NotaOK manda (o Visor apaga as mais antigas). */
+export const LANCADAS_DIAS = 90
 
 /** Pedido do Visor ligado à nota no recebimento. */
 export interface PedidoDaNota { pedido_id: string; numero: number | null }
@@ -37,6 +44,7 @@ export const STATUS_NOTAOK: Record<StatusNotaOk, { rotulo: string; cor: string }
   em_preenchimento: { rotulo: 'Em conferência', cor: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' },
   devolvida: { rotulo: 'Devolvida', cor: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300' },
   enviada: { rotulo: 'Aguardando lançamento', cor: 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300' },
+  lancada: { rotulo: 'Lançada', cor: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' },
 }
 
 const need = () => {
