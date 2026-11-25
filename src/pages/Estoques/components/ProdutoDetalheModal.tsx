@@ -6,6 +6,11 @@ import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import { GUIAS } from '@/lib/guiasModais'
 import type { ProductAnalyticsRow } from '@/pages/Estoques/hooks/useEstoqueAnalytics'
 import { STATUS_ESTOQUE, fmtUnidades, fmtDataBR, fmtMes } from '@/pages/Estoques/components/estoqueComum'
+import { ULTIMA_COMPRA_DIAS, type UltimaCompra } from '@/pages/Estoques/hooks/useUltimaCompra'
+import { variacaoUltimaCompra, faixaVariacao } from '@/pages/Estoques/lib/analiseProdutos'
+
+const COR_FAIXA = { alta: 'text-red-600 dark:text-[#e3a3a3]', subiu: 'text-amber-600 dark:text-amber-300', caiu: 'text-sky-700 dark:text-[#9db5d6]', normal: 'text-gray-900 dark:text-gray-100' } as const
+const AVISO_FAIXA = { alta: 'acima do normal: confira a nota (erro de digitação ou de unidade?) ou se o fornecedor aumentou', subiu: 'subiu em relação ao normal: veja se o preço de venda acompanhou', caiu: 'abaixo do normal: confira a nota (unidade ou digitação)', normal: '' } as const
 
 const Linha = ({ label, children, destaque }: { label: string; children: ReactNode; destaque?: boolean }) => (
   <div className="flex items-baseline justify-between gap-3 text-[12.5px]">
@@ -27,7 +32,9 @@ const Bloco = ({ titulo, children }: { titulo: string; children: ReactNode }) =>
  * cadastro (custo, venda, margem). É o detalhe das abas Produtos e Comprar —
  * por isso as tabelas podem ficar enxutas.
  */
-const ProdutoDetalheModal = ({ produto, janelaDias, coberturaDias, onClose, onGerarPedido, onVoltar }: {
+const ProdutoDetalheModal = ({ produto, janelaDias, coberturaDias, onClose, onGerarPedido, onVoltar, compras }: {
+  /** Notas de entrada do produto no último ano (mais antiga → mais recente). */
+  compras?: UltimaCompra[]
   /** Veio da análise de produtos: mostra "Voltar para a análise". */
   onVoltar?: () => void
   /** Presente = mostra "Gerar pedido de compra" (rede com Compras à vista). */
@@ -84,6 +91,58 @@ const ProdutoDetalheModal = ({ produto, janelaDias, coberturaDias, onClose, onGe
             <Linha label="Lucro bruto">{p.precoVendaCadastro > 0 ? `${p.lucroBrutoPctCadastro.toFixed(1).replace('.', ',')}%` : '—'}</Linha>
           </Bloco>
         </div>
+
+        {/* Compras (notas de entrada): última × normal + as últimas notas */}
+        {compras !== undefined && (() => {
+          const vc = variacaoUltimaCompra(compras)
+          const ultima = compras[compras.length - 1]
+          const faixa = vc ? faixaVariacao(vc.varia) : 'normal'
+          const recentes = [...compras].reverse().slice(0, 6)
+          return (
+            <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+              <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Compras (notas de entrada · último ano)</h4>
+              {!ultima ? (
+                <p className="text-[12.5px] text-gray-500 dark:text-gray-400">Sem nota de entrada deste produto nos últimos {ULTIMA_COMPRA_DIAS} dias.</p>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+                  <div className="space-y-1.5">
+                    <Linha label="Última compra" destaque>
+                      <span className={COR_FAIXA[faixa]}>
+                        {vc && faixa !== 'normal' && <span className="mr-1 text-[11px]">{vc.varia > 0 ? '▲' : '▼'} {Math.abs(vc.varia * 100).toFixed(0)}%</span>}
+                        {formatCurrency(ultima.custo)}
+                      </span>
+                    </Linha>
+                    <Linha label="Data da nota">{fmtDataBR(ultima.data)}</Linha>
+                    <Linha label="Quantidade">{fmtUnidades(ultima.quantidade)}</Linha>
+                    <Linha label={vc ? `Normal (mediana de ${compras.length - 1} ${compras.length - 1 === 1 ? 'compra anterior' : 'compras anteriores'})` : 'Normal'}>{vc ? formatCurrency(vc.normal) : '— (só 1 compra no ano)'}</Linha>
+                    {faixa !== 'normal' && (
+                      <p className={cn('rounded-md px-2 py-1.5 text-[12px] leading-snug', faixa === 'alta' ? 'bg-red-50 text-red-800 dark:bg-red-400/10 dark:text-red-200' : faixa === 'subiu' ? 'bg-amber-50 text-amber-800 dark:bg-amber-400/10 dark:text-amber-200' : 'bg-sky-50 text-sky-800 dark:bg-sky-400/10 dark:text-sky-200')}>
+                        Última compra {AVISO_FAIXA[faixa]}.
+                      </p>
+                    )}
+                  </div>
+                  <div className="overflow-hidden rounded-lg border border-gray-100 dark:border-gray-800">
+                    <table className="w-full text-[12px]">
+                      <thead className="text-[10px] uppercase tracking-wide text-gray-400">
+                        <tr><th className="px-3 py-1.5 text-left font-semibold">Nota</th><th className="px-3 py-1.5 text-right font-semibold">Qtd.</th><th className="px-3 py-1.5 text-right font-semibold">Custo un.</th></tr>
+                      </thead>
+                      <tbody>
+                        {recentes.map((c, i) => (
+                          <tr key={`${c.data}-${i}`}>
+                            <td className="px-3 py-1.5 tabular-nums text-gray-600 dark:text-gray-300">{fmtDataBR(c.data)}{i === 0 && <span className="ml-1 text-[10px] text-gray-400">(última)</span>}</td>
+                            <td className="px-3 py-1.5 text-right tabular-nums text-gray-600 dark:text-gray-300">{fmtUnidades(c.quantidade)}</td>
+                            <td className={cn('px-3 py-1.5 text-right font-semibold tabular-nums', i === 0 ? COR_FAIXA[faixa] : 'text-gray-800 dark:text-gray-100')}>{formatCurrency(c.custo)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {compras.length > recentes.length && <p className="border-t border-gray-100 px-3 py-1.5 text-[10.5px] text-gray-400 dark:border-gray-800">+ {compras.length - recentes.length} notas mais antigas no ano</p>}
+                  </div>
+                </div>
+              )}
+            </section>
+          )
+        })()}
 
         {p.vendasMensais.length > 0 && (
           <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">

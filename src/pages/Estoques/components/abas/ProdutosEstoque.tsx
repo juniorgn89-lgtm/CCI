@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import BalaoAcao from '@/components/ui/BalaoAcao'
 import { Search, Package, ShoppingCart, X, CheckCircle2, Sparkles } from 'lucide-react'
 import AnaliseProdutosModal from '@/pages/Estoques/components/AnaliseProdutosModal'
 import SelectBusca from '@/components/filters/SelectBusca'
@@ -61,14 +62,22 @@ const buildColumns = (janelaDias: number, sel: Selecao, ultima: Map<number, Ulti
       if (!u) return <span className="text-gray-400">—</span>
       const vc = variacaoUltimaCompra(historico.get(r.produtoCodigo))
       const faixa = vc ? faixaVariacao(vc.varia) : 'normal'
-      return (
+      const pct = vc ? Math.abs(vc.varia * 100).toFixed(0) : ''
+      const celula = (
         <span className="inline-flex flex-col items-end leading-tight">
-          <span className={cn('font-semibold tabular-nums', COR_FAIXA[faixa])}>
-            {faixa !== 'normal' && vc && <span className="mr-1 text-[10.5px]">{vc.varia > 0 ? '▲' : '▼'} {Math.abs(vc.varia * 100).toFixed(0)}%</span>}
-            {formatCurrency(u.custo)}
-          </span>
-          <span className="text-[10.5px] tabular-nums text-gray-400">{fmtDataBR(u.data)}</span>
+          <span className={cn('font-semibold tabular-nums', COR_FAIXA[faixa])}>{formatCurrency(u.custo)}</span>
+          {faixa !== 'normal' && vc
+            ? <span className={cn('text-[10.5px] font-semibold', COR_FAIXA[faixa])}>{vc.varia > 0 ? '▲' : '▼'} {pct}% {vc.varia > 0 ? 'acima' : 'abaixo'} do normal</span>
+            : null}
+          <span className="text-[10.5px] tabular-nums text-gray-400">nota de {fmtDataBR(u.data)}</span>
         </span>
+      )
+      if (faixa === 'normal' || !vc) return celula
+      // Balão ao parar o mouse: a conta inteira, em português de dono.
+      return (
+        <BalaoAcao atraso={300} lado="left" texto={<>Esta nota custou <b>{formatCurrency(u.custo)}</b>, {pct}% {vc.varia > 0 ? 'acima' : 'abaixo'} do normal deste produto (<b>{formatCurrency(vc.normal)}</b>, o meio das compras anteriores do ano). {vc.varia > 0 ? 'Confira a nota e, se o aumento for real, veja se o preço de venda acompanhou.' : 'Confira a nota: pode ser erro de digitação ou de unidade.'}</>}>
+          {celula}
+        </BalaoAcao>
       )
     },
   },
@@ -117,7 +126,7 @@ const ProdutosEstoque = ({ data, categorias, janelaDias, coberturaDias, setorDe,
   const { porProduto: ultimaCompra, historico: historicoCompras, carregando: carregandoCompras } = useUltimaCompra(empresaUltima)
   const [analise, setAnalise] = useState(false)
   const [daAnalise, setDaAnalise] = useState(false)
-  const columns = useMemo(() => buildColumns(janelaDias, { ativo: podePedir, marcados, alternar }, ultimaCompra, historicoCompras), [janelaDias, podePedir, marcados, ultimaCompra, historicoCompras])
+  const columns = buildColumns(janelaDias, { ativo: podePedir, marcados, alternar }, ultimaCompra, historicoCompras)
 
   const filtered = useMemo(() => data
     .filter((r) => (!setor || setorDe(r.produtoCodigo) === setor) && (!categoria || r.categoria === categoria) && casaBusca(r, busca) && casaSituacao(r, situacao, coberturaDias, hoje))
@@ -221,7 +230,8 @@ const ProdutosEstoque = ({ data, categorias, janelaDias, coberturaDias, setorDe,
         historico={historicoCompras} carregandoCompras={carregandoCompras}
         janelaDias={janelaDias}
         onAbrirProduto={(cod) => { setAnalise(false); setDaAnalise(true); setAbertoCodigo(cod) }} />
-      <ProdutoDetalheModal produto={aberto} janelaDias={janelaDias} coberturaDias={coberturaDias} onClose={() => { setAbertoCodigo(null); setDaAnalise(false) }}
+      <ProdutoDetalheModal produto={aberto} janelaDias={janelaDias} coberturaDias={coberturaDias}
+        compras={aberto && empresaUltima != null ? (historicoCompras.get(aberto.produtoCodigo) ?? []) : undefined} onClose={() => { setAbertoCodigo(null); setDaAnalise(false) }}
         onVoltar={daAnalise ? () => { setAbertoCodigo(null); setDaAnalise(false); setAnalise(true) } : undefined}
         onGerarPedido={podePedir && aberto ? () => { setAbertoCodigo(null); setPedidoOk(false); setPedidoDe([aberto]) } : undefined} />
       {podePedir && pedidoDe && pedidoDe.length > 0 && (
