@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.34',
+    data: '2026-11-25',
+    resumo: 'Ajustes no sistema.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Ajustes no sistema',
+        descricao: 'Notas recebidas: todas as notas aparecem (antes a lista parava em mil) e as abas vêm da nota mais nova para a mais antiga, com as emitidas hoje separadas no topo.',
+      },
+    ],
+  },
+  {
     versao: '1.2.33',
     data: '2026-11-25',
     resumo: 'Ajustes no sistema.',

@@ -55,13 +55,21 @@ const semTabela = (code?: string) => code === '42P01' || code === 'PGRST205'
 
 /** null = a tabela ainda não existe (SQL não rodado). */
 export const fetchNotasNotaok = async (redeId: string): Promise<NotaOkRow[] | null> => {
-  const { data, error } = await need().from('notaok_notas').select('*').eq('rede_id', redeId)
-    .order('desde', { ascending: true, nullsFirst: false }).limit(2000)
-  if (error) {
-    if (semTabela(error.code)) return null
-    throw new Error(error.message)
+  // O Supabase entrega no máximo 1.000 linhas por consulta: lê em páginas
+  // (as lançadas de 90 dias passam disso fácil).
+  const PAGINA = 1000
+  const todas: NotaOkRow[] = []
+  for (let de = 0; de < 20_000; de += PAGINA) {
+    const { data, error } = await need().from('notaok_notas').select('*').eq('rede_id', redeId)
+      .order('nota_chave').range(de, de + PAGINA - 1)
+    if (error) {
+      if (semTabela(error.code)) return null
+      throw new Error(error.message)
+    }
+    todas.push(...((data ?? []) as NotaOkRow[]))
+    if ((data ?? []).length < PAGINA) break
   }
-  return (data ?? []) as NotaOkRow[]
+  return todas
 }
 
 /** chave da nota → pedidos do Visor ligados a ela. */

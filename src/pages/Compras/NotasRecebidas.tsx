@@ -90,15 +90,16 @@ const NotasRecebidas = () => {
   const aba: Aba = abaEscolhida ?? 'pendente'
   const visiveis = fc.filtradas.filter((n) => naAba(n, aba))
   const abaLancadas = aba === 'lancada'
-  // Lançadas: mais recentes primeiro, em "Lançadas hoje" e "antes de hoje" (como no NotaOK).
-  if (abaLancadas) visiveis.sort((a, b) => (b.lancada_em ?? '').localeCompare(a.lancada_em ?? ''))
+  // Como no NotaOK, da mais nova para a mais antiga, com as de hoje num bloco no topo:
+  // Lançadas pela data do lançamento; as demais abas pela data de emissão.
   const hoje = diaLocal(new Date().toISOString())
-  const grupos: { chave: string; rotulo: string | null; notas: NotaOkRow[] }[] = abaLancadas
-    ? [
-        { chave: 'hoje', rotulo: 'Lançadas hoje', notas: visiveis.filter((n) => diaLocal(n.lancada_em) === hoje) },
-        { chave: 'antes', rotulo: 'Lançadas antes de hoje', notas: visiveis.filter((n) => diaLocal(n.lancada_em) !== hoje) },
-      ].filter((g) => g.notas.length > 0)
-    : [{ chave: 'todas', rotulo: null, notas: visiveis }]
+  if (abaLancadas) visiveis.sort((a, b) => (b.lancada_em ?? '').localeCompare(a.lancada_em ?? ''))
+  else visiveis.sort((a, b) => (b.emissao ?? '').localeCompare(a.emissao ?? '') || (b.numero ?? 0) - (a.numero ?? 0))
+  const ehHoje = (n: NotaOkRow) => (abaLancadas ? diaLocal(n.lancada_em) === hoje : n.emissao === hoje)
+  const grupos: { chave: string; rotulo: string | null; notas: NotaOkRow[] }[] = [
+    { chave: 'hoje', rotulo: abaLancadas ? 'Lançadas hoje' : 'Emitidas hoje', notas: visiveis.filter(ehHoje) },
+    { chave: 'antes', rotulo: abaLancadas ? 'Lançadas antes de hoje' : 'Emitidas antes de hoje', notas: visiveis.filter((n) => !ehHoje(n)) },
+  ].filter((g) => g.notas.length > 0)
   const valorAba = visiveis.reduce((s, n) => s + (n.valor ?? 0), 0)
 
   const paradas = notas.filter((n) => n.status === 'enviada' && (diasDesde(n.desde) ?? 0) >= DIAS_ALERTA)
