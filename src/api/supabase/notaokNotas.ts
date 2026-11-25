@@ -29,6 +29,15 @@ export interface NotaOkRow {
   lancada_por_nome?: string | null
   /** 'conferida' | 'incompleta' | 'sem' */
   lancada_conferencia?: string | null
+  // Padrão da tela do NotaOK (migration 20261125000004_notaok_notas_detalhes.sql)
+  itens?: number | null
+  anexos?: number | null
+  categoria?: string | null
+  /** Quem conferiu e enviou; se ainda está conferindo, quem começou. */
+  recebedor_nome?: string | null
+  /** true = consta como compra no ERP; false = ainda não; null = não verificada. */
+  lancada_erp?: boolean | null
+  lancada_erp_ref?: string | null
 }
 
 /** Quantos dias de notas lançadas o NotaOK manda (o Visor apaga as mais antigas). */
@@ -44,7 +53,7 @@ export const STATUS_NOTAOK: Record<StatusNotaOk, { rotulo: string; cor: string }
   em_preenchimento: { rotulo: 'Em conferência', cor: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300' },
   devolvida: { rotulo: 'Devolvida', cor: 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300' },
   enviada: { rotulo: 'Aguardando lançamento', cor: 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300' },
-  lancada: { rotulo: 'Lançada', cor: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' },
+  lancada: { rotulo: 'Lançada no ERP', cor: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' },
 }
 
 const need = () => {

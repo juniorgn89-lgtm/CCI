@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Loader2, AlertTriangle, ExternalLink, RefreshCw, CalendarClock } from 'lucide-react'
+import { Search, Loader2, AlertTriangle, ExternalLink, RefreshCw, CalendarClock, Inbox, PencilLine, Clock, Undo2, CheckCircle2, TriangleAlert, DatabaseZap, DatabaseBackup, Paperclip, Tag, type LucideIcon } from 'lucide-react'
 import RowActionButton from '@/components/tables/RowAction'
 import InfoHint from '@/components/ui/InfoHint'
 import { cn } from '@/lib/utils'
-import { formatCurrencyInt } from '@/lib/formatters'
+import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import { CabecalhoFiltro, AvisoFiltros } from '@/components/tables/FiltroColuna'
 import { useFiltrosColuna, type DefColuna } from '@/lib/filtroColuna'
 import { fetchNotasNotaok, fetchPedidosPorNota, NOTAOK_URL, STATUS_NOTAOK, type NotaOkRow, type PedidoDaNota, type StatusNotaOk, LANCADAS_DIAS } from '@/api/supabase/notaokNotas'
-import { useComprasBase, containerCls, inputCls, btnGhost, fmtDataHora, fmtData, nomeProprio } from './comum'
+import { useComprasBase, containerCls, inputCls, btnGhost, fmtDataHora, fmtData, fmtCnpj } from './comum'
 import { usePedidos } from './hooks/usePedidos'
 import PedidoModal from './PedidoModal'
 
@@ -45,7 +45,33 @@ const rotuloSituacao = (n: NotaOkRow) =>
 /** "Parada há" para as abertas; data do lançamento para as lançadas. */
 const rotuloQuando = (n: NotaOkRow) => (n.status === 'lancada' ? (n.lancada_em ? fmtData(diaLocal(n.lancada_em)) : '') : textoDias(diasDesde(n.desde)))
 const quemDe = (n: NotaOkRow) => (n.status === 'lancada' ? n.lancada_por_nome ?? '' : n.por_nome ?? '')
-const nfDe =(n: NotaOkRow) => (n.numero != null ? `${n.numero}${n.serie != null ? `-${n.serie}` : ''}` : n.nota_chave.slice(25, 34))
+const nfDe = (n: NotaOkRow) => (n.numero != null ? n.numero.toLocaleString('pt-BR') : n.nota_chave.slice(25, 34))
+const ERP_TXT = (v: boolean | null | undefined) => (v === true ? 'No ERP' : v === false ? 'Ainda não está no ERP' : 'Não verificada')
+
+/** Selo da situação (como no NotaOK: ícone + texto, contorno fino). */
+const SITUACAO_ICONE: Record<StatusNotaOk, LucideIcon> = { pendente: Inbox, em_preenchimento: PencilLine, enviada: Clock, devolvida: Undo2, lancada: CheckCircle2 }
+const SeloSituacao = ({ n }: { n: NotaOkRow }) => {
+  const semConf = n.status === 'lancada' && !!n.lancada_conferencia && n.lancada_conferencia !== 'conferida'
+  const Icone = semConf ? TriangleAlert : SITUACAO_ICONE[n.status]
+  return (
+    <span className={cn('inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium',
+      semConf ? 'bg-amber-50 text-amber-800 dark:bg-amber-400/10 dark:text-amber-300' : STATUS_NOTAOK[n.status].cor)}>
+      <Icone className="h-3 w-3" />{rotuloSituacao(n)}
+    </span>
+  )
+}
+/** Selo do ERP: "No ERP · compra N" / "Ainda não está no ERP" / "Não verificada". */
+const SeloErp = ({ n }: { n: NotaOkRow }) =>
+  n.lancada_erp === true ? (
+    <span title={n.lancada_erp_ref ? `Entrada no ERP: ${n.lancada_erp_ref}` : 'Consta como entrada no ERP'}
+      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-teal-50 px-2 py-0.5 text-[11px] font-medium text-teal-800 ring-1 ring-inset ring-teal-200 dark:bg-teal-400/10 dark:text-teal-300 dark:ring-teal-400/25">
+      <DatabaseZap className="h-3 w-3" /> No ERP{n.lancada_erp_ref ? ` · compra ${n.lancada_erp_ref}` : ''}
+    </span>
+  ) : n.lancada_erp === false ? (
+    <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-medium text-orange-800 ring-1 ring-inset ring-orange-200 dark:bg-orange-400/10 dark:text-orange-300 dark:ring-orange-400/25">
+      <DatabaseBackup className="h-3 w-3" /> Ainda não está no ERP
+    </span>
+  ) : <span className="text-[11px] text-gray-400">Não verificada</span>
 
 /** Compras › Notas recebidas: as notas do NotaOK que ainda não foram lançadas no ERP. */
 const NotasRecebidas = () => {
@@ -66,20 +92,25 @@ const NotasRecebidas = () => {
   const notas = useMemo(() => notasQ.data ?? [], [notasQ.data])
   const porNota = useMemo(() => pedidosQ.data ?? new Map<string, PedidoDaNota[]>(), [pedidosQ.data])
 
-  const colunas = useMemo((): Record<'nf' | 'posto' | 'fornecedor' | 'situacao' | 'parada' | 'pedido' | 'quem' | 'emissao', DefColuna<NotaOkRow>> => ({
-    nf: nfDe,
-    posto: (n) => base.nomePosto(n.empresa_codigo),
-    fornecedor: (n) => nomeProprio(n.fornecedor_nome ?? '—'),
-    situacao: rotuloSituacao,
-    pedido: (n) => rotuloPedido(n, porNota),
-    quem: quemDe,
-    parada: { valor: rotuloQuando, ordem: (n) => (n.status === 'lancada' ? `z${n.lancada_em ?? ''}` : String(diasDesde(n.desde) ?? 9999).padStart(5, '0')) },
+  // Filtros de coluna (mesmas colunas da tela de lançamento do NotaOK).
+  const colunas = useMemo((): Record<'emissao' | 'lancada' | 'fornecedor' | 'empresa' | 'nota' | 'recebedor' | 'lancou' | 'situacao' | 'erp' | 'parada' | 'pedido', DefColuna<NotaOkRow>> => ({
     emissao: { valor: (n) => (n.emissao ? fmtData(n.emissao) : ''), ordem: (n) => n.emissao ?? '' },
+    lancada: { valor: (n) => (n.lancada_em ? fmtData(diaLocal(n.lancada_em)) : ''), ordem: (n) => n.lancada_em ?? '' },
+    fornecedor: (n) => (n.fornecedor_nome ?? '').toUpperCase(),
+    empresa: (n) => base.nomePosto(n.empresa_codigo),
+    nota: nfDe,
+    recebedor: (n) => n.recebedor_nome ?? n.por_nome ?? '',
+    lancou: quemDe,
+    situacao: rotuloSituacao,
+    erp: (n) => ERP_TXT(n.lancada_erp),
+    parada: { valor: rotuloQuando, ordem: (n) => String(diasDesde(n.desde) ?? 9999).padStart(5, '0') },
+    pedido: (n) => rotuloPedido(n, porNota),
   }), [base, porNota])
   const filtradas = useMemo(() => {
     const t = busca.trim().toLowerCase()
     return notas.filter((n) => {
-      if (t && !((n.fornecedor_nome ?? '').toLowerCase().includes(t) || String(n.numero ?? '') === t || base.nomePosto(n.empresa_codigo).toLowerCase().includes(t))) return false
+      const dig = t.replace(/\D/g, '')
+      if (t && !((n.fornecedor_nome ?? '').toLowerCase().includes(t) || String(n.numero ?? '') === t || base.nomePosto(n.empresa_codigo).toLowerCase().includes(t) || (dig.length >= 4 && ((n.fornecedor_cnpj ?? '').includes(dig) || n.nota_chave.includes(dig))))) return false
       return true
     })
   }, [notas, busca, base])
@@ -149,7 +180,7 @@ const NotasRecebidas = () => {
             </button>
           ))}
           <span className="ml-auto flex items-center gap-2 self-center pb-1 text-[11px] text-gray-400">
-            <span className="relative"><Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar fornecedor ou nº" aria-label="Buscar nota" className={cn(inputCls, 'h-8 w-48 pl-7 text-[12px]')} /></span>
+            <span className="relative"><Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Fornecedor, CNPJ, número ou chave" aria-label="Buscar nota" className={cn(inputCls, 'h-8 w-64 pl-7 text-[12px]')} /></span>
             <AvisoFiltros qtd={fc.qtdAtivos} onLimpar={fc.limpar} />
             {visiveis.length > 0 && <span className="tabular-nums">{visiveis.length} {visiveis.length === 1 ? 'nota' : 'notas'} · {formatCurrencyInt(valorAba)}</span>}
             <InfoHint text="A conferir: nota chegou do ERP e ninguém mexeu. Em conferência: o recebimento está conferindo a mercadoria. Devolvidas: o escritório devolveu para o recebimento corrigir. Aguardando lançamento: conferida, falta o escritório lançar no ERP. Parada há: tempo desde que a nota entrou na situação atual. Lançadas: só as dos últimos 90 dias, separadas em lançadas hoje e antes de hoje. As notas chegam do NotaOK sozinhas (em até 2 minutos)." />
@@ -176,29 +207,34 @@ const NotasRecebidas = () => {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-[12.5px]">
-              <thead className="text-[10px] uppercase tracking-wider text-gray-400">
-                <tr>
-                  <th className="px-4 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="NF" filtro={fc.de('nf')} /></th>
-                  <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Posto" filtro={fc.de('posto')} /></th>
-                  <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Fornecedor" filtro={fc.de('fornecedor')} /></th>
-                  <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Situação" filtro={fc.de('situacao')} /></th>
-                  <th className="px-3 py-2 text-right font-semibold"><CabecalhoFiltro rotulo={abaLancadas ? 'Lançada em' : 'Parada há'} filtro={fc.de('parada')} alinhar="direita" /></th>
-                  <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo={abaLancadas ? 'Lançou' : 'Conferiu / devolveu'} filtro={fc.de('quem')} /></th>
-                  <th className="px-3 py-2 text-left font-semibold"><CabecalhoFiltro rotulo="Pedido" filtro={fc.de('pedido')} /></th>
-                  <th className="px-3 py-2 text-right font-semibold">Valor</th>
-                  <th className="px-3 py-2 text-right font-semibold"><CabecalhoFiltro rotulo="Emissão" filtro={fc.de('emissao')} alinhar="direita" /></th>
-                  <th className="px-4 py-2 text-right font-semibold">Ação</th>
+              <thead className="text-[10.5px] uppercase tracking-wider text-gray-400">
+                <tr className="border-b border-gray-200 dark:border-gray-800">
+                  <th className="whitespace-nowrap py-2.5 pl-4 pr-3 text-left font-semibold"><CabecalhoFiltro rotulo="Emissão" filtro={fc.de('emissao')} /></th>
+                  {abaLancadas && <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold"><CabecalhoFiltro rotulo="Lançada em" filtro={fc.de('lancada')} /></th>}
+                  <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold"><CabecalhoFiltro rotulo="Fornecedor" filtro={fc.de('fornecedor')} /></th>
+                  <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold"><CabecalhoFiltro rotulo="Empresa" filtro={fc.de('empresa')} /></th>
+                  <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold"><CabecalhoFiltro rotulo="Nota" filtro={fc.de('nota')} /></th>
+                  <th className="whitespace-nowrap px-3 py-2.5 text-center font-semibold">Itens</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 text-center font-semibold">Anexos</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold">Valor</th>
+                  <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold"><CabecalhoFiltro rotulo="Recebedor" filtro={fc.de('recebedor')} /></th>
+                  {abaLancadas && <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold"><CabecalhoFiltro rotulo="Lançado por" filtro={fc.de('lancou')} /></th>}
+                  <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold"><CabecalhoFiltro rotulo="Situação" filtro={fc.de('situacao')} /></th>
+                  {abaLancadas && <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold"><CabecalhoFiltro rotulo="ERP" filtro={fc.de('erp')} /></th>}
+                  {!abaLancadas && <th className="whitespace-nowrap px-3 py-2.5 text-right font-semibold"><CabecalhoFiltro rotulo="Parada há" filtro={fc.de('parada')} alinhar="direita" /></th>}
+                  <th className="whitespace-nowrap px-3 py-2.5 text-left font-semibold"><CabecalhoFiltro rotulo="Pedido" filtro={fc.de('pedido')} /></th>
+                  <th className="whitespace-nowrap py-2.5 pl-3 pr-4 text-right font-semibold">Ação</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                 {grupos.flatMap((g) => [
                   ...(g.rotulo ? [(
                     <tr key={`g-${g.chave}`} className={g.chave === 'hoje' ? '!bg-emerald-50/70 dark:!bg-emerald-950/30' : '!bg-gray-50 dark:!bg-[#0b1220]'}>
-                      <td colSpan={10} className={cn('px-4 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider', g.chave === 'hoje' ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-500 dark:text-gray-400')}>
+                      <td colSpan={abaLancadas ? 14 : 12} className={cn('px-4 py-2 text-[10.5px] font-semibold uppercase tracking-wider', g.chave === 'hoje' ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-500 dark:text-gray-400')}>
                         <span className="inline-flex items-center gap-2">
                           {g.chave === 'hoje' && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
-                          {g.rotulo} · {g.notas.length}
-                          <span className="font-normal normal-case tracking-normal tabular-nums">{formatCurrencyInt(g.notas.reduce((t, n) => t + (n.valor ?? 0), 0))}</span>
+                          {g.rotulo} · {g.notas.length} {g.notas.length === 1 ? 'nota' : 'notas'}
+                          <span className="normal-case tracking-normal tabular-nums">· {formatCurrency(g.notas.reduce((t, n) => t + (n.valor ?? 0), 0))}</span>
                         </span>
                       </td>
                     </tr>
@@ -207,32 +243,46 @@ const NotasRecebidas = () => {
                   const dias = diasDesde(n.desde)
                   const atrasada = n.status === 'enviada' && (dias ?? 0) >= DIAS_ALERTA
                   const ligados = porNota.get(n.nota_chave) ?? []
-                  const nota = n.status === 'devolvida' ? n.motivo : n.observacao
+                  const recado = n.status === 'devolvida' ? n.motivo : n.observacao
+                  const lancou = quemDe(n)
                   return (
-                    <tr key={n.nota_chave} className={cn('align-top text-gray-800 dark:text-gray-200', atrasada && 'border-l-2 border-amber-400')}>
-                      <td className="px-4 py-2 font-mono text-[12px] font-semibold tabular-nums text-[#1e3a5f] dark:text-blue-300">{nfDe(n)}</td>
-                      <td className="whitespace-nowrap px-3 py-2">{base.nomePosto(n.empresa_codigo)}</td>
-                      <td className="max-w-[320px] px-3 py-2">
-                        <span className="font-medium">{nomeProprio(n.fornecedor_nome ?? '—')}</span>
-                        {nota && <span className={cn('mt-0.5 block text-[11px] leading-snug', n.status === 'devolvida' ? 'text-red-600 dark:text-red-300' : 'text-gray-500 dark:text-gray-400')}>{n.status === 'devolvida' ? 'Motivo: ' : 'Recado: '}{nota}</span>}
+                    <tr key={n.nota_chave} className={cn('text-gray-800 dark:text-gray-200', atrasada && 'border-l-2 border-amber-400')}>
+                      <td className="whitespace-nowrap py-3 pl-4 pr-3 text-[13px] font-medium tabular-nums">{n.emissao ? fmtData(n.emissao) : '—'}</td>
+                      {abaLancadas && (
+                        <td className="whitespace-nowrap px-3 py-3 tabular-nums">
+                          {n.lancada_em ? <span className="flex flex-col leading-tight"><span className="text-[13px]">{fmtData(diaLocal(n.lancada_em))}</span><span className="text-[11px] text-gray-400">{horaDe(n.lancada_em)}</span></span> : '—'}
+                        </td>
+                      )}
+                      <td className="min-w-[220px] max-w-[340px] px-3 py-3">
+                        <span className="block text-[12.5px] font-semibold uppercase leading-snug">{n.fornecedor_nome ?? '—'}</span>
+                        {n.fornecedor_cnpj && <span className="block font-mono text-[11px] text-gray-400">{fmtCnpj(n.fornecedor_cnpj)}</span>}
+                        {n.categoria && <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-gray-200 px-1.5 py-px text-[10.5px] text-gray-600 dark:border-gray-700 dark:text-gray-300"><Tag className="h-2.5 w-2.5" />{n.categoria}</span>}
+                        {recado && <span className={cn('mt-1 block text-[11px] leading-snug', n.status === 'devolvida' ? 'text-red-600 dark:text-red-300' : 'text-gray-500 dark:text-gray-400')}>{n.status === 'devolvida' ? 'Motivo: ' : 'Recado: '}{recado}</span>}
                       </td>
-                      <td className="px-3 py-2"><span className={cn('inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold', n.status === 'lancada' && n.lancada_conferencia && n.lancada_conferencia !== 'conferida' ? 'bg-orange-50 text-orange-700 dark:bg-orange-950/40 dark:text-orange-300' : STATUS_NOTAOK[n.status].cor)}>{rotuloSituacao(n)}</span></td>
-                      <td className={cn('whitespace-nowrap px-3 py-2 text-right tabular-nums', atrasada ? 'font-semibold text-amber-700 dark:text-amber-300' : 'text-gray-600 dark:text-gray-300')}>
-                        {n.status === 'lancada'
-                          ? (n.lancada_em ? <span className="inline-flex flex-col items-end leading-tight"><span>{fmtData(diaLocal(n.lancada_em))}</span><span className="text-[10.5px] text-gray-400">{horaDe(n.lancada_em)}</span></span> : '—')
-                          : textoDias(dias)}
+                      <td className="whitespace-nowrap px-3 py-3 uppercase">{base.nomePosto(n.empresa_codigo)}</td>
+                      <td className="whitespace-nowrap px-3 py-3 tabular-nums">
+                        <span className="block text-[13px] font-semibold">{nfDe(n)}</span>
+                        {n.serie != null && <span className="block text-[11px] text-gray-400">série {n.serie}</span>}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2 text-gray-600 dark:text-gray-300">{quemDe(n) || '—'}</td>
-                      <td className="whitespace-nowrap px-3 py-2">
+                      <td className="px-3 py-3 text-center tabular-nums">{n.itens ? n.itens : <span className="text-gray-400">—</span>}</td>
+                      <td className="whitespace-nowrap px-3 py-3 text-center tabular-nums text-gray-500 dark:text-gray-400"><span className="inline-flex items-center gap-1"><Paperclip className="h-3 w-3" />{n.anexos ?? 0}</span></td>
+                      <td className="whitespace-nowrap px-3 py-3 text-right font-semibold tabular-nums">{n.valor != null ? formatCurrency(n.valor) : '—'}</td>
+                      <td className="whitespace-nowrap px-3 py-3">{n.recebedor_nome ?? n.por_nome ?? <span className="text-gray-400">—</span>}</td>
+                      {abaLancadas && (
+                        <td className={cn('whitespace-nowrap px-3 py-3', lancou === 'Webposto · sem usuário' ? 'italic text-gray-400' : 'text-gray-700 dark:text-gray-300')}
+                          title={lancou === 'Webposto · sem usuário' ? 'Lançada no Webposto; a integração não informou quem lançou.' : undefined}>{lancou || '—'}</td>
+                      )}
+                      <td className="px-3 py-3"><SeloSituacao n={n} /></td>
+                      {abaLancadas && <td className="px-3 py-3"><SeloErp n={n} /></td>}
+                      {!abaLancadas && <td className={cn('whitespace-nowrap px-3 py-3 text-right tabular-nums', atrasada ? 'font-semibold text-amber-700 dark:text-amber-300' : 'text-gray-600 dark:text-gray-300')}>{textoDias(dias)}</td>}
+                      <td className="whitespace-nowrap px-3 py-3">
                         {ligados.length ? ligados.map((p) => (
                           <button key={p.pedido_id} type="button" onClick={() => setPedidoAberto(p.pedido_id)} className="mr-1 font-mono text-[12px] font-semibold text-[#2563eb] hover:underline dark:text-blue-300">nº {p.numero ?? '?'}</button>
                         )) : n.sem_pedido
                           ? <span className="rounded-full bg-orange-50 px-2 py-0.5 text-[11px] font-semibold text-orange-700 dark:bg-orange-950/40 dark:text-orange-300">Sem pedido</span>
                           : <span className="text-gray-400">—</span>}
                       </td>
-                      <td className="px-3 py-2 text-right font-semibold tabular-nums">{n.valor != null ? formatCurrencyInt(n.valor) : '—'}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-right text-[11px] text-gray-500">{n.emissao ? fmtData(n.emissao) : '—'}</td>
-                      <td className="px-4 py-2 text-right"><RowActionButton icon={ExternalLink} label="Abrir no NotaOK" onClick={() => abrirNotaok(n)} /></td>
+                      <td className="py-3 pl-3 pr-4 text-right"><RowActionButton icon={ExternalLink} label="Abrir no NotaOK" onClick={() => abrirNotaok(n)} /></td>
                     </tr>
                   )
                   }),

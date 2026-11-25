@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.35',
+    data: '2026-11-25',
+    resumo: 'Ajustes no sistema.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Ajustes no sistema',
+        descricao: 'Notas recebidas ficou igual à tela do NotaOK: itens, anexos, categoria do fornecedor, quem recebeu, quem lançou e se a nota já está no ERP.',
+      },
+    ],
+  },
+  {
     versao: '1.2.34',
     data: '2026-11-25',
     resumo: 'Ajustes no sistema.',

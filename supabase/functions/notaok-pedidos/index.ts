@@ -363,6 +363,10 @@ Deno.serve(async (req) => {
           lancada_em: status === 'lancada' ? lancadaEm : null,
           lancada_por_nome: status === 'lancada' ? texto(n.lancada_por_nome, 120) : null,
           lancada_conferencia: status === 'lancada' ? texto(n.lancada_conferencia, 20) : null,
+          // Padrão da tela do NotaOK (migration 20261125000004_notaok_notas_detalhes.sql).
+          itens: inteiro(n.itens), anexos: inteiro(n.anexos), categoria: texto(n.categoria, 40),
+          recebedor_nome: texto(n.recebedor_nome, 120),
+          lancada_erp: typeof n.lancada_erp === 'boolean' ? n.lancada_erp : null, lancada_erp_ref: texto(n.lancada_erp_ref, 40),
         })
       }
       if (gravar.length) {
