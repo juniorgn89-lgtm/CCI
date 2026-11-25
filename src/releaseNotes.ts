@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.36',
+    data: '2026-11-25',
+    resumo: 'Ajustes no sistema.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Ajustes no sistema',
+        descricao: 'O Radar de Preços agora respeita os postos escolhidos no topo, e a conveniência sem combustível não mostra mais o Comercial (que é todo de combustível).',
+      },
+    ],
+  },
+  {
     versao: '1.2.35',
     data: '2026-11-25',
     resumo: 'Ajustes no sistema.',

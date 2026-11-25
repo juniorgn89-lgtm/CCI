@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useFilterStore } from '@/store/filters'
 import useVisivel from '@/hooks/useVisivel'
 import FechamentoMesRadar from '@/pages/Comercial/components/FechamentoMesRadar'
@@ -91,6 +92,10 @@ const RadarVisaoGeral = ({ onAnalisar }: Props) => {
   // Com "Todos os postos" no topo, o filtro daqui afunila livremente (sem mexer no topo).
   const filtroPostos = useFilterStore((s) => s.empresaCodigos)
   const postoDoTopo = filtroPostos.length === 1 ? filtroPostos[0] : null
+  // Vários postos marcados no topo: a tela inteira fica só neles.
+  const escopoTopo = useMemo(() => (filtroPostos.length > 1 ? new Set(filtroPostos) : null), [filtroPostos])
+  const cardsTopo = useMemo(() => (escopoTopo ? r.cards.filter((c) => escopoTopo.has(c.empresaCodigo)) : r.cards), [r.cards, escopoTopo])
+  const lojaTopo = useMemo(() => (escopoTopo ? r.loja.filter((l) => escopoTopo.has(l.empresaCodigo)) : r.loja), [r.loja, escopoTopo])
   const [fPostoLocal, setFPosto] = useState<number | 'todos'>('todos')
   const fPosto: number | 'todos' = postoDoTopo ?? fPostoLocal
   const [fFuel, setFFuel] = useState('todos')
@@ -102,27 +107,46 @@ const RadarVisaoGeral = ({ onAnalisar }: Props) => {
   const [agrupar, setAgruparSel] = useState<'posto' | 'combustivel'>(() => { try { return localStorage.getItem(CHAVE_AGRUPAR) === 'combustivel' ? 'combustivel' : 'posto' } catch { return 'posto' } })
   const setAgrupar = (v: 'posto' | 'combustivel') => { setAgruparSel(v); try { localStorage.setItem(CHAVE_AGRUPAR, v) } catch { /* ignore */ } }
 
-  const postos = useMemo(() => { const m = new Map<number, string>(); for (const c of r.cards) if (!m.has(c.empresaCodigo)) m.set(c.empresaCodigo, c.posto); return [...m.entries()].map(([codigo, nome]) => ({ codigo, nome })) }, [r.cards])
-  const fuels = useMemo(() => [...new Set(r.cards.map((c) => c.fuel))], [r.cards])
-  const filtrados = useMemo(() => r.cards.filter((c) => (fPosto === 'todos' || c.empresaCodigo === fPosto) && (fFuel === 'todos' || c.fuel === fFuel) && (fVer === 'todos' || c.veredito === fVer)), [r.cards, fPosto, fFuel, fVer])
+  const postos = useMemo(() => { const m = new Map<number, string>(); for (const c of cardsTopo) if (!m.has(c.empresaCodigo)) m.set(c.empresaCodigo, c.posto); return [...m.entries()].map(([codigo, nome]) => ({ codigo, nome })) }, [cardsTopo])
+  const fuels = useMemo(() => [...new Set(cardsTopo.map((c) => c.fuel))], [cardsTopo])
+  const filtrados = useMemo(() => cardsTopo.filter((c) => (fPosto === 'todos' || c.empresaCodigo === fPosto) && (fFuel === 'todos' || c.fuel === fFuel) && (fVer === 'todos' || c.veredito === fVer)), [cardsTopo, fPosto, fFuel, fVer])
   const ordenar = (v: Veredito, lista: CardPreco[]) => [...lista].sort((a, b) => (v === 'subir' ? b.valor - a.valor : v === 'ceder' || v === 'confirmar' ? b.quantoL - a.quantoL : a.margemPct - b.margemPct))
 
   if (r.isLoading) return <div className="space-y-4"><Skeleton className="h-24 rounded-2xl" /><Skeleton className="h-96 rounded-2xl" /></div>
+  // Postos escolhidos no topo sem combustível (só conveniência): o Radar não se aplica.
+  const escolhidos = postoDoTopo != null ? [postoDoTopo] : escopoTopo ? [...escopoTopo] : []
+  const comCombustivel = new Set(r.cards.map((c) => c.empresaCodigo))
+  const foraDoRadar = escolhidos.filter((c) => !comCombustivel.has(c)).length
+  if (r.hasRede && r.cards.length > 0 && escolhidos.length > 0 && foraDoRadar === escolhidos.length) {
+    return (
+      <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
+        <ShoppingBag className="mx-auto h-8 w-8 text-gray-400" />
+        <p className="mt-3 text-[15px] font-semibold text-gray-900 dark:text-gray-100">{escolhidos.length === 1 ? 'Este posto não vende combustível' : 'Os postos escolhidos não vendem combustível'}</p>
+        <p className="mx-auto mt-1 max-w-lg text-[13px] text-gray-600 dark:text-gray-300">
+          O Radar de Preços compara o preço e o custo do litro com a referência. Para conveniência, o preço e a margem dos produtos estão em <b className="font-semibold">Central › Conveniência</b>, e a reposição em <b className="font-semibold">Estoques</b>.
+        </p>
+        <div className="mt-4 flex justify-center gap-2">
+          <Link to="/dashboard?tab=conveniencia" className="inline-flex items-center gap-1.5 rounded-lg bg-[#1e3a5f] px-3 py-1.5 text-[12.5px] font-semibold text-white hover:bg-[#16293f] dark:bg-blue-600">Ver Conveniência <ArrowRight className="h-3.5 w-3.5" /></Link>
+          <Link to="/estoques" className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-[12.5px] font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800">Ver Estoques</Link>
+        </div>
+      </div>
+    )
+  }
   if (!r.hasRede || r.cards.length === 0) return <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">Sem venda de combustível com custo no período para montar a régua.</div>
 
   // Totais do ESCOPO na tela (posto escolhido ou a rede), não sempre da rede.
-  const cardsEscopo = fPosto === 'todos' ? r.cards : r.cards.filter((c) => c.empresaCodigo === fPosto)
+  const cardsEscopo = fPosto === 'todos' ? cardsTopo : cardsTopo.filter((c) => c.empresaCodigo === fPosto)
   const contar = (v: Veredito) => cardsEscopo.filter((c) => c.veredito === v).length
-  const t = fPosto === 'todos' ? r.totais : {
+  const t = fPosto === 'todos' && !escopoTopo ? r.totais : {
     ...r.totais,
-    postos: 1,
+    postos: new Set(cardsEscopo.map((c) => c.empresaCodigo)).size,
     subir: contar('subir'),
     subirValor: cardsEscopo.filter((c) => c.veredito === 'subir').reduce((acc, c) => acc + c.valor, 0),
     segurar: contar('segurar'), ceder: contar('ceder'), confirmar: contar('confirmar'),
     custoVelho: cardsEscopo.filter((c) => c.frescor === 'old').length,
     semData: cardsEscopo.filter((c) => c.frescor === 'unknown').length,
   }
-  const lojaVisivel = r.loja.filter((l) => fPosto === 'todos' || l.empresaCodigo === fPosto)
+  const lojaVisivel = lojaTopo.filter((l) => fPosto === 'todos' || l.empresaCodigo === fPosto)
   const refTexto = !concorrenciaVisivel
     ? 'Referência: média da rede para o mesmo combustível.'
     : r.postosComVizinhos > 0
@@ -131,12 +155,19 @@ const RadarVisaoGeral = ({ onAnalisar }: Props) => {
 
   return (
     <div className="space-y-4">
+      {foraDoRadar > 0 && (
+        <p className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-[12.5px] text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+          <ShoppingBag className="h-4 w-4 shrink-0 text-gray-400" />
+          {foraDoRadar === 1 ? '1 dos postos escolhidos não vende combustível (só conveniência) e fica fora do Radar.' : `${foraDoRadar} dos postos escolhidos não vendem combustível (só conveniência) e ficam fora do Radar.`}
+        </p>
+      )}
       {/* Como o mês vai fechar (mesmo número da Central) + o que o Radar faz pelos dias que faltam */}
       <FechamentoMesRadar
         cards={cardsEscopo}
         segurar={t.segurar}
-        loja={fPosto === 'todos' ? r.loja : r.loja.filter((l) => l.empresaCodigo === fPosto)}
+        loja={lojaVisivel}
         postoCodigo={fPosto === 'todos' ? undefined : fPosto}
+        empresaCodigos={escopoTopo ? filtroPostos : undefined}
         postoNome={fPosto === 'todos' ? undefined : nomeLegivel(postos.find((p) => p.codigo === fPosto)?.nome ?? '')}
       />
       {/* Cabeçalho */}

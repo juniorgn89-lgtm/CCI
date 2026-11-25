@@ -15,9 +15,10 @@ const pct = (v: number) => `${Math.abs(v).toFixed(1).replace('.', ',')}%`
  * R$/dia × dias restantes, contra a diferença para o mês de referência.
  * Estimativa com o volume constante; dito na tela.
  */
-const FechamentoMesRadar = ({ cards, segurar, loja = [], postoCodigo, postoNome }: { cards: CardPreco[]; segurar: number; loja?: CardLoja[]; postoCodigo?: number; postoNome?: string }) => {
-  // Com um posto escolhido no Radar, a previsão é a DESSE posto; senão, a rede.
-  const f = useFechamentoMes({ empresaCodigos: postoCodigo != null ? [postoCodigo] : [] })
+const FechamentoMesRadar = ({ cards, segurar, loja = [], postoCodigo, postoNome, empresaCodigos }: { cards: CardPreco[]; segurar: number; loja?: CardLoja[]; postoCodigo?: number; postoNome?: string; empresaCodigos?: number[] }) => {
+  // Com um posto escolhido no Radar, a previsão é a DESSE posto; com vários no topo,
+  // a desses postos; senão, a rede.
+  const f = useFechamentoMes({ empresaCodigos: postoCodigo != null ? [postoCodigo] : empresaCodigos ?? [] })
   // Detalhe abre/fecha; a escolha fica lembrada neste navegador.
   const [aberto, setAberto] = useState(() => { try { return localStorage.getItem(CHAVE_ABERTO) === '1' } catch { return false } })
   const alternar = (v: boolean) => { setAberto(v); try { localStorage.setItem(CHAVE_ABERTO, v ? '1' : '0') } catch { /* sem storage */ } }
@@ -74,7 +75,7 @@ const FechamentoMesRadar = ({ cards, segurar, loja = [], postoCodigo, postoNome 
             Como o mês vai fechar
             <InfoHint text="O mesmo cartão da Central: previsão do lucro bruto (combustível, automotivos e conveniência), pelo ritmo de cada dia da semana." className="text-white/60 hover:text-white dark:text-white/60 dark:hover:text-white" />
           </p>
-          <p className="text-[11px] text-white/60">{postoNome ? postoNome : 'Rede inteira'} · todos os setores</p>
+          <p className="text-[11px] text-white/60">{postoNome ? postoNome : empresaCodigos?.length ? `${empresaCodigos.length} postos escolhidos` : 'Rede inteira'} · todos os setores</p>
           <p className="mt-1 inline-flex items-center gap-1 text-[11px] text-white/60">
             <Gauge className="h-3.5 w-3.5" /> confiança <b className={cn('font-semibold', f.confiabilidade === 'alta' ? 'text-emerald-300' : f.confiabilidade === 'media' ? 'text-amber-300' : 'text-red-300')}>{f.confiabilidade === 'media' ? 'média' : f.confiabilidade}</b> ({Math.round(f.confiabilidadePct)}%)
           </p>

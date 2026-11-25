@@ -96,4 +96,4 @@ export const abaOcultaPorSegmento = (path: string, tabId: string, s: EscopoSegme
 
 /** Módulos inteiros que somem num escopo só de conveniência. */
 export const moduloOcultoPorSegmento = (path: string, s: EscopoSegmento): boolean =>
-  s.soConveniencia && (path === '/operacao' || path.startsWith('/operacao/'))
+  s.soConveniencia && (path === '/operacao' || path.startsWith('/operacao/') || path === '/comercial')
