@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.38',
+    data: '2026-11-25',
+    resumo: 'Ajustes no sistema.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Ajustes no sistema',
+        descricao: 'A página de apresentação do Visor360 agora mostra o vídeo de 1 minuto do sistema funcionando.',
+      },
+    ],
+  },
+  {
     versao: '1.2.37',
     data: '2026-11-25',
     resumo: 'Ajustes no sistema.',

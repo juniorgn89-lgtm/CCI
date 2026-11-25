@@ -1,4 +1,4 @@
-import { type CSSProperties, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { Sun, Moon, Sparkles } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
@@ -44,26 +44,11 @@ const MAIL = {
 const IA_FEATURE = 'Analista de IA — a Inteligência que explica o número'
 const FUNCOES_BASE = PLANOS.flatMap((p) => p.recursos).filter((r) => r !== IA_FEATURE)
 
-const MODULOS: { icon: string; bg: string; titulo: string; texto: string }[] = [
-  { icon: '🗺️', bg: '#eef4ff', titulo: 'Visão Geral da Rede', texto: 'Faturamento, lucro, margem e projeção de todos os postos num só lugar — com mapa da rede e o cadastro de cada posto.' },
-  { icon: '⛽', bg: '#fef4e2', titulo: 'Combustível', texto: 'Volume, margem por produto e gestão de preços por tabela — com o impacto real do desconto no lucro bruto.' },
-  { icon: '🛒', bg: '#eafaf1', titulo: 'Conveniência', texto: 'Desempenho da loja, ticket médio e giro — separando o que vem da pista do que vem do balcão.' },
-  { icon: '🔧', bg: '#f0edff', titulo: 'Automotivos', texto: 'Troca de óleo e serviços agregados acompanhados junto do resto da operação do posto.' },
-  { icon: '⚙️', bg: '#e7f6f4', titulo: 'Operação', texto: 'Bombas, desgaste e reabastecimento — do nível dos tanques ao quanto comprar até o fim do mês.' },
-  { icon: '📊', bg: '#fdeef0', titulo: 'Apuração & Financeiro', texto: 'Fechamento diário automático e qualidade dos dados, sinalizando onde a informação está faltando.' },
-]
-
 const NUMEROS: { valor: string; cor: string; label: string }[] = [
   { valor: '6', cor: 'var(--v-ink)', label: 'módulos num só login' },
   { valor: '1×/dia', cor: '#0F766E', label: 'apuração automática' },
   { valor: '100%', cor: 'var(--v-ink)', label: 'dados só de leitura' },
   { valor: 'web+app', cor: '#2563eb', label: 'rede no bolso' },
-]
-
-const IA_BULLETS = [
-  'Compara posto a posto e destaca quem está fora da curva',
-  'Estima o ganho potencial de cada ajuste em reais',
-  'Só leitura: a IA analisa, quem decide é você',
 ]
 
 const TRUST = ['Conecta ao seu ERP de posto', 'Apuração automática diária', 'Dados só de leitura', 'App no celular e no PC — sem loja']
@@ -124,8 +109,6 @@ const LANDING_CSS = `
   .v360-landing .v360-heropad{padding:32px 18px 36px!important}
 }
 `
-
-const card: CSSProperties = { background: 'var(--v-card)', border: '1px solid var(--v-border)', borderRadius: 18, padding: '26px 24px', boxShadow: '0 20px 40px -34px rgba(15,41,63,.4)' }
 
 const Landing = () => {
   const session = useAuthStore((s) => s.session)
@@ -190,9 +173,8 @@ const Landing = () => {
             <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 23, color: 'var(--v-ink)', letterSpacing: '-.01em' }}>Visor<span style={{ color: '#0F766E' }}>360</span></div>
           </div>
           <div className="v360-navmenu" style={{ display: 'flex', alignItems: 'center', gap: 28, color: 'var(--v-muted)', fontSize: 14.5, fontWeight: 500, flexWrap: 'wrap' }}>
-            <a href="#modulos" style={{ color: 'var(--v-muted)' }}>Módulos</a>
+            <a href="#video" style={{ color: 'var(--v-muted)' }}>Vídeo</a>
             <a href="#planos" style={{ color: 'var(--v-muted)' }}>Planos</a>
-            <a href="#ia" style={{ color: 'var(--v-muted)' }}>Analista de IA</a>
             <a href="#contato" style={{ color: 'var(--v-muted)' }}>Contato</a>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -222,7 +204,7 @@ const Landing = () => {
               <p style={{ margin: '22px 0 0', fontSize: 18, lineHeight: 1.6, color: 'var(--v-muted)', maxWidth: 470 }}>O Visor360 conecta ao seu sistema, cruza os números de toda a rede e transforma dado bruto em decisão — combustível, loja, operação e financeiro num só lugar.</p>
               <div style={{ display: 'flex', gap: 14, marginTop: 34, flexWrap: 'wrap' }}>
                 <a href={waDemo} target="_blank" rel="noopener noreferrer" style={{ background: '#FCB619', color: '#16293f', fontWeight: 700, fontSize: 16, padding: '15px 28px', borderRadius: 13, boxShadow: '0 16px 34px -14px rgba(252,182,25,.8)' }}>Falar com a CCI</a>
-                <a href="#modulos" style={{ background: 'var(--v-card)', border: '1.5px solid var(--v-border2)', color: 'var(--v-ink)', fontWeight: 600, fontSize: 16, padding: '15px 26px', borderRadius: 13 }}>Conhecer os módulos</a>
+                <a href="#video" style={{ background: 'var(--v-card)', border: '1.5px solid var(--v-border2)', color: 'var(--v-ink)', fontWeight: 600, fontSize: 16, padding: '15px 26px', borderRadius: 13 }}>Ver o vídeo (1 min)</a>
               </div>
               <p style={{ margin: '16px 0 0', fontSize: 14.5, color: 'var(--v-muted2)' }}><strong style={{ color: 'var(--v-ink)' }}>Valores sob consulta</strong> · Analista de IA opcional · sem fidelidade</p>
               <div style={{ display: 'flex', gap: 24, marginTop: 40, flexWrap: 'wrap' }}>
@@ -285,50 +267,23 @@ const Landing = () => {
         {/* ===================== LETREIRO DE PARCEIROS/BANDEIRAS ===================== */}
         <PartnerMarquee />
 
-        {/* ===================== MÓDULOS ===================== */}
-        <div id="modulos" className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '88px 40px 0' }}>
+        {/* ===================== VÍDEO (1 MIN) ===================== */}
+        <div id="video" className="v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '88px 40px 0' }}>
           <div style={{ textAlign: 'center', maxWidth: 640, margin: '0 auto' }}>
-            <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 13, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase', color: '#0F766E' }}>Módulos</div>
-            <h2 style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1, color: 'var(--v-ink)', letterSpacing: '-.02em', marginTop: 10 }}>Um painel para cada frente do posto</h2>
-            <p style={{ margin: '16px 0 0', fontSize: 17, lineHeight: 1.6, color: 'var(--v-muted2)' }}>Ative só o que sua rede usa. Tudo conversa entre si e alimenta o mesmo analista de IA.</p>
+            <div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 13, fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase', color: '#0F766E' }}>Em 1 minuto</div>
+            <h2 style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1, color: 'var(--v-ink)', letterSpacing: '-.02em', marginTop: 10 }}>Veja o Visor360 funcionando</h2>
+            <p style={{ margin: '16px 0 0', fontSize: 17, lineHeight: 1.6, color: 'var(--v-muted2)' }}>Combustível, loja, operação e financeiro da rede inteira num lugar só.</p>
           </div>
-          <div className="v360-modulos" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, marginTop: 48 }}>
-            {MODULOS.map((m) => (
-              <div key={m.titulo} style={card}>
-                <div style={{ width: 46, height: 46, borderRadius: 12, background: m.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>{m.icon}</div>
-                <h3 style={{ fontSize: 19, fontWeight: 800, color: 'var(--v-ink)', marginTop: 16 }}>{m.titulo}</h3>
-                <p style={{ margin: '8px 0 0', fontSize: 14.5, lineHeight: 1.55, color: 'var(--v-muted2)' }}>{m.texto}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ===================== DESTAQUE IA ===================== */}
-        <div id="ia" style={{ marginTop: 96, background: 'radial-gradient(1100px 620px at 78% 0%,#22456b 0%,#16293f 55%,#101f31 100%)' }}>
-          <div className="v360-ia v360-wrap" style={{ maxWidth: 1200, margin: '0 auto', padding: '80px 40px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56, alignItems: 'center' }}>
-            <div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(252,182,25,.14)', border: '1px solid rgba(252,182,25,.4)', color: '#fcd77f', fontSize: 13, fontWeight: 600, padding: '7px 14px', borderRadius: 999 }}>✨ Analista de IA</div>
-              <h2 style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.08, color: '#fff', letterSpacing: '-.02em', marginTop: 20 }}>O número que importa, já explicado.</h2>
-              <p style={{ margin: '18px 0 0', fontSize: 17.5, lineHeight: 1.6, color: '#cbd5e1', maxWidth: 480 }}>Em vez de você caçar o problema na planilha, o Visor360 lê os dados da rede e escreve, em português, onde está a perda e quanto ela vale — pronto pra decidir.</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 30 }}>
-                {IA_BULLETS.map((b) => (
-                  <div key={b} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}><span style={{ color: '#5eead4', fontSize: 18, lineHeight: 1.3 }}>✓</span><span style={{ color: '#e2e8f0', fontSize: 15.5, lineHeight: 1.5 }}>{b}</span></div>
-                ))}
-              </div>
-            </div>
-            <div style={{ background: '#fff', borderRadius: 18, padding: 26, boxShadow: '0 50px 90px -40px rgba(0,0,0,.6)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 9, paddingBottom: 16, borderBottom: '1px solid #eef2f7' }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg,#FCB619,#f59e0b)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✨</div>
-                <div><div style={{ fontWeight: 800, fontSize: 14, color: '#16293f', fontFamily: "'Bricolage Grotesque',sans-serif" }}>Analista Visor360</div><div style={{ fontSize: 11.5, color: '#94a3b8' }}>Rede Aurora · 5 postos</div></div>
-              </div>
-              <div style={{ marginTop: 16, background: '#f8fafc', borderRadius: 12, padding: '15px 16px', fontSize: 14, color: '#334155', lineHeight: 1.55 }}>
-                O <strong>diesel S-10 do posto Aurora Centro</strong> está R$ 0,21/L abaixo da média da rede. Alinhando ao preço dos outros 4 postos, o ganho estimado é de <strong style={{ color: '#15803d' }}>+R$ 14,2 mil/mês</strong> sem perder competitividade local.
-              </div>
-              <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-                <div style={{ flex: 1, background: '#ecfdf5', borderRadius: 11, padding: '12px 14px' }}><div style={{ fontSize: 11, color: '#059669' }}>Ganho estimado</div><div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 18, color: '#047857' }} className="tnum">+R$ 14,2k</div></div>
-                <div style={{ flex: 1, background: '#eff6ff', borderRadius: 11, padding: '12px 14px' }}><div style={{ fontSize: 11, color: '#2563eb' }}>Diferença/L</div><div style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontWeight: 800, fontSize: 18, color: '#1d4ed8' }} className="tnum">R$ 0,21</div></div>
-              </div>
-            </div>
+          <div style={{ maxWidth: 960, margin: '40px auto 0', borderRadius: 20, overflow: 'hidden', border: '1px solid var(--v-border2)', background: '#0b1220', boxShadow: '0 50px 90px -46px rgba(15,41,63,.55)' }}>
+            <video
+              controls
+              playsInline
+              preload="metadata"
+              poster="/apresentacao/visor360-capa.jpg"
+              style={{ display: 'block', width: '100%', aspectRatio: '16 / 9', background: '#0b1220' }}
+            >
+              <source src="/apresentacao/visor360-apresentacao.mp4" type="video/mp4" />
+            </video>
           </div>
         </div>
 
@@ -426,7 +381,7 @@ const Landing = () => {
               <div>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--v-ink)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Produto</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginTop: 14, fontSize: 14, color: 'var(--v-muted2)' }}>
-                  <a href="#modulos" style={{ color: 'inherit' }}>Módulos</a><a href="#planos" style={{ color: 'inherit' }}>Planos</a><a href="#ia" style={{ color: 'inherit' }}>Analista de IA</a><a href={waDemo} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Fale com a CCI</a>
+                  <a href="#video" style={{ color: 'inherit' }}>Vídeo</a><a href="#planos" style={{ color: 'inherit' }}>Planos</a><a href={waDemo} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit' }}>Fale com a CCI</a>
                 </div>
               </div>
               <div>
