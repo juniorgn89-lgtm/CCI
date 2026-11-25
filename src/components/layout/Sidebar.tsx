@@ -28,7 +28,7 @@ import { Bug,
   Tag,
   Sun,
   Repeat,
-  Stethoscope, ArrowLeftRight, FlaskConical, ChevronDown } from 'lucide-react'
+  Stethoscope, ArrowLeftRight, FlaskConical, ChevronDown, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useModuloAbas, moduloDaRota } from '@/store/moduloAbas'
 import { useAuth } from '@/hooks/useAuth'
@@ -115,6 +115,7 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
   ],
   '/compras': [
     { label: 'Pedidos de compra', to: '/compras?tab=pedidos', Icon: ShoppingCart },
+    { label: 'Notas recebidas', to: '/compras?tab=notas', Icon: FileText },
     { label: 'Transferências', to: '/compras?tab=transferencias', Icon: ArrowLeftRight },
   ],
   '/gestao': [

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { embalagemDe, temFator, qtdEmbalagens, textoQtd } from '@/pages/Compras/lib/embalagem'
 import { useQuery } from '@tanstack/react-query'
 import { Loader2, Send, Pencil, Trash2, Check, X, RotateCcw, Undo2, PackageCheck, MessageCircle, Copy, AlertTriangle, FileCheck2, Receipt, Flag } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -58,19 +59,22 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
 
   const teto = tetos.find((t) => t.empresa_codigo === p.empresa_codigo && t.setor === p.setor)?.valor_mensal ?? 0
   const usadoMes = liberadoNoMes(pedidos, p.empresa_codigo, p.setor, p.id)
-  const totalLib = itens.reduce((s, i) => s + Math.max(0, Number(liberadas[i.id] ?? i.qtd_solicitada) || 0) * i.custo_unit, 0)
+  // Com embalagem (caixa, fardo…), a liberação é digitada em embalagens; as contas ficam em unidades.
+  const fatorDe = (i: ItemRow) => (temFator(i.embalagem, i.qtd_por_embalagem) ? i.qtd_por_embalagem! : 1)
+  const libUnid = (i: ItemRow) => { const v = liberadas[i.id]; if (v == null) return i.qtd_solicitada; const q = Math.max(0, Number(v.replace(',', '.')) || 0); return fatorDe(i) > 1 ? Math.round(q) * fatorDe(i) : q }
+  const totalLib = itens.reduce((s, i) => s + libUnid(i) * i.custo_unit, 0)
   const estoura = teto > 0 && usadoMes + (liberando ? totalLib : p.total_solicitado) > teto
 
   const rodar = async (chave: string, fn: () => Promise<unknown>) => {
     setErro(null); setOcupado(chave)
     try { await fn(); onMudou() } catch (e) { setErro((e as Error).message) } finally { setOcupado(null) }
   }
-  const iniciarLiberacao = () => { setLiberadas(Object.fromEntries(itens.map((i) => [i.id, String(i.qtd_solicitada)]))); setLiberando(true); setRecusando(false) }
-  const confirmarLiberacao = () => rodar('liberar', async () => { await liberarPedido(p, itens, Object.fromEntries(Object.entries(liberadas).map(([k, v]) => [k, Number(v.replace(',', '.')) || 0])), base.autor, obsLib.trim() || null); setLiberando(false) })
+  const iniciarLiberacao = () => { setLiberadas(Object.fromEntries(itens.map((i) => [i.id, String(qtdEmbalagens(i.qtd_solicitada, fatorDe(i)))]))); setLiberando(true); setRecusando(false) }
+  const confirmarLiberacao = () => rodar('liberar', async () => { await liberarPedido(p, itens, Object.fromEntries(itens.map((i) => [i.id, libUnid(i)])), base.autor, obsLib.trim() || null); setLiberando(false) })
   const confirmarRecusa = () => { if (!motivo.trim()) { setErro('Diga o motivo da recusa: o solicitante precisa saber o que ajustar.'); return } rodar('recusar', async () => { await recusarPedido(p, motivo.trim(), base.autor); setRecusando(false) }) }
 
   const textoWhats = () => {
-    const linhas = itens.map((i) => `• ${qtdFmt(i.qtd_liberada ?? i.qtd_solicitada)}${i.unidade ? ` ${i.unidade.toLowerCase()}` : ''} — ${nomeProprio(i.produto_nome)}`)
+    const linhas = itens.map((i) => `• ${textoQtd(i.qtd_liberada ?? i.qtd_solicitada, i.embalagem, i.qtd_por_embalagem, i.unidade)} — ${nomeProprio(i.produto_nome)}`)
     return [`*Pedido de compra nº ${p.numero}* · ${base.nomePosto(p.empresa_codigo)}`, `Fornecedor: ${nomeProprio(p.fornecedor_nome)}${p.fornecedor_cnpj ? ` (${fmtCnpj(p.fornecedor_cnpj)})` : ''}`, '', ...linhas, '', `Total: ${formatCurrency(p.total_liberado ?? p.total_solicitado)}`, p.observacoes ? `Obs.: ${p.observacoes}` : '', `Solicitante: ${p.solicitante_nome ?? ''}`].filter((l) => l !== null).join('\n')
   }
   const copiar = () => { navigator.clipboard?.writeText(textoWhats()).then(() => { setCopiado(true); setTimeout(() => setCopiado(false), 1500) }, () => {}) }
@@ -84,7 +88,7 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
       { label: 'Solicitante', value: p.solicitante_nome ?? '—' },
     ],
     sections: [
-      { title: 'Itens', rows: itens.map((i) => ({ label: `${nomeProprio(i.produto_nome)} · ${qtdFmt(i.qtd_solicitada)}${i.unidade ? ` ${i.unidade.toLowerCase()}` : ''}${i.qtd_liberada != null && i.qtd_liberada !== i.qtd_solicitada ? ` (liberado ${qtdFmt(i.qtd_liberada)})` : ''} × ${formatCurrency(i.custo_unit)}`, value: formatCurrency((i.qtd_liberada ?? i.qtd_solicitada) * i.custo_unit), sub: i.justificativa ?? undefined })) },
+      { title: 'Itens', rows: itens.map((i) => ({ label: `${nomeProprio(i.produto_nome)} · ${textoQtd(i.qtd_solicitada, i.embalagem, i.qtd_por_embalagem, i.unidade)}${i.qtd_liberada != null && i.qtd_liberada !== i.qtd_solicitada ? ` (liberado ${textoQtd(i.qtd_liberada, i.embalagem, i.qtd_por_embalagem, i.unidade)})` : ''} × ${formatCurrency(i.custo_unit)}/un`, value: formatCurrency((i.qtd_liberada ?? i.qtd_solicitada) * i.custo_unit), sub: i.justificativa ?? undefined })) },
       ...(p.observacoes ? [{ title: 'Observações', rows: [{ label: p.observacoes, value: '' }] }] : []),
       ...(p.motivo_recusa ? [{ title: 'Motivo da recusa', rows: [{ label: p.motivo_recusa, value: '' }] }] : []),
       { title: 'Histórico', rows: (eventosQ.data ?? []).map((e) => ({ label: `${e.autor_nome ?? 'Alguém'} ${EVENTO_VERBO[e.tipo]}`, value: fmtDataHora(e.criado_em), sub: e.detalhe ?? undefined })) },
@@ -125,19 +129,23 @@ const PedidoModal = ({ pedido: p, onClose, onMudou, onEditar, tetos, pedidos }: 
           {itensQ.isLoading ? <p className="inline-flex items-center gap-2 px-4 py-3 text-[12px] text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Carregando…</p> : (
             <div className="overflow-x-auto">
               <table className="w-full text-[12.5px]">
-                <thead className="text-[10px] uppercase tracking-wider text-gray-400"><tr><th className="w-20 py-1.5 pl-4 pr-2 text-left font-semibold">Código</th><th className="px-2 py-1.5 text-left font-semibold">Produto</th><th className="px-2 py-1.5 text-right font-semibold">Qtd. solicitada</th><th className="px-2 py-1.5 text-right font-semibold">Qtd. liberada</th><th className="px-2 py-1.5 text-right font-semibold">Custo un.</th><th className="px-4 py-1.5 text-right font-semibold">Subtotal</th></tr></thead>
+                <thead className="text-[10px] uppercase tracking-wider text-gray-400"><tr><th className="w-20 py-1.5 pl-4 pr-2 text-left font-semibold">Código</th><th className="px-2 py-1.5 text-left font-semibold">Produto</th><th className="px-2 py-1.5 text-right font-semibold">Qtd. solicitada</th><th className="px-2 py-1.5 text-right font-semibold">Qtd. liberada</th><th className="px-2 py-1.5 text-right font-semibold">Custo por un.</th><th className="px-4 py-1.5 text-right font-semibold">Subtotal</th></tr></thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
                   {itens.map((i: ItemRow) => {
-                    const lib = liberando ? (Number((liberadas[i.id] ?? '').replace(',', '.')) || 0) : i.qtd_liberada
+                    const lib = liberando ? libUnid(i) : i.qtd_liberada
+                    const comFator = temFator(i.embalagem, i.qtd_por_embalagem)
+                    const emb = embalagemDe(i.embalagem)
                     const cortado = lib != null && lib < i.qtd_solicitada
                     return (
                       <tr key={i.id} className={cn(lib === 0 && 'opacity-60')}>
                         <td className="py-1.5 pl-4 pr-2 align-top tabular-nums text-gray-500 dark:text-gray-400">{i.produto_codigo}</td>
                         <td className="px-2 py-1.5"><p className="font-medium text-gray-900 dark:text-gray-100">{nomeProprio(i.produto_nome)}</p>{i.justificativa && <p className="text-[10.5px] text-gray-400">{i.justificativa}</p>}</td>
-                        <td className="px-2 py-1.5 text-right tabular-nums">{qtdFmt(i.qtd_solicitada)}{i.unidade ? <span className="text-[10px] text-gray-400"> {i.unidade.toLowerCase()}</span> : null}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{comFator
+                          ? <span className="inline-flex flex-col items-end leading-tight"><span className="font-semibold">{qtdFmt(qtdEmbalagens(i.qtd_solicitada, i.qtd_por_embalagem!))} {emb.curto} <span className="text-[10px] font-normal text-gray-400">de {qtdFmt(i.qtd_por_embalagem!)}</span></span><span className="text-[10px] text-gray-400">{qtdFmt(i.qtd_solicitada)} un</span></span>
+                          : <>{qtdFmt(i.qtd_solicitada)}<span className="text-[10px] text-gray-400"> {emb.fracionavel ? emb.curto : (i.unidade ?? 'un').toLowerCase()}</span></>}</td>
                         <td className="px-2 py-1.5 text-right tabular-nums">
-                          {liberando ? <input inputMode="decimal" value={liberadas[i.id] ?? ''} onChange={(e) => setLiberadas({ ...liberadas, [i.id]: e.target.value })} className={cn(inputCls, 'h-8 w-20 px-2 text-right tabular-nums')} />
-                            : lib == null ? <span className="text-gray-400">—</span> : <span className={cn(cortado ? 'font-semibold text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300')}>{qtdFmt(lib)}</span>}
+                          {liberando ? <span className="inline-flex items-center gap-1"><input inputMode="decimal" aria-label={comFator ? `Liberar (${emb.nome.toLowerCase()}s)` : 'Liberar'} value={liberadas[i.id] ?? ''} onChange={(e) => setLiberadas({ ...liberadas, [i.id]: e.target.value })} className={cn(inputCls, 'h-8 w-20 px-2 text-right tabular-nums')} />{comFator && <span className="text-[10px] text-gray-400">{emb.curto}</span>}</span>
+                            : lib == null ? <span className="text-gray-400">—</span> : <span className={cn(cortado ? 'font-semibold text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300')}>{comFator ? `${qtdFmt(qtdEmbalagens(lib, i.qtd_por_embalagem!))} ${emb.curto}` : qtdFmt(lib)}</span>}
                         </td>
                         <td className="px-2 py-1.5 text-right tabular-nums text-gray-600 dark:text-gray-300">{formatCurrency(i.custo_unit)}</td>
                         <td className="px-4 py-1.5 text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency((lib ?? i.qtd_solicitada) * i.custo_unit)}</td>

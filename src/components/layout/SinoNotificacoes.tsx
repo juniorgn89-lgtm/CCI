@@ -120,7 +120,7 @@ const useCelular = () => {
   return cel
 }
 
-const ehAlerta = (n: NotificacaoRow) => n.tipo === 'nota_devolvida' || (n.tipo === 'pedido_decidido' && /recusado/i.test(n.titulo))
+const ehAlerta = (n: NotificacaoRow) => n.tipo === 'nota_devolvida' || (n.tipo === 'nota_lancar' && /parad/i.test(n.titulo)) || (n.tipo === 'pedido_decidido' && /recusado/i.test(n.titulo))
 
 interface Props {
   /** desktop = barra do Header; mobile = topo do app no celular. */

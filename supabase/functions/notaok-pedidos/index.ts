@@ -19,6 +19,9 @@
 //   status_nota  { chave, situacao, quando?, por_nome?, devolucao? } → conferida | lancada | devolvida | vinculada
 //                devolucao = { geral?, nf?, boleto?, itens?: [{ codigo, descricao, motivo }] } (só em "devolvida")
 //   sem_pedido   { nota, motivo?, por_nome, desfazer? }         → registra (ou tira) "nota sem pedido"
+//   notas_espelho { notas: [{ chave, ..., status, desde, por_nome?, motivo?, observacao?, sem_pedido? }] }
+//                → espelho das notas AINDA NÃO LANÇADAS (Compras › Notas recebidas); status 'lancada'
+//                  (ou removida: true) tira do espelho. SQL: supabase/migrations/20261125000002_notaok_notas.sql
 //   Todas as escritas são idempotentes (o NotaOK reenvia o que ficou pendente).
 //
 // Deploy:  npx supabase@latest functions deploy notaok-pedidos --no-verify-jwt --project-ref yzmorbfadoxowchkwspl
@@ -27,7 +30,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const TOLERANCIA_S = 300
-const ESCRITA = new Set(['vincular', 'desvincular', 'status_nota', 'sem_pedido'])
+const ESCRITA = new Set(['vincular', 'desvincular', 'status_nota', 'sem_pedido', 'notas_espelho'])
+const STATUS_ESPELHO = new Set(['pendente', 'em_preenchimento', 'devolvida', 'enviada'])
 const ABERTOS_PARA_NOTA = ['liberado', 'liberado_parcial', 'recebido_parcial']
 const SITUACOES = new Set(['vinculada', 'conferida', 'lancada', 'devolvida'])
 const JANELA_DIAS = 90
@@ -331,6 +335,42 @@ Deno.serve(async (req) => {
       }, { onConflict: 'rede_id,nota_chave' })
       if (error) throw new Error(error.message)
       return json(200, { ok: true, ligado: true })
+    }
+
+    // ── notas_espelho ──────────────────────────────────────────────────────
+    if (acao === 'notas_espelho') {
+      const lista = (Array.isArray(dados.notas) ? dados.notas : []).filter(ehObjeto).slice(0, 500)
+      const gravar: Record<string, unknown>[] = []
+      const tirar: string[] = []
+      const agora = new Date().toISOString()
+      for (const n of lista) {
+        const chave = digitos(n.chave)
+        if (!/^[0-9]{44}$/.test(chave)) continue
+        const status = String(n.status ?? '')
+        if (n.removida === true || status === 'lancada' || !STATUS_ESPELHO.has(status)) { tirar.push(chave); continue }
+        const desde = typeof n.desde === 'string' && !Number.isNaN(Date.parse(n.desde)) ? n.desde : null
+        gravar.push({
+          rede_id: redeId, nota_chave: chave,
+          notaok_nota_id: ehUuid(n.notaok_nota_id) ? n.notaok_nota_id : null,
+          empresa_codigo: inteiro(n.empresa_codigo), numero: inteiro(n.numero), serie: inteiro(n.serie),
+          valor: valor(n.valor), emissao: dataIso(n.data_emissao),
+          fornecedor_nome: texto(n.fornecedor_nome, 200), fornecedor_cnpj: digitos(n.cnpj) || null,
+          status, desde, por_nome: texto(n.por_nome, 120), motivo: texto(n.motivo, 1000), observacao: texto(n.observacao, 1000),
+          sem_pedido: n.sem_pedido === true, sem_pedido_motivo: texto(n.sem_pedido_motivo, 500), atualizado_em: agora,
+        })
+      }
+      if (gravar.length) {
+        const { error } = await admin.from('notaok_notas').upsert(gravar, { onConflict: 'rede_id,nota_chave' })
+        if (error) {
+          if (error.code === '42P01' || error.code === 'PGRST205') throw new Recusa(503, 'sem_tabela', 'O Visor ainda não tem a tabela das notas (rodar 20261125000002_notaok_notas.sql).')
+          throw new Error(error.message)
+        }
+      }
+      if (tirar.length) {
+        const { error } = await admin.from('notaok_notas').delete().eq('rede_id', redeId).in('nota_chave', tirar)
+        if (error) throw new Error(error.message)
+      }
+      return json(200, { ok: true, ligado: true, gravadas: gravar.length, removidas: tirar.length })
     }
 
     return recusa(400, 'invalido', 'Ação desconhecida.')

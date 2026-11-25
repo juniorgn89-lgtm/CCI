@@ -137,6 +137,7 @@ export const APP_STRUCTURE: AppModule[] = [
     permId: 'compras',
     tabs: [
       { id: 'pedidos', label: 'Pedidos', plano: 'pro' },
+      { id: 'notas', label: 'Notas recebidas', plano: 'pro' },
       { id: 'transferencias', label: 'Transferências', plano: 'pro' },
     ],
   },

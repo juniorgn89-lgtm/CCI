@@ -21,6 +21,7 @@ interface Props {
   /** O módulo compara a rede toda: o filtro de posto não se aplica. */
   redeWide: boolean
   /** Ao Vivo: posto travado. */
+  /** Ao Vivo: só o período fica travado; o posto continua escolhível. */
   liveLock: boolean
   onClose: () => void
 }
@@ -39,7 +40,7 @@ const linha = (ativo: boolean) => cn(
  * rede; com uma rede só, apenas mostra. Posto: "Todos os postos" é a primeira
  * linha da lista (quando o módulo aceita); "Marcar vários" para comparar postos.
  */
-const PainelRedePosto = ({ postos, allowTodos, redeWide, liveLock, onClose }: Props) => {
+const PainelRedePosto = ({ postos, allowTodos, redeWide, onClose }: Props) => {
   const isMaster = useAuthStore((s) => s.isMaster)
   const acessoTodas = useAuthStore((s) => s.acessoTodasRedes)
   const redesPermitidas = useAuthStore((s) => s.redesPermitidas)
@@ -53,7 +54,7 @@ const PainelRedePosto = ({ postos, allowTodos, redeWide, liveLock, onClose }: Pr
   const [buscaRede, setBuscaRede] = useState('')
   const [buscaPosto, setBuscaPosto] = useState('')
   // Padrão: marcar vários (caixinhas + Aplicar). Só onde o módulo aceita mais de um posto.
-  const [varios, setVarios] = useState(allowTodos && !liveLock && !redeWide)
+  const [varios, setVarios] = useState(allowTodos && !redeWide)
   const [rascunho, setRascunho] = useState<number[]>(empresaCodigos)
 
   // ── Redes (só a CCI escolhe aqui) ──
@@ -151,7 +152,7 @@ const PainelRedePosto = ({ postos, allowTodos, redeWide, liveLock, onClose }: Pr
         <section>
           <p className={ROTULO}>
             <span className="flex items-center gap-1.5"><Fuel className="h-3.5 w-3.5" /> Posto</span>
-            {mostraPostos && allowTodos && !liveLock && (
+            {mostraPostos && allowTodos && (
               <button type="button" onClick={() => { setVarios((v) => !v); setRascunho(selAtual) }}
                 className="normal-case tracking-normal text-teal-700 hover:underline dark:text-[#5eead4]">
                 {varios ? 'Escolher um só' : 'Marcar vários'}
@@ -162,10 +163,6 @@ const PainelRedePosto = ({ postos, allowTodos, redeWide, liveLock, onClose }: Pr
           {redeWide ? (
             <p className="flex items-start gap-2 rounded-lg bg-gray-50 px-2.5 py-2 text-[12.5px] text-gray-500 dark:bg-[#0f172a] dark:text-[#94a3b8]">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /> Esta tela compara todos os postos da rede; aqui não se escolhe posto.
-            </p>
-          ) : liveLock ? (
-            <p className="flex items-start gap-2 rounded-lg bg-gray-50 px-2.5 py-2 text-[12.5px] text-gray-500 dark:bg-[#0f172a] dark:text-[#94a3b8]">
-              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" /> No Ao Vivo aparecem todos os postos que você acessa.
             </p>
           ) : redeAlvo && carregandoAlvo ? (
             <p className="flex items-center gap-2 px-2.5 py-2 text-[12.5px] text-gray-500 dark:text-[#94a3b8]"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Buscando os postos da rede…</p>
@@ -220,9 +217,16 @@ const PainelRedePosto = ({ postos, allowTodos, redeWide, liveLock, onClose }: Pr
           <button type="button" onClick={() => (varios ? aplicarRedeCom(rascunho) : aplicarRede())} disabled={carregandoAlvo}
             className="rounded-lg bg-teal-600 px-3.5 py-1.5 text-[13px] font-semibold text-white hover:bg-teal-700 disabled:opacity-50">Aplicar filtro</button>
         </div>
-      ) : varios && mostraPostos && !redeWide && !liveLock ? (
+      ) : varios && mostraPostos && !redeWide ? (
         <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-3 py-2.5 dark:border-white/[0.06]">
-          <span className="text-[12.5px] text-gray-500 dark:text-[#94a3b8]">{rascunho.length === 0 ? 'Nenhum marcado = todos' : `${rascunho.length} ${rascunho.length === 1 ? 'posto marcado' : 'postos marcados'}`}</span>
+          <span className="flex flex-col gap-0.5">
+            <span className="text-[12.5px] text-gray-500 dark:text-[#94a3b8]">{rascunho.length === 0 ? 'Nenhum marcado = todos' : `${rascunho.length} ${rascunho.length === 1 ? 'posto marcado' : 'postos marcados'}`}</span>
+            {/* Marcar / desmarcar todos de uma vez */}
+            <button type="button" onClick={() => setRascunho(listaPostos.every((p) => rascunho.includes(p.codigo)) ? [] : listaPostos.map((p) => p.codigo))}
+              className="w-fit text-[12px] font-semibold text-teal-700 hover:underline dark:text-[#5eead4]">
+              {listaPostos.length > 0 && listaPostos.every((p) => rascunho.includes(p.codigo)) ? 'Desmarcar todos' : 'Marcar todos'}
+            </button>
+          </span>
           <button type="button" onClick={() => escolherPosto(rascunho)} className="rounded-lg bg-teal-600 px-3.5 py-1.5 text-[13px] font-semibold text-white hover:bg-teal-700">Aplicar</button>
         </div>
       ) : (

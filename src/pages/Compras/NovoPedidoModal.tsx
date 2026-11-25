@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { EMBALAGENS, embalagemDe, temFator, arredondarUnidades, qtdEmbalagens, textoQtd } from '@/pages/Compras/lib/embalagem'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Search, Trash2, Loader2, Send, Save, AlertTriangle, Check, ShoppingCart, Truck, Calendar, ChevronDown, ChevronUp, Sparkles, Fuel, Wrench, Store, Boxes, Layers, SlidersHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -10,8 +11,7 @@ import BalaoAcao from '@/components/ui/BalaoAcao'
 import { Modal, Erro } from '@/pages/Gestao/comumUi'
 import {
   SETOR_LABEL, STATUS_LABEL, criarPedido, editarPedido, garantirFornecedor, fetchItensAbertosDoPosto, fetchItensDoPedido,
-  type ItemInput, type PedidoRow, type SetorCompra, type TetoRow,
-} from '@/api/supabase/compras'
+  type ItemInput, type PedidoRow, type SetorCompra, type TetoRow, fetchEmbalagensUsadas } from '@/api/supabase/compras'
 import { useComprasBase, inputCls, selectCls, labelCls, btnPrimary, btnGhost, nomeProprio, fmtCnpj, qtdFmt } from './comum'
 import { usePedidos, liberadoNoMes } from './hooks/usePedidos'
 import { useFornecedores, type FornecedorOpcao, type FaixaFornecedor } from './hooks/useFornecedores'
@@ -127,7 +127,7 @@ const NovoPedidoModal = ({ open, onClose, pedido, onSalvo, tetos, pedidos, inici
     return <Modal fundo="" open={open} onClose={onClose} titulo={`Editar pedido nº ${pedido.numero}`} largura="max-w-[1240px]"><p className="inline-flex items-center gap-2 py-6 text-sm text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Carregando itens…</p></Modal>
   }
   const iniciais: ItemLocal[] = pedido
-    ? (itensSalvos.data ?? []).map((i) => ({ key: i.id, produto_codigo: i.produto_codigo, produto_nome: i.produto_nome, unidade: i.unidade, qtd_solicitada: i.qtd_solicitada, custo_unit: i.custo_unit, justificativa: i.justificativa }))
+    ? (itensSalvos.data ?? []).map((i) => ({ key: i.id, produto_codigo: i.produto_codigo, produto_nome: i.produto_nome, unidade: i.unidade, qtd_solicitada: i.qtd_solicitada, custo_unit: i.custo_unit, justificativa: i.justificativa, embalagem: i.embalagem ?? 'UN', qtd_por_embalagem: i.qtd_por_embalagem ?? null }))
     : (inicial?.itens ?? []).map((i) => ({ ...i, key: `p${i.produto_codigo}` }))
   return <Formulario key={pedido?.id ?? 'novo'} open={open} onClose={onClose} pedido={pedido} itensIniciais={iniciais} empresaInicial={inicial?.empresa ?? null} setorInicial={inicial?.setor ?? null} onSalvo={onSalvo} tetos={tetos} pedidos={pedidos} base={base} />
 }
@@ -159,6 +159,21 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
   const [erro, setErro] = useState<string | null>(null)
   const [salvando, setSalvando] = useState<'rascunho' | 'enviar' | null>(null)
 
+  // Embalagem (caixa, fardo…): o ERP não diz quantas unidades vêm; quem compra informa.
+  // A última usada por produto na rede volta como sugestão. Item sem escolha
+  // (embalagem undefined) usa a lembrada; a quantidade fica em embalagens inteiras.
+  const lembradas = useQuery({ queryKey: ['compras-embalagens', base.redeId], queryFn: () => fetchEmbalagensUsadas(base.redeId!), enabled: !!base.redeId, staleTime: 5 * 60_000 })
+  const efetivo = (i: ItemLocal): ItemLocal => {
+    let emb = i.embalagem
+    let fator = i.qtd_por_embalagem ?? null
+    if (emb === undefined) {
+      const l = lembradas.data?.get(i.produto_codigo)
+      const base0 = (i.unidade ?? '').toUpperCase()
+      emb = l?.embalagem ?? (base0 === 'KG' || base0 === 'L' ? base0 : 'UN')
+      fator = l?.qtd_por_embalagem ?? null
+    }
+    return { ...i, embalagem: emb, qtd_por_embalagem: fator, qtd_solicitada: arredondarUnidades(i.qtd_solicitada, emb, fator) }
+  }
   const sugBase = useSugestoes(empresa, 'outros', cobertura, leadTime)
   const [separar, setSeparar] = useState(true)
   // Nota lançada em outra unidade (caixa × unidade): o ERP não diz a conversão.
@@ -240,7 +255,7 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
   const abertos = useQuery({ queryKey: ['compras-itens', 'abertos', base.redeId, empresa], queryFn: () => fetchItensAbertosDoPosto(base.redeId!, empresa!), enabled: !!base.redeId && empresa != null, staleTime: 30_000 })
   const duplicado = (produtoCodigo: number) => (abertos.data ?? []).find((i) => i.produto_codigo === produtoCodigo && i.pedido_id !== pedido?.id)
   const noPedido = useMemo(() => new Set(itens.map((i) => i.produto_codigo)), [itens])
-  const total = itens.reduce((s, i) => s + i.qtd_solicitada * i.custo_unit, 0)
+  const total = itens.map(efetivo).reduce((s, i) => s + i.qtd_solicitada * i.custo_unit, 0)
   const teto = empresa != null ? tetos.find((t) => t.empresa_codigo === empresa && t.setor === setor)?.valor_mensal ?? 0 : 0
   const usadoMes = empresa != null ? liberadoNoMes(pedidos, empresa, setor, pedido?.id) : 0
   const estoura = teto > 0 && usadoMes + total > teto
@@ -285,7 +300,7 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
     setBuscaF(''); setListaAberta(false)
   }
 
-  const podeSalvar = empresa != null && !!fornecedor && itens.length > 0 && itens.every((i) => i.qtd_solicitada > 0)
+  const podeSalvar = empresa != null && !!fornecedor && itens.length > 0 && itens.map(efetivo).every((i) => i.qtd_solicitada > 0 && (!embalagemDe(i.embalagem).comFator || temFator(i.embalagem, i.qtd_por_embalagem)))
   // Itens comprados por último de OUTRO fornecedor (≠ o escolhido): viram pedidos à parte.
   const deOutros = useMemo(() => {
     if (!fornecedor) return [] as { forn: FornItem; itens: ItemLocal[] }[]
@@ -302,7 +317,12 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
   }, [itens, fornecedor, ultimo.porProduto, nomePorCodigo])
   const vaiSeparar = !pedido && separar && deOutros.length > 0
   const nPedidos = vaiSeparar ? deOutros.length + (itens.length > deOutros.reduce((n, g) => n + g.itens.length, 0) ? 1 : 0) : 1
-  const semForn = ({ key: _k, forn: _f, ...i }: ItemLocal): ItemInput => { void _k; void _f; return i }
+  // Salva em UNIDADES (arredondadas para embalagens inteiras) + a embalagem escolhida; 'UN' vira null.
+  const semForn = (item: ItemLocal): ItemInput => {
+    const { key: _k, forn: _f, ...i } = efetivo(item); void _k; void _f
+    const comFator = temFator(i.embalagem, i.qtd_por_embalagem)
+    return { ...i, embalagem: i.embalagem === 'UN' ? null : i.embalagem, qtd_por_embalagem: comFator ? i.qtd_por_embalagem : null }
+  }
   const salvar = async (enviar: boolean) => {
     if (!base.redeId || empresa == null || !fornecedor) return
     setErro(null); setSalvando(enviar ? 'enviar' : 'rascunho')
@@ -389,9 +409,27 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
   const blocosPedido: { titulo: string | null; itens: ItemLocal[] }[] = vaiSeparar
     ? [{ titulo: fornecedor?.nome ?? null, itens: itens.filter((i) => !outrosKeys.has(i.key)) }, ...deOutros.map((g) => ({ titulo: g.forn.nome, itens: g.itens }))].filter((b) => b.itens.length > 0)
     : [{ titulo: null, itens }]
-  const subtotalBloco = (l: ItemLocal[]) => l.reduce((n, i) => n + i.qtd_solicitada * i.custo_unit, 0)
+  const subtotalBloco = (l: ItemLocal[]) => l.map(efetivo).reduce((n, i) => n + i.qtd_solicitada * i.custo_unit, 0)
 
-  const itemPedido = (i: ItemLocal) => {
+  const itemPedido = (bruto: ItemLocal) => {
+    const i = efetivo(bruto)
+    const emb = embalagemDe(i.embalagem)
+    const comFator = temFator(i.embalagem, i.qtd_por_embalagem)
+    // Trocar embalagem/unidades por embalagem: recalcula a partir das unidades atuais, sempre inteiras.
+    const trocarEmbalagem = (id: string) => {
+      const e = embalagemDe(id)
+      const fator = e.comFator ? (i.qtd_por_embalagem ?? null) : null
+      mudar(i.key, { embalagem: id, qtd_por_embalagem: fator, qtd_solicitada: arredondarUnidades(i.qtd_solicitada, id, fator) })
+    }
+    const trocarFator = (v: string) => {
+      const f = Math.max(0, Math.round(Number(v.replace(',', '.')) || 0)) || null
+      mudar(i.key, { embalagem: i.embalagem, qtd_por_embalagem: f, qtd_solicitada: arredondarUnidades(i.qtd_solicitada, i.embalagem, f) })
+    }
+    const trocarQtd = (v: string) => {
+      const q = Number(v.replace(',', '.')) || 0
+      const unidades = comFator ? Math.max(0, Math.round(q)) * i.qtd_por_embalagem! : emb.fracionavel ? Math.max(0, q) : Math.max(0, Math.round(q))
+      mudar(i.key, { embalagem: i.embalagem, qtd_por_embalagem: i.qtd_por_embalagem, qtd_solicitada: unidades })
+    }
     const dup = i.produto_codigo > 0 ? duplicado(i.produto_codigo) : undefined
     return (
       <li key={i.key} className="px-3 py-2">
@@ -404,12 +442,32 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
           <button type="button" onClick={() => remover(i.key)} aria-label="Tirar do pedido" className="-mr-1 rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-red-600 dark:hover:bg-gray-800"><Trash2 className="h-3.5 w-3.5" /></button>
         </div>
         {dup && <p className="mt-0.5 inline-flex items-center gap-1 text-[10.5px] text-amber-600 dark:text-amber-400"><AlertTriangle className="h-3 w-3" /> Já pedido no nº {dup.numero} ({STATUS_LABEL[dup.status].toLowerCase()}): {qtdFmt(dup.qtd_liberada ?? dup.qtd_solicitada)}{i.unidade ? ` ${i.unidade.toLowerCase()}` : ''}.</p>}
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-gray-400">
+          <select aria-label="Embalagem" value={i.embalagem ?? 'UN'} onChange={(e) => trocarEmbalagem(e.target.value)} className={cn(inputCls, 'h-7 w-[92px] px-1.5 text-[12px]')}>
+            {EMBALAGENS.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
+          </select>
+          {emb.comFator && (
+            <span className="inline-flex items-center gap-1">
+              com
+              <input inputMode="numeric" aria-label={`Unidades por ${emb.nome.toLowerCase()}`} value={i.qtd_por_embalagem ? String(i.qtd_por_embalagem) : ''} placeholder="?" onChange={(e) => trocarFator(e.target.value)}
+                className={cn(inputCls, 'h-7 w-12 px-1.5 text-right text-[12px] tabular-nums', !i.qtd_por_embalagem && 'border-amber-400 dark:border-amber-500/60')} />
+              un
+            </span>
+          )}
+        </div>
         <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-gray-400">
-          <QtdStepper label="Quantidade" value={String(i.qtd_solicitada)} onChange={(v) => mudar(i.key, { qtd_solicitada: Number(v.replace(',', '.')) || 0 })} className="h-7 w-20 text-[12px]" />
+          <QtdStepper label={comFator ? `Quantidade de ${emb.nome.toLowerCase()}s` : 'Quantidade'} value={String(comFator ? qtdEmbalagens(i.qtd_solicitada, i.qtd_por_embalagem!) : i.qtd_solicitada)} onChange={trocarQtd} className="h-7 w-20 text-[12px]" />
+          <span>{comFator ? emb.curto : emb.fracionavel ? emb.curto : 'un'}</span>
           <span>×</span>
           <span className="relative"><span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[10px]">R$</span><input inputMode="decimal" aria-label="Custo unitário" value={String(i.custo_unit)} onChange={(e) => mudar(i.key, { custo_unit: Number(e.target.value.replace(',', '.')) || 0 })} onBlur={() => mudar(i.key, { custo_unit: Number(i.custo_unit.toFixed(2)) })} className={cn(inputCls, 'h-7 w-24 pl-7 pr-2 text-right text-[12px] tabular-nums')} /></span>
+          <span>/un</span>
           <span className="ml-auto text-[12.5px] font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrency(i.qtd_solicitada * i.custo_unit)}</span>
         </div>
+        <p className={cn('mt-1 text-[11px]', emb.comFator && !comFator ? 'text-amber-600 dark:text-amber-400' : 'text-gray-500 dark:text-gray-400')}>
+          {emb.comFator && !comFator
+            ? `Informe quantas unidades vêm na ${emb.nome.toLowerCase()} para o pedido sair em ${emb.nome.toLowerCase()}s.`
+            : <>Vai para o fornecedor: <b className="font-semibold text-gray-700 dark:text-gray-200">{textoQtd(i.qtd_solicitada, i.embalagem, i.qtd_por_embalagem, i.unidade)}</b>{comFator && <> · {formatCurrency(i.custo_unit * i.qtd_por_embalagem!)} por {emb.curto}</>}</>}
+        </p>
       </li>
     )
   }

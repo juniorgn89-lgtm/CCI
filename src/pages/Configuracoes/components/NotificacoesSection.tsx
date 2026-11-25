@@ -14,19 +14,20 @@ const TIPOS = [
   { id: 'pedido_aguardando', nome: 'Pedido aguardando liberação', quem: 'Quem libera compras' },
   { id: 'pedido_decidido', nome: 'Meu pedido foi liberado ou recusado', quem: 'Quem pediu' },
   { id: 'nota_devolvida', nome: 'Nota do pedido devolvida', quem: 'Quem pediu e quem libera' },
+  { id: 'nota_lancar', nome: 'Nota conferida aguardando lançamento', quem: 'Supervisor e quem libera compras (NotaOK)' },
   { id: 'tarefa_atribuida', nome: 'Nova tarefa para mim', quem: 'O responsável' },
   { id: 'lembrete', nome: 'Resumo da manhã', quem: 'Pendências de cada um, uma vez por dia' },
 ] as const
 type TipoId = (typeof TIPOS)[number]['id']
 const COLUNA: Record<TipoId, string> = {
-  pedido_aguardando: 'pedido_aguardando', pedido_decidido: 'pedido_decidido', nota_devolvida: 'nota_devolvida',
+  pedido_aguardando: 'pedido_aguardando', pedido_decidido: 'pedido_decidido', nota_devolvida: 'nota_devolvida', nota_lancar: 'nota_lancar',
   tarefa_atribuida: 'tarefa_atribuida', lembrete: 'lembrete',
 }
 const DIAS = [{ d: 1, n: 'Seg' }, { d: 2, n: 'Ter' }, { d: 3, n: 'Qua' }, { d: 4, n: 'Qui' }, { d: 5, n: 'Sex' }, { d: 6, n: 'Sáb' }, { d: 7, n: 'Dom' }]
 
 interface ConfigRede {
   ativo: boolean; dias: number[]; hora_inicio: string; hora_fim: string
-  pedido_aguardando: boolean; pedido_decidido: boolean; nota_devolvida: boolean; tarefa_atribuida: boolean; lembrete: boolean
+  pedido_aguardando: boolean; pedido_decidido: boolean; nota_devolvida: boolean; nota_lancar?: boolean; tarefa_atribuida: boolean; lembrete: boolean
 }
 
 const sb = () => { if (!supabase) throw new Error('Supabase não configurado.'); return supabase }
@@ -111,7 +112,7 @@ const NotificacoesSection = () => {
     const { error } = await sb().rpc('notificacao_config_salvar', {
       p_rede: rede.id, p_ativo: form.ativo, p_dias: form.dias, p_inicio: form.hora_inicio, p_fim: form.hora_fim,
       p_aguardando: form.pedido_aguardando, p_decidido: form.pedido_decidido, p_devolvida: form.nota_devolvida,
-      p_tarefa: form.tarefa_atribuida, p_lembrete: form.lembrete,
+      p_tarefa: form.tarefa_atribuida, p_lembrete: form.lembrete, p_lancar: form.nota_lancar ?? true,
     })
     if (error) throw new Error(error.message)
     await qc.invalidateQueries({ queryKey: ['notif-config', rede.id] })

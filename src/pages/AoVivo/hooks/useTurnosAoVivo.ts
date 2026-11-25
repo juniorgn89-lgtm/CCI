@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { useFilterStore } from '@/store/filters'
 import { useQuery } from '@tanstack/react-query'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { fetchCaixas } from '@/api/endpoints/financeiro'
@@ -85,9 +86,9 @@ const addDias = (iso: string, n: number) => {
 const dow = (iso: string) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d).getDay() }
 
 const useTurnosAoVivo = () => {
-  // Módulo "Ao Vivo" é SEM filtro: sempre HOJE e TODOS os postos permitidos —
-  // ignora o filtro global de período/empresa (o store pode estar num mês
-  // passado ou num posto específico por causa de outro módulo).
+  // Ao Vivo: período sempre HOJE (ignora o filtro de data), mas o POSTO segue o
+  // seletor do topo — dá para deixar um posto só na TV da loja. Topo em "Todos"
+  // = todos os postos permitidos.
   const hoje = todayLocal()
   // Janela da semana (segunda → domingo): os dias passados ficam com os dados,
   // apagados; hoje segue ao vivo; os futuros ficam vazios.
@@ -100,8 +101,13 @@ const useTurnosAoVivo = () => {
     queryFn: () => fetchEmpresas({ limite: 200 }),
     staleTime: 30 * 60 * 1000,
   })
-  // Escopo = todas as empresas permitidas (profiles.empresa_codigos).
-  const empresas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  // Escopo = empresas permitidas (profiles.empresa_codigos) ∩ posto(s) do topo.
+  const permitidas = useEmpresasPermitidas(empresasData?.resultados ?? [])
+  const filtroPostos = useFilterStore((st) => st.empresaCodigos)
+  const empresas = useMemo(
+    () => (filtroPostos.length > 0 ? permitidas.filter((e) => filtroPostos.includes(e.empresaCodigo)) : permitidas),
+    [permitidas, filtroPostos],
+  )
   const permittedCodes = useMemo(() => new Set(empresas.map((e) => e.empresaCodigo)), [empresas])
   const nomePorEmpresa = useMemo(() => {
     const m = new Map<number, string>()

@@ -33,6 +33,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.32',
+    data: '2026-11-25',
+    resumo: 'Ajustes no sistema.',
+    itens: [
+      {
+        icone: 'ajuste',
+        titulo: 'Ajustes no sistema',
+        descricao: 'Compras ganhou a aba Notas recebidas (as notas do NotaOK que ainda não foram lançadas, com aviso no sino), o pedido sai em caixas/fardos, o seletor de postos tem "Marcar todos" e o Ao Vivo respeita o posto escolhido.',
+      },
+    ],
+  },
+  {
     versao: '1.2.31',
     data: '2026-11-25',
     resumo: 'Ajustes no sistema.',

@@ -89,6 +89,10 @@ export interface ItemRow {
   custo_unit: number
   justificativa: string | null
   ordem: number
+  /** Embalagem do pedido (CX, FD…); null = unidade. Ver supabase/migrations/20261125000001_compras_embalagem.sql. */
+  embalagem?: string | null
+  /** Unidades dentro de uma embalagem. */
+  qtd_por_embalagem?: number | null
 }
 
 export interface EventoRow {
@@ -116,9 +120,12 @@ export interface ItemInput {
   produto_codigo: number
   produto_nome: string
   unidade?: string | null
+  /** Quantidade em UNIDADES (a embalagem é só como se pede). */
   qtd_solicitada: number
   custo_unit: number
   justificativa?: string | null
+  embalagem?: string | null
+  qtd_por_embalagem?: number | null
 }
 
 export interface PedidoInput {
@@ -240,11 +247,26 @@ const gravarItens = async (redeId: string, pedidoId: string, itens: ItemInput[])
   const { error: eDel } = await sb.from('compras_itens').delete().eq('pedido_id', pedidoId)
   if (eDel) throw erro(eDel)
   if (itens.length === 0) return
+  const usaEmbalagem = itens.some((i) => i.embalagem)
   const { error } = await sb.from('compras_itens').insert(itens.map((i, idx) => ({
     rede_id: redeId, pedido_id: pedidoId, produto_codigo: i.produto_codigo, produto_nome: i.produto_nome, unidade: i.unidade ?? null,
     qtd_solicitada: i.qtd_solicitada, custo_unit: i.custo_unit, justificativa: i.justificativa ?? null, ordem: idx,
+    // Só manda as colunas de embalagem quando há embalagem (o pedido continua salvando antes da migração).
+    ...(usaEmbalagem ? { embalagem: i.embalagem ?? null, qtd_por_embalagem: i.qtd_por_embalagem ?? null } : {}),
   })))
-  if (error) throw erro(error)
+  if (error) {
+    if (usaEmbalagem && /embalagem/i.test(error.message ?? '')) throw new Error('Para pedir em caixa/fardo, falta criar os campos de embalagem no banco (rodar supabase/migrations/20261125000001_compras_embalagem.sql).')
+    throw erro(error)
+  }
+}
+
+/** Última embalagem usada por produto nesta rede (sugestão no próximo pedido). Sem a migração: vazio. */
+export const fetchEmbalagensUsadas = async (redeId: string): Promise<Map<number, { embalagem: string; qtd_por_embalagem: number | null }>> => {
+  const { data, error } = await need().from('compras_itens').select('produto_codigo, embalagem, qtd_por_embalagem, pedido_id, ordem').eq('rede_id', redeId).not('embalagem', 'is', null).limit(5000)
+  const m = new Map<number, { embalagem: string; qtd_por_embalagem: number | null }>()
+  if (error) return m
+  for (const r of (data ?? []) as { produto_codigo: number; embalagem: string; qtd_por_embalagem: number | null }[]) m.set(r.produto_codigo, { embalagem: r.embalagem, qtd_por_embalagem: r.qtd_por_embalagem })
+  return m
 }
 
 export const criarPedido = async (redeId: string, input: PedidoInput, autor: Autor, enviar: boolean): Promise<PedidoRow> => {

@@ -72,6 +72,12 @@ function montar(tipo: string, qtd: number, itens: any[] | null, resumo: Record<s
         body: um ? [`Pedido nº ${um.numero}`, um.nota ? `NF ${um.nota}` : null, curto(um.fornecedor)].filter(Boolean).join(' · ') : fornecedores(),
         url: '/compras', tag: um ? `pedido-${um.id}` : 'notas-devolvidas',
       }
+    case 'nota_lancar':
+      return {
+        title: plural(qtd, 'Nota aguardando lançamento', '# notas aguardando lançamento'),
+        body: um ? [um.nota ? `NF ${um.nota}` : null, curto(um.fornecedor), brl(um.valor)].filter(Boolean).join(' · ') : fornecedores(),
+        url: '/compras?tab=notas', tag: um ? `nota-lancar-${um.id}` : 'notas-lancar',
+      }
     case 'tarefa_atribuida':
       return {
         title: plural(qtd, 'Nova tarefa para você', '# novas tarefas para você'),
@@ -85,9 +91,10 @@ function montar(tipo: string, qtd: number, itens: any[] | null, resumo: Record<s
         r.vencem_hoje ? plural(r.vencem_hoje, '1 tarefa vence hoje', '# tarefas vencem hoje') : null,
         r.a_liberar ? plural(r.a_liberar, '1 pedido a liberar', '# pedidos a liberar') : null,
         r.notas_devolvidas ? plural(r.notas_devolvidas, '1 pedido com nota devolvida', '# pedidos com nota devolvida') : null,
+        r.notas_lancar ? plural(r.notas_lancar, '1 nota parada há mais de 2 dias sem lançamento', '# notas paradas há mais de 2 dias sem lançamento') : null,
       ].filter(Boolean)
       if (!partes.length) return null
-      return { title: 'Pendências de hoje no Visor360', body: partes.join(' · '), url: (r.atrasadas || r.vencem_hoje) ? '/gestao?tab=tarefas' : '/compras', tag: 'lembrete' }
+      return { title: 'Pendências de hoje no Visor360', body: partes.join(' · '), url: (r.atrasadas || r.vencem_hoje) ? '/gestao?tab=tarefas' : (r.a_liberar || r.notas_devolvidas) ? '/compras' : r.notas_lancar ? '/compras?tab=notas' : '/compras', tag: 'lembrete' }
     }
   }
   return null
