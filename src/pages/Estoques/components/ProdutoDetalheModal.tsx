@@ -100,12 +100,14 @@ const ProdutoDetalheModal = ({ produto, janelaDias, coberturaDias, onClose, onGe
           const recentes = [...compras].reverse().slice(0, 6)
           return (
             <section className="rounded-xl border border-gray-200 p-4 dark:border-gray-700">
+              {!ultima ? (<>
               <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Compras (notas de entrada · último ano)</h4>
-              {!ultima ? (
                 <p className="text-[12.5px] text-gray-500 dark:text-gray-400">Sem nota de entrada deste produto nos últimos {ULTIMA_COMPRA_DIAS} dias.</p>
-              ) : (
+              </>) : (
                 <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
                   <div className="space-y-1.5">
+                    {/* Título dentro da coluna da esquerda: a tabela de notas sobe e alinha com ele */}
+                    <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">Compras (notas de entrada · último ano)</h4>
                     <Linha label="Última compra" destaque>
                       <span className={COR_FAIXA[faixa]}>
                         {vc && faixa !== 'normal' && <span className="mr-1 text-[11px]">{vc.varia > 0 ? '▲' : '▼'} {Math.abs(vc.varia * 100).toFixed(0)}%</span>}

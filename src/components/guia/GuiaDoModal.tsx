@@ -26,13 +26,21 @@ const GuiaDoModal = ({ guia, contentRef }: { guia: GuiaModal; contentRef: RefObj
     const el = contentRef.current
     if (!el) return
     const medir = () => setCaixa(el.getBoundingClientRect())
-    // a animação de abertura mexe na caixa: mede de novo depois dela
-    const t = window.setTimeout(medir, 250)
+    // A animação de abertura (zoom/slide) mexe na caixa e o ResizeObserver não vê
+    // transform: mede de novo no fim da animação e em alguns instantes depois
+    // (modais pesados, como o Novo pedido, demoram mais para assentar).
+    const ts = [150, 350, 700, 1200].map((ms) => window.setTimeout(medir, ms))
     medir()
     const ro = new ResizeObserver(medir)
     ro.observe(el)
+    el.addEventListener('animationend', medir)
+    el.addEventListener('transitionend', medir)
     window.addEventListener('resize', medir)
-    return () => { window.clearTimeout(t); ro.disconnect(); window.removeEventListener('resize', medir) }
+    return () => {
+      ts.forEach((t) => window.clearTimeout(t)); ro.disconnect()
+      el.removeEventListener('animationend', medir); el.removeEventListener('transitionend', medir)
+      window.removeEventListener('resize', medir)
+    }
   }, [contentRef])
 
   const cabeAoLado = caixa != null && caixa.left >= LARGURA + MARGEM
