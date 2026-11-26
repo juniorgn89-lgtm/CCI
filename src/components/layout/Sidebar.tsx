@@ -28,7 +28,7 @@ import { Bug,
   Tag,
   Sun,
   Repeat,
-  Stethoscope, ArrowLeftRight, FlaskConical, ChevronDown, FileText } from 'lucide-react'
+  Stethoscope, ArrowLeftRight, FlaskConical, ChevronDown, FileText, CalendarDays } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useModuloAbas, moduloDaRota } from '@/store/moduloAbas'
 import { useAuth } from '@/hooks/useAuth'
@@ -121,6 +121,7 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
   '/gestao': [
     { label: 'Painel', to: '/gestao', Icon: LayoutGrid },
     { label: 'Tarefas', to: '/gestao?tab=tarefas', Icon: ClipboardList },
+    { label: 'Agenda', to: '/gestao?tab=agenda', Icon: CalendarDays },
     { label: 'Rotinas', to: '/gestao?tab=rotinas', Icon: Repeat },
   ],
   '/produtividade': [

@@ -1685,11 +1685,23 @@ export interface ApuracaoVendaSetorMensalRow {
   dias: number
 }
 
+/** Último dia do mês 'YYYY-MM' em 'YYYY-MM-DD'. */
+const fimDoMes = (ym: string) => {
+  const d = new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), 0)
+  return `${ym}-${String(d.getDate()).padStart(2, '0')}`
+}
+/** Função ainda não criada no banco (migration 20261125000005 não rodada). */
+const semFuncao = (code?: string) => code === 'PGRST202' || code === '42883'
+
 /**
- * Lê o agregado MENSAL por setor (view `apuracao_vendas_setor_mensal`, ver
- * docs/supabase-apuracao-vendas-setor-mensal.sql). Base da "Evolução da rede"
- * por mês e por ano: 12 meses da rede inteira viram dezenas de linhas.
- * `mesInicial`/`mesFinal` em YYYY-MM.
+ * Lê o agregado MENSAL por setor. Base da "Evolução da rede" por mês e por ano
+ * e do escopo de segmento. `mesInicial`/`mesFinal` em YYYY-MM.
+ *
+ * Usa a função `apuracao_vendas_setor_mensal_periodo` (filtra pela data, com
+ * índice). A view `apuracao_vendas_setor_mensal` filtrava por to_char da data
+ * — varria a tabela inteira e estourava o tempo limite nas redes grandes; fica
+ * só como reserva enquanto a migration não roda. Erro de leitura SOBE (antes
+ * virava lista vazia e a tela dizia "não há meses apurados", o que era falso).
  */
 export const fetchVendasSetorMensal = async (
   params: { empresaCodigos: number[]; mesInicial: string; mesFinal: string; setor?: string },
@@ -1699,8 +1711,31 @@ export const fetchVendasSetorMensal = async (
   const redeId = currentRedeId()
   const all: ApuracaoVendaSetorMensalRow[] = []
   const pageSize = 1000
-  let from = 0
-  while (true) {
+
+  if (redeId) {
+    let usarView = false
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await supabase
+        .rpc('apuracao_vendas_setor_mensal_periodo', {
+          p_rede: redeId,
+          p_ini: `${params.mesInicial}-01`,
+          p_fim: fimDoMes(params.mesFinal),
+          p_empresas: params.empresaCodigos.length > 0 ? params.empresaCodigos : null,
+          p_setor: params.setor ?? null,
+        })
+        .range(from, from + pageSize - 1)
+      if (error) {
+        if (from === 0 && semFuncao(error.code)) { usarView = true; break }
+        throw new Error(`Não foi possível ler a apuração mensal: ${error.message}`)
+      }
+      const rows = (data ?? []) as ApuracaoVendaSetorMensalRow[]
+      all.push(...rows)
+      if (rows.length < pageSize) break
+    }
+    if (!usarView) return perfDone('fetchVendasSetorMensal', 'apuracao_vendas_setor_mensal_periodo', all, __t0)
+  }
+
+  for (let from = 0; ; from += pageSize) {
     let query = supabase
       .from('apuracao_vendas_setor_mensal')
       .select('*')
@@ -1714,14 +1749,10 @@ export const fetchVendasSetorMensal = async (
     if (redeId) query = query.eq('rede_id', redeId)
     if (params.empresaCodigos.length > 0) query = query.in('empresa_codigo', params.empresaCodigos)
     const { data, error } = await query
-    if (error) {
-      console.warn('[apuracao_vendas_setor_mensal] fetch error:', error.message)
-      break
-    }
+    if (error) throw new Error(`Não foi possível ler a apuração mensal: ${error.message}`)
     const rows = (data ?? []) as ApuracaoVendaSetorMensalRow[]
     all.push(...rows)
     if (rows.length < pageSize) break
-    from += pageSize
   }
   return perfDone('fetchVendasSetorMensal', 'apuracao_vendas_setor_mensal', all, __t0)
 }

@@ -8,6 +8,7 @@ import { useTenantStore } from '@/store/tenant'
 import InfoHint from '@/components/ui/InfoHint'
 import { estado, ligar, desligar, testar, precisaInstalar, type EstadoPush } from '@/lib/push'
 import { fetchMeuPapel } from '@/api/supabase/gestaoTarefas'
+import SeletorHora from '@/components/ui/SeletorHora'
 
 /** Tipos de aviso (mesmos ids do banco: docs/supabase-notificacoes.sql). */
 const TIPOS = [
@@ -200,8 +201,8 @@ const NotificacoesSection = () => {
             <div>
               <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Horário</p>
               <div className="flex flex-wrap items-center gap-2 text-[13px] text-gray-700 dark:text-gray-300">
-                Das <input type="time" value={form.hora_inicio} onChange={(e) => setForm({ ...form, hora_inicio: e.target.value })} className="h-9 rounded-lg border border-gray-300 bg-white px-2 dark:border-gray-700 dark:bg-gray-950" />
-                às <input type="time" value={form.hora_fim} onChange={(e) => setForm({ ...form, hora_fim: e.target.value })} className="h-9 rounded-lg border border-gray-300 bg-white px-2 dark:border-gray-700 dark:bg-gray-950" />
+                Das <SeletorHora aria-label="Das" value={(form.hora_inicio ?? '').slice(0, 5)} onChange={(v) => setForm({ ...form, hora_inicio: v })} />
+                às <SeletorHora aria-label="Até" value={(form.hora_fim ?? '').slice(0, 5)} onChange={(v) => setForm({ ...form, hora_fim: v })} />
               </div>
             </div>
             <div>

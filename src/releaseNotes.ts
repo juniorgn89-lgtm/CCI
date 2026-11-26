@@ -43,7 +43,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         icone: 'atualizacao',
         tipo: 'correcao',
         titulo: 'Ajustes no sistema',
-        descricao: 'Quem estava com o Visor360 aberto quando saiu uma versão nova não vê mais a tela de erro ao trocar de página: o sistema recarrega sozinho na versão nova.',
+        descricao: 'Quem estava com o Visor360 aberto quando saiu uma versão nova não vê mais a tela de erro ao trocar de página: o sistema recarrega sozinho na versão nova. E o gráfico Evolução da rede volta a mostrar os meses e os anos nas redes com muito histórico. Em Tarefas, nova aba Agenda no jeito do Google Agenda (dia, semana, mês, ano e programação, cores por pessoa, arrastar tarefa para outro dia ou horário) e a tarefa abre ali mesmo, numa janela mais limpa que comemora quando você conclui. Também: novo seletor de hora e barras de rolagem mais finas.',
       },
     ],
   },

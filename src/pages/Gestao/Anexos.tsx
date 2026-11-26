@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Paperclip, Loader2, Trash2, ExternalLink, Image as ImageIcon, FileText, Camera, CheckCircle2, Circle } from 'lucide-react'
 import { enviarAnexo, urlAnexo, removerAnexo, exigeAnexo, ANEXO_MAX_BYTES, type AnexoRow, type TarefaRow } from '@/api/supabase/gestaoTarefas'
-import { useGestaoBase, useAnexosTarefa, btnGhost, fmtDataHora } from './comum'
+import { useGestaoBase, useAnexosTarefa, fmtDataHora } from './comum'
 import { Erro } from './comumUi'
 import { cn } from '@/lib/utils'
 
@@ -65,10 +65,10 @@ const AnexosTarefa = ({ tarefa }: { tarefa: TarefaRow }) => {
 
   const botoes = (doc: string | null, rotulo = 'Anexar') => (
     <span className="inline-flex shrink-0 gap-1">
-      <button type="button" className={`${btnGhost} h-7 px-2 text-xs`} onClick={() => escolher(doc, 'camera')} disabled={enviando !== null} title="Tirar foto agora (no celular abre a câmera)">
+      <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-full border border-gray-200 px-3 text-[12px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.06]" onClick={() => escolher(doc, 'camera')} disabled={enviando !== null} title="Tirar foto agora (no celular abre a câmera)">
         <Camera className="h-3.5 w-3.5" /> Foto
       </button>
-      <button type="button" className={`${btnGhost} h-7 px-2 text-xs`} onClick={() => escolher(doc, 'arquivo')} disabled={enviando !== null}>
+      <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-full border border-gray-200 px-3 text-[12px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.06]" onClick={() => escolher(doc, 'arquivo')} disabled={enviando !== null}>
         {enviando === (doc ?? '') ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Paperclip className="h-3.5 w-3.5" />} {rotulo}
       </button>
     </span>
@@ -93,8 +93,8 @@ const AnexosTarefa = ({ tarefa }: { tarefa: TarefaRow }) => {
 
       {docs.length > 0 && (
         <div>
-          <p className="mb-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400">Documentos exigidos para concluir</p>
-          <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200 dark:divide-gray-800 dark:border-gray-700">
+          <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Documentos exigidos para concluir</p>
+          <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200 dark:divide-white/[0.06] dark:border-white/[0.08]">
             {docs.map((d) => {
               const doDoc = lista.filter((a) => a.documento === d)
               const ok = doDoc.length > 0
@@ -115,16 +115,16 @@ const AnexosTarefa = ({ tarefa }: { tarefa: TarefaRow }) => {
 
       <div>
         <div className="mb-1.5 flex items-center justify-between gap-2">
-          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-            {docs.length ? 'Outras fotos e documentos' : 'Fotos e documentos'}
-            {!docs.length && exigeAnexo(tarefa) && <span className="ml-1 font-normal text-amber-600 dark:text-amber-400">· obrigatório para concluir</span>}
+          <p className="text-[12px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+            {docs.length ? 'Outros anexos' : 'Anexos'}
+            {!docs.length && exigeAnexo(tarefa) && <span className="ml-1 font-normal normal-case tracking-normal text-amber-600 dark:text-amber-400">· obrigatório para concluir</span>}
           </p>
           {aberta ? botoes(null) : <span />}
         </div>
         {livres.length === 0 ? (
-          <p className="text-[11px] text-gray-400">{anexos.isLoading ? 'Carregando…' : `Nenhum anexo. Até ${Math.round(ANEXO_MAX_BYTES / 1024 / 1024)} MB por arquivo.`}</p>
+          <p className="text-[12.5px] text-gray-400">{anexos.isLoading ? 'Carregando…' : `Nenhuma foto ou documento ainda (até ${Math.round(ANEXO_MAX_BYTES / 1024 / 1024)} MB cada).`}</p>
         ) : (
-          <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200 dark:divide-gray-800 dark:border-gray-700">
+          <ul className="divide-y divide-gray-100 rounded-xl border border-gray-200 dark:divide-white/[0.06] dark:border-white/[0.08]">
             {livres.map(linha)}
           </ul>
         )}

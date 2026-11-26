@@ -530,15 +530,56 @@ html.dark .acetinado tfoot tr {
   color: #f1f5f9;
 }
 
-/* Radar de Preços (quadro): cada coluna rola por dentro, com a moldura inteira
-   à vista; barra de rolagem fina na cor da borda. */
-.radar-coluna { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
-html.dark .radar-coluna { scrollbar-color: #3e4c63 transparent; }
-
 /* Tabelas: linhas alternadas no escuro do computador (zebra), no tom do rodapé
    dos menus — mesmo padrão da tabela "Por categoria" das contas. :where() deixa
    a especificidade baixa: linhas com fundo próprio (hover, marcada, total,
    destaque) continuam vencendo. */
 @media (min-width: 768px) {
   :where(html.dark) tbody > tr:nth-child(even) { background-color: #172234; }
+}
+
+/* Barra de rolagem fina — padrão CCI (Visor360, NotaOK, FleetPass).
+   Sem setas, trilho invisível; o polegar é discreto e reforça com o mouse
+   sobre a área que rola. Nos modais fica afastada dos cantos arredondados.
+   Chromium usa os pseudo-elementos; o Firefox, scrollbar-width/color — o
+   @supports evita que o Chrome (que também entende scrollbar-color) ignore
+   os pseudo-elementos. */
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 116, 139, 0.28);
+  border: 4px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+  min-height: 40px;
+  min-width: 40px;
+}
+:hover::-webkit-scrollbar-thumb { background-color: rgba(100, 116, 139, 0.5); }
+::-webkit-scrollbar-thumb:hover { background-color: rgba(100, 116, 139, 0.75); }
+.dark ::-webkit-scrollbar-thumb,
+.dark::-webkit-scrollbar-thumb { background-color: rgba(148, 163, 184, 0.18); }
+.dark :hover::-webkit-scrollbar-thumb,
+.dark:hover::-webkit-scrollbar-thumb { background-color: rgba(148, 163, 184, 0.35); }
+.dark ::-webkit-scrollbar-thumb:hover,
+.dark::-webkit-scrollbar-thumb:hover { background-color: rgba(148, 163, 184, 0.55); }
+[role="dialog"]::-webkit-scrollbar-track,
+.rolagem-fina::-webkit-scrollbar-track { margin: 16px 0; }
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: rgba(100, 116, 139, 0.35) transparent; }
+  .dark * { scrollbar-color: rgba(148, 163, 184, 0.25) transparent; }
+}
+
+/* Comemoração ao concluir tarefa (src/pages/Gestao/Celebracao.tsx):
+   cartão entra e sai, o círculo "pula" e o ✓ se desenha. */
+@keyframes celebra-cartao { 0% { opacity: 0; transform: scale(.9); } 12% { opacity: 1; transform: scale(1); } 78% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(.96) translateY(-6px); } }
+@keyframes celebra-circulo { 0% { transform: scale(.4); } 30% { transform: scale(1.12); } 45% { transform: scale(1); } }
+@keyframes celebra-check { from { stroke-dashoffset: 48; } to { stroke-dashoffset: 0; } }
+.celebra-cartao { animation: celebra-cartao 1.4s ease-out forwards; }
+.celebra-circulo { animation: celebra-circulo .55s cubic-bezier(.2, .9, .3, 1.3) both; }
+.celebra-check { stroke-dasharray: 48; stroke-dashoffset: 48; animation: celebra-check .35s .25s ease-out forwards; }
+@media (prefers-reduced-motion: reduce) {
+  .celebra-cartao, .celebra-circulo { animation: none; }
+  .celebra-check { animation: none; stroke-dashoffset: 0; }
 }

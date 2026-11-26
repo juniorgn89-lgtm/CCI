@@ -182,15 +182,33 @@ export const fetchRotinas = async (redeId: string): Promise<RotinaRow[]> => {
 
 /** Tarefas da rede com vencimento no intervalo [de, ate] (dias yyyy-MM-dd). */
 export const fetchTarefas = async (redeId: string, de: string, ate: string): Promise<TarefaRow[]> => {
-  const { data, error } = await need()
-    .from('gestao_tarefas')
-    .select('*')
-    .eq('rede_id', redeId)
-    .gte('vence_dia', de)
-    .lte('vence_dia', ate)
-    .order('vence_em', { ascending: true })
+  // O Supabase entrega no máximo 1.000 linhas por consulta: um mês com rotinas
+  // em vários postos passa disso fácil. Lê em páginas.
+  const PAGINA = 1000
+  const todas: TarefaRow[] = []
+  for (let from = 0; from < 50_000; from += PAGINA) {
+    const { data, error } = await need()
+      .from('gestao_tarefas')
+      .select('*')
+      .eq('rede_id', redeId)
+      .gte('vence_dia', de)
+      .lte('vence_dia', ate)
+      .order('vence_em', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + PAGINA - 1)
+    if (error) throw erro(error)
+    const linhas = (data as TarefaRow[]) ?? []
+    todas.push(...linhas)
+    if (linhas.length < PAGINA) break
+  }
+  return todas
+}
+
+/** Uma tarefa pelo id (link "Abrir a tarefa" da Agenda). null = não existe ou sem acesso. */
+export const fetchTarefa = async (id: string): Promise<TarefaRow | null> => {
+  const { data, error } = await need().from('gestao_tarefas').select('*').eq('id', id).maybeSingle()
   if (error) throw erro(error)
-  return (data as TarefaRow[]) ?? []
+  return (data as TarefaRow | null) ?? null
 }
 
 export const fetchAtividadesRecentes = async (redeId: string, limite = 20): Promise<AtividadeRow[]> => {

@@ -13,6 +13,7 @@ import { Modal, ModalRodape, Erro } from './comumUi'
 import { cn } from '@/lib/utils'
 import { GUIAS } from '@/lib/guiasModais'
 import InfoHint from '@/components/ui/InfoHint'
+import SeletorHora from '@/components/ui/SeletorHora'
 
 /**
  * Gestão → Rotinas: modelos recorrentes que geram as tarefas sozinhos
@@ -318,7 +319,7 @@ const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { rotina: R
               ))}
               <span className="flex w-full flex-wrap items-center gap-2 text-xs text-gray-500 sm:ml-auto sm:w-auto">
                 <span className="whitespace-nowrap">início em</span> <input type="date" className={cn(inputCls, 'h-8 w-auto py-1')} value={inicio} onChange={(e) => setInicio(e.target.value)} />
-                <span className="whitespace-nowrap">vence às</span> <input type="time" className={cn(inputCls, 'h-8 w-auto py-1')} value={hora} onChange={(e) => setHora(e.target.value)} />
+                <span className="whitespace-nowrap">vence às</span> <SeletorHora aria-label="Vence às" className="h-8" value={hora} onChange={setHora} />
               </span>
             </div>
             {pers && (
@@ -326,7 +327,7 @@ const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { rotina: R
                 <div className="grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-1 sm:grid-cols-4 dark:bg-[#0f0f0f]">
                   {(Object.keys(MODO_PERSONALIZADO_LABEL) as ModoPersonalizado[]).map((m) => (
                     <button key={m} type="button" onClick={() => setModo(m)}
-                      className={cn('rounded-md px-2 py-1.5 text-xs font-semibold', modo === m ? 'bg-white text-[#1e3a5f] shadow-sm dark:bg-gray-800 dark:text-blue-200' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200')}>
+                      className={cn('rounded-md px-2 py-1.5 text-xs font-semibold', modo === m ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700 dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200')}>
                       {MODO_PERSONALIZADO_LABEL[m]}
                     </button>
                   ))}

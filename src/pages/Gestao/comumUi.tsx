@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
  * desktop. Rodapé de botões: use <ModalRodape> pra ficar fixo embaixo.
  */
 export const Modal = ({
-  open, onClose, titulo, descricao, children, largura = 'max-w-xl', fundo = '', guia,
+  open, onClose, titulo, descricao, children, largura = 'max-w-xl', fundo = '', guia, rolagemFina = false,
 }: {
   open: boolean
   onClose: () => void
@@ -22,9 +22,11 @@ export const Modal = ({
   fundo?: string
   /** Personagem com balão explicando o modal (ver src/lib/guiasModais.ts). */
   guia?: GuiaModal
+  /** Barra de rolagem fina e discreta (classe .rolagem-fina do index.css). */
+  rolagemFina?: boolean
 }) => (
   <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-    <DialogContent guia={guia} className={cn('top-[calc(50%-2rem)] max-h-[calc(100dvh-6rem)] overflow-y-auto md:top-[50%] md:max-h-[92vh] dark:border-gray-700', fundo, largura)}>
+    <DialogContent guia={guia} className={cn('top-[calc(50%-2rem)] max-h-[calc(100dvh-6rem)] overflow-y-auto md:top-[50%] md:max-h-[92vh] dark:border-gray-700', rolagemFina && 'rolagem-fina', fundo, largura)}>
       <DialogHeader className="text-left">
         <DialogTitle className="pr-6 text-gray-900 dark:text-gray-100">{titulo}</DialogTitle>
         {descricao && <DialogDescription>{descricao}</DialogDescription>}
@@ -36,7 +38,7 @@ export const Modal = ({
 
 /** Rodapé de ações que fica visível mesmo com o conteúdo rolando. */
 export const ModalRodape = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <div className={cn('sticky bottom-0 -mx-6 -mb-6 mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-white px-6 py-3 dark:border-gray-700 dark:bg-black', className)}>
+  <div className={cn('sticky -bottom-6 -mx-6 -mb-6 mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-white px-6 py-3 dark:border-gray-700 dark:bg-black', className)}>
     {children}
   </div>
 )

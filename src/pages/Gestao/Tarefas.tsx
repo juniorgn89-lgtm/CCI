@@ -3,10 +3,11 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useFilters } from '@/hooks/useFilters'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ClipboardList, Plus, Loader2, Check, Play, RotateCcw, XCircle, Clock, AlertTriangle, Building2, User, Pencil, CalendarClock, History, ListChecks, X, Undo2, Repeat, Trash2, Camera, SlidersHorizontal, Search, Siren, ChevronDown,
+  ClipboardList, Plus, Loader2, Check, Play, RotateCcw, XCircle, Clock, AlertTriangle, Building2, User, Pencil, CalendarClock, History, ListChecks, X, Undo2, Repeat, Trash2, Camera, SlidersHorizontal, Search, Siren, ChevronDown, Circle, CircleCheck, MoreHorizontal,
 } from 'lucide-react'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import {
-  fetchTarefas, fetchAtividadesDaTarefa, criarTarefa, editarTarefa, adiarTarefa, mudarStatusTarefa, salvarChecklist, excluirTarefa, excluirTarefas, estaAtrasada,
+  fetchTarefas, fetchTarefa, fetchAtividadesDaTarefa, criarTarefa, editarTarefa, adiarTarefa, mudarStatusTarefa, salvarChecklist, excluirTarefa, excluirTarefas, estaAtrasada,
   exigeAnexo, anexosFaltando, STATUS_LABEL, ATIVIDADE_VERBO, PRIORIDADE_LABEL, PRIORIDADE_PESO,
   type TarefaRow, type TarefaStatus, type ChecklistItem, type TarefaInput, type Prioridade,
 } from '@/api/supabase/gestaoTarefas'
@@ -15,6 +16,7 @@ import { Modal, ModalRodape, Erro, Segmentos, ConfirmaAcao } from './comumUi'
 import { Kanban } from './TarefasVisoes'
 import { Agenda } from './Agenda'
 import AnexosTarefa from './Anexos'
+import { celebrarConclusao } from './concluirEvento'
 import { SeloPrioridade } from './Prioridade'
 import { ExigirAnexoCampos } from './Rotinas'
 import useIsMobile from '@/hooks/useIsMobile'
@@ -22,6 +24,7 @@ import { cn } from '@/lib/utils'
 import InfoHint from '@/components/ui/InfoHint'
 import { GUIAS } from '@/lib/guiasModais'
 import HeaderHint from '@/components/tables/HeaderHint'
+import SeletorHora from '@/components/ui/SeletorHora'
 
 /**
  * Gestão → Tarefas: as tarefas das rotinas e as avulsas da rede. Abas por
@@ -106,6 +109,16 @@ const Tarefas = () => {
   const [excluindoDaLista, setExcluindoDaLista] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
+  // ?tarefa=<id> (vem do "Abrir a tarefa" da Agenda): abre o detalhe dela,
+  // mesmo que esteja fora do período da lista.
+  const tarefaDoLink = params.get('tarefa')
+  useEffect(() => {
+    if (!tarefaDoLink) return
+    let vivo = true
+    fetchTarefa(tarefaDoLink).then((t) => { if (vivo && t) setDetalhe(t) }).catch(() => { /* sem acesso: segue na lista */ })
+    return () => { vivo = false }
+  }, [tarefaDoLink])
+
   // Janela: últimos N dias até 7 dias à frente (as próximas sempre aparecem).
   const de = somaDias(hoje, -periodo)
   const ate = somaDias(hoje, 7)
@@ -164,7 +177,7 @@ const Tarefas = () => {
     if (tarefaId) void qc.invalidateQueries({ queryKey: ['gestao-atividades-tarefa', tarefaId] })
   }
 
-  const mudar = async (t: TarefaRow, status: TarefaStatus, obs?: string) => {
+  const mudar = async (t: TarefaRow, status: TarefaStatus, obs?: string): Promise<boolean> => {
     setErro(null)
     try {
       await mudarStatusTarefa(t, status, base.autor, obs)
@@ -175,7 +188,8 @@ const Tarefas = () => {
         if (desfazerTimer.current) window.clearTimeout(desfazerTimer.current)
         desfazerTimer.current = window.setTimeout(() => setDesfazer(null), 7000)
       }
-    } catch (e) { setErro(e instanceof Error ? e.message : String(e)) }
+      return true
+    } catch (e) { setErro(e instanceof Error ? e.message : String(e)); return false }
   }
   const excluir = async (t: TarefaRow) => {
     setErro(null)
@@ -369,7 +383,7 @@ const Tarefas = () => {
                     <th className="px-3 py-2.5 font-semibold">Posto</th>
                     <th className="px-3 py-2.5 font-semibold">Responsável</th>
                     <HeaderHint align="left" className="font-semibold" label="Vencimento" help="Data e hora do prazo; embaixo, em palavras: hoje, amanhã ou há quanto tempo está atrasada. Atrasadas vêm primeiro, depois as de hoje." />
-                    <HeaderHint align="right" className="px-4 font-semibold" label="Ação" help="Sem checklist: Concluir direto, com Desfazer por alguns segundos. Com checklist pendente: Abrir checklist, para marcar as etapas antes de concluir. Adiar, editar e cancelar ficam dentro da tarefa." />
+                    <HeaderHint align="right" className="px-4 font-semibold" label="Ação" help="Sem checklist: Marcar como feita, direto, com Desfazer por alguns segundos. Com checklist pendente: Abrir checklist, para marcar as etapas antes de concluir. Adiar, editar e cancelar ficam dentro da tarefa." />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -506,7 +520,12 @@ const AcoesTarefa = ({ t, onMudar, compacto, destaque, onAbrir, onExcluir, bloqu
       )
     }
     return (
-      <button type="button" className={concluirCls} onClick={() => onMudar(t, 'concluida')}><Check className="h-3.5 w-3.5" /> Concluir</button>
+      <button type="button" onClick={() => onMudar(t, 'concluida')}
+        className={cn(b, 'group hover:border-emerald-500 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:border-emerald-500/70 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300')}>
+        <Circle className="h-3.5 w-3.5 text-gray-400 group-hover:hidden" />
+        <CircleCheck className="hidden h-3.5 w-3.5 group-hover:block" />
+        Marcar como feita
+      </button>
     )
   }
   const concluir = (
@@ -531,11 +550,77 @@ const AcoesTarefa = ({ t, onMudar, compacto, destaque, onAbrir, onExcluir, bloqu
   )
 }
 
+/* ─── detalhe fora da aba Tarefas (Agenda) ──────────────────────────────── */
+
+/**
+ * O MESMO detalhe da aba Tarefas (checklist, anexos, iniciar/concluir, adiar,
+ * editar, cancelar, histórico), para abrir em outra tela — a Agenda — sem sair
+ * dela. Depois de cada ação relê a tarefa do banco, então o que aparece é
+ * sempre o estado gravado.
+ */
+export const TarefaDetalheSolto = ({ tarefa, onClose }: { tarefa: TarefaRow; onClose: () => void }) => {
+  const base = useGestaoBase()
+  const qc = useQueryClient()
+  const [atual, setAtual] = useState(tarefa)
+  const [editando, setEditando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  const recarregar = async (id: string) => {
+    void qc.invalidateQueries({ queryKey: ['gestao-tarefas', base.redeId] })
+    void qc.invalidateQueries({ queryKey: ['gestao-atividades', base.redeId] })
+    void qc.invalidateQueries({ queryKey: ['gestao-atividades-tarefa', id] })
+    const nova = await fetchTarefa(id).catch(() => null)
+    if (nova) setAtual(nova)
+  }
+  const tentar = async (fn: () => Promise<unknown>, id: string, releDetalhe = true): Promise<boolean> => {
+    setErro(null)
+    try {
+      await fn()
+      if (releDetalhe) await recarregar(id)
+      else {
+        void qc.invalidateQueries({ queryKey: ['gestao-tarefas', base.redeId] })
+        void qc.invalidateQueries({ queryKey: ['gestao-atividades', base.redeId] })
+      }
+      return true
+    } catch (e) { setErro(e instanceof Error ? e.message : String(e)); return false }
+  }
+
+  if (editando) {
+    return <TarefaForm tarefa={atual} onClose={() => setEditando(false)} onSalva={() => { setEditando(false); void recarregar(atual.id) }} />
+  }
+  return (
+    <>
+      <TarefaDetalhe
+        key={`${atual.id}-${atual.atualizado_em}`}
+        tarefa={atual}
+        onClose={onClose}
+        onMudar={(t, s, obs) => tentar(() => mudarStatusTarefa(t, s, base.autor, obs), t.id, s !== 'concluida')}
+        onAdiar={async (t, novo, motivo) => { await tentar(() => adiarTarefa(t, novo, base.autor, motivo), t.id) }}
+        onEditar={base.podeGerir ? () => setEditando(true) : undefined}
+        onExcluir={base.podeGerir ? async (t) => {
+          setErro(null)
+          try { await excluirTarefa(t); void qc.invalidateQueries({ queryKey: ['gestao-tarefas', base.redeId] }); onClose() } catch (e) { setErro(e instanceof Error ? e.message : String(e)) }
+        } : undefined}
+        onChecklist={async (t, lista) => { await tentar(() => salvarChecklist(t, lista, base.autor), t.id) }}
+      />
+      {erro && (
+        <div className="fixed inset-x-0 bottom-6 z-[90] flex justify-center px-4" role="alert">
+          <div className="flex max-w-lg items-center gap-3 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-[13px] text-red-700 shadow-xl dark:border-red-900/50 dark:bg-[#1e293b] dark:text-red-300">
+            <AlertTriangle className="h-4 w-4 shrink-0" /><span className="min-w-0">{erro}</span>
+            <button type="button" aria-label="Fechar" onClick={() => setErro(null)} className="shrink-0 text-gray-400 hover:text-gray-600"><X className="h-3.5 w-3.5" /></button>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
 /* ─── detalhe ─────────────────────────────────────────────────────────── */
 
 const TarefaDetalhe = ({ tarefa: t, onClose, onMudar, onAdiar, onEditar, onExcluir, excluindoInicial, onChecklist }: {
   tarefa: TarefaRow; onClose: () => void
-  onMudar: (t: TarefaRow, s: TarefaStatus, obs?: string) => void
+  /** Devolve false se não gravou (aí não comemora nem fecha). */
+  onMudar: (t: TarefaRow, s: TarefaStatus, obs?: string) => void | Promise<boolean | void>
   onAdiar: (t: TarefaRow, novoVenceEm: string, motivo?: string) => Promise<void>
   onEditar?: (t: TarefaRow) => void
   /** Só gestor/diretor. Apaga de vez: histórico e anexos vão junto. */
@@ -589,135 +674,225 @@ const TarefaDetalhe = ({ tarefa: t, onClose, onMudar, onAdiar, onEditar, onExclu
   }
 
   const historico = useQuery({ queryKey: ['gestao-atividades-tarefa', t.id], queryFn: () => fetchAtividadesDaTarefa(t.id) })
+  const [verObs, setVerObs] = useState(false)
+  const [concluindo, setConcluindo] = useState(false)
+  const concluir = async () => {
+    if (bloqueio || concluindo) return
+    setConcluindo(true)
+    const ok = await onMudar(t, 'concluida', obs)
+    setConcluindo(false)
+    if (ok === false) return
+    onClose()
+    celebrarConclusao(t.titulo)
+  }
+  const [verHistorico, setVerHistorico] = useState(false)
+  const feitos = itens.filter((c) => c.feito).length
+  const temMais = (aberta && base.podeGerir) || (onEditar && aberta) || podeAdiar || !!onExcluir
+  const painelAberto = adiando || cancelando || excluindo
+  const linha = 'flex items-start gap-3 text-[13.5px] text-gray-800 dark:text-gray-100'
+  const icone = 'mt-[2px] h-4 w-4 shrink-0 text-gray-400'
+  const sairDosPaineis = () => { setAdiando(false); setCancelando(false); setExcluindo(false) }
 
   return (
-    <Modal guia={GUIAS.tarefaDetalhe} open onClose={onClose} titulo={t.titulo} largura="max-w-lg">
-      <div className="space-y-4 text-sm">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', atrasada ? 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300' : STATUS_CLS[t.status])}>{atrasada ? 'Atrasada' : STATUS_LABEL[t.status]}</span>
-          <span className={cn('inline-flex items-center gap-1 text-xs', atrasada ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-500')} title={fmtDataHora(t.vence_em)}><Clock className="h-3.5 w-3.5" /> {atrasada ? fmtPrazo(t.vence_em, true) : `vence ${fmtPrazo(t.vence_em, aberta)}`}</span>
-          {t.data_ref && t.data_ref !== t.vence_dia && <span className="text-xs text-gray-500">· referente a {fmtData(t.data_ref)}</span>}
-          <SeloPrioridade p={t.prioridade} />
+    <Modal guia={GUIAS.tarefaDetalhe} open onClose={onClose} largura="max-w-lg" titulo={<span className="block pr-10 text-[19px] leading-snug">{t.titulo}</span>}>
+      {/* Menu ⋯ com as ações que não são o dia a dia (fica ao lado do X) */}
+      {temMais && (
+        <div className="absolute right-12 top-[18px] z-10">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button type="button" aria-label="Mais ações" className="inline-flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.08] dark:hover:text-gray-100"><MoreHorizontal className="h-5 w-5" /></button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52 rounded-xl border-gray-200 bg-white p-1.5 shadow-xl dark:border-gray-700 dark:bg-gray-800">
+              {onEditar && aberta && <DropdownMenuItem onSelect={() => onEditar(t)} className="h-9 cursor-pointer gap-2.5 rounded-lg text-[13px]"><Pencil className="h-4 w-4 text-gray-500" /> Editar</DropdownMenuItem>}
+              {podeAdiar && <DropdownMenuItem onSelect={() => { sairDosPaineis(); setAdiando(true) }} className="h-9 cursor-pointer gap-2.5 rounded-lg text-[13px]"><CalendarClock className="h-4 w-4 text-gray-500" /> Adiar</DropdownMenuItem>}
+              {aberta && base.podeGerir && <DropdownMenuItem onSelect={() => { sairDosPaineis(); setCancelando(true) }} className="h-9 cursor-pointer gap-2.5 rounded-lg text-[13px]"><XCircle className="h-4 w-4 text-gray-500" /> Cancelar tarefa</DropdownMenuItem>}
+              {onExcluir && (
+                <>
+                  <DropdownMenuSeparator className="my-1" />
+                  <DropdownMenuItem onSelect={() => { sairDosPaineis(); setExcluindo(true) }} className="h-9 cursor-pointer gap-2.5 rounded-lg text-[13px] text-red-600 focus:text-red-700 dark:text-red-400"><Trash2 className="h-4 w-4" /> Excluir de vez</DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-          <div><dt className="text-gray-500">Posto</dt><dd className="inline-flex items-center gap-1 font-medium text-gray-800 dark:text-gray-200"><Building2 className="h-3 w-3" />{base.nomePosto(t.empresa_codigo) ?? '—'}</dd></div>
-          <div><dt className="text-gray-500">Responsável</dt><dd className="inline-flex items-center gap-1 font-medium text-gray-800 dark:text-gray-200"><User className="h-3 w-3" />{base.nomeUsuario(t.responsavel_id) ?? '—'}</dd></div>
-          <div><dt className="text-gray-500">Setor</dt><dd className="font-medium text-gray-800 dark:text-gray-200">{base.nomeSetor(t.setor_id) ?? '—'}</dd></div>
-          <div><dt className="text-gray-500">Origem</dt><dd className="font-medium text-gray-800 dark:text-gray-200">{t.rotina_id ? 'Rotina' : `Avulsa · ${t.criado_por_nome ?? ''}`}</dd></div>
-        </dl>
-        {t.descricao && <p className="whitespace-pre-wrap text-gray-700 dark:text-gray-300">{t.descricao}</p>}
+      )}
+
+      <div className="space-y-5 text-sm">
+        {/* Selos: situação, prioridade e origem */}
+        <div className="-mt-2 flex flex-wrap items-center gap-1.5">
+          <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold', atrasada ? 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300' : STATUS_CLS[t.status])}>
+            <span className={cn('h-1.5 w-1.5 rounded-full', atrasada ? 'bg-red-500' : t.status === 'concluida' ? 'bg-emerald-500' : t.status === 'em_andamento' ? 'bg-blue-500' : 'bg-gray-400')} />
+            {atrasada ? 'Atrasada' : STATUS_LABEL[t.status]}
+          </span>
+          <SeloPrioridade p={t.prioridade} />
+          <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[11.5px] font-medium text-gray-600 dark:bg-white/[0.06] dark:text-gray-300">{t.rotina_id ? 'Rotina' : 'Avulsa'}</span>
+        </div>
+
+        {/* Quando, quem, onde */}
+        <ul className="space-y-2.5">
+          <li className={linha}>
+            <Clock className={cn(icone, atrasada && 'text-red-500')} />
+            <span>
+              <span className={cn(atrasada && 'font-semibold text-red-600 dark:text-red-400')}>{capitalizar(atrasada ? fmtPrazo(t.vence_em, true) : `vence ${fmtPrazo(t.vence_em, aberta)}`)}</span>
+              {t.data_ref && t.data_ref !== t.vence_dia && <span className="block text-[12px] text-gray-500 dark:text-gray-400">referente a {fmtData(t.data_ref)}</span>}
+            </span>
+          </li>
+          <li className={linha}><User className={icone} />{base.nomeUsuario(t.responsavel_id) ?? 'Sem responsável'}</li>
+          {(base.nomePosto(t.empresa_codigo) || t.setor_id) && (
+            <li className={linha}><Building2 className={icone} /><span><span className="uppercase">{base.nomePosto(t.empresa_codigo) ?? 'Rede'}</span>{t.setor_id && <span className="text-gray-500 dark:text-gray-400"> · {base.nomeSetor(t.setor_id)}</span>}</span></li>
+          )}
+          {!t.rotina_id && t.criado_por_nome && <li className="pl-7 text-[12px] text-gray-500 dark:text-gray-400">Criada por {t.criado_por_nome}</li>}
+        </ul>
+
+        {t.descricao && <p className="whitespace-pre-wrap rounded-xl bg-gray-50 px-4 py-3 text-[13.5px] leading-relaxed text-gray-700 dark:bg-white/[0.04] dark:text-gray-300">{t.descricao}</p>}
+
+        {/* Checklist com progresso */}
         {itens.length > 0 && (
-          <div>
-            <p className={labelCls}>Checklist{!aberta && <span className="ml-1 font-normal text-gray-400">(tarefa fechada, só leitura)</span>}</p>
-            <ul className="space-y-1.5">
+          <section>
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-[12px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Etapas</span>
+              <span className="text-[12px] tabular-nums text-gray-500 dark:text-gray-400">{feitos} de {itens.length}</span>
+            </div>
+            <div className="mb-2 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/[0.08]">
+              <div className="h-full rounded-full bg-emerald-500 transition-[width] duration-300" style={{ width: `${(feitos / itens.length) * 100}%` }} />
+            </div>
+            <ul className="-mx-2">
               {itens.map((c, i) => (
                 <li key={i}>
-                  <label className={cn('flex items-start gap-2 rounded-md px-2 py-1.5', aberta ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.04]' : 'cursor-default opacity-70')}>
-                    <input type="checkbox" className="mt-0.5 h-4 w-4 accent-[#1e3a5f]" checked={c.feito} disabled={!aberta} onChange={() => toggle(i)} />
-                    <span className={cn(c.feito && 'text-gray-400 line-through')}>{c.texto}</span>
-                  </label>
+                  <button type="button" disabled={!aberta} onClick={() => toggle(i)}
+                    className={cn('flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left text-[13.5px]', aberta ? 'hover:bg-gray-50 dark:hover:bg-white/[0.04]' : 'cursor-default opacity-70')}>
+                    {c.feito
+                      ? <CircleCheck className="h-[18px] w-[18px] shrink-0 text-emerald-500" />
+                      : <Circle className="h-[18px] w-[18px] shrink-0 text-gray-300 dark:text-gray-600" />}
+                    <span className={cn('text-gray-800 dark:text-gray-100', c.feito && 'text-gray-400 line-through dark:text-gray-500')}>{c.texto}</span>
+                  </button>
                 </li>
               ))}
             </ul>
-            {aberta && t.status === 'a_fazer' && <p className="mt-1 text-[11px] text-gray-400">Marcar a primeira etapa já põe a tarefa em andamento.</p>}
-          </div>
+            {aberta && t.status === 'a_fazer' && <p className="mt-1 text-[11.5px] text-gray-400">Marcar a primeira etapa já põe a tarefa em andamento.</p>}
+          </section>
         )}
+
         <AnexosTarefa tarefa={t} />
-        {aberta && (
+
+        {/* Observação: só aparece quando a pessoa quer escrever */}
+        {aberta && (verObs || obs ? (
           <div>
-            <label className={cn(labelCls, 'inline-flex items-center gap-1')} htmlFor="obs-tarefa">Observação (opcional, vai para o histórico) <InfoHint text="O que você escrever aqui é gravado junto com a próxima ação: concluir, adiar ou cancelar. Serve para explicar um atraso, um problema encontrado ou por que adiou." /></label>
-            <textarea id="obs-tarefa" rows={2} className={inputCls} value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: tanque 2 sem leitura, bomba em manutenção" />
+            <label className={cn(labelCls, 'inline-flex items-center gap-1')} htmlFor="obs-tarefa">Observação <InfoHint text="Vai para o histórico junto com a próxima ação: concluir, adiar ou cancelar. Serve para explicar um atraso, um problema encontrado ou por que adiou." /></label>
+            <textarea id="obs-tarefa" autoFocus rows={2} className={inputCls} value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Ex.: tanque 2 sem leitura, bomba em manutenção" />
           </div>
-        )}
+        ) : (
+          <button type="button" onClick={() => setVerObs(true)} className="inline-flex items-center gap-2 text-[13px] font-medium text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100">
+            <Plus className="h-4 w-4" /> Adicionar observação
+          </button>
+        ))}
+
         {bloqueio && !anexos.isLoading && (
-          <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300"><Camera className="mt-0.5 h-3.5 w-3.5 shrink-0" />{bloqueio}</p>
+          <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-3.5 py-2.5 text-[12.5px] font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"><Camera className="mt-0.5 h-4 w-4 shrink-0" />{bloqueio}</p>
         )}
         {checklistCompleto && !bloqueio && (
-          <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-300">Checklist completo. Falta só concluir.</p>
+          <p className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3.5 py-2.5 text-[12.5px] font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"><CircleCheck className="h-4 w-4 shrink-0" /> Todas as etapas feitas. Falta só concluir.</p>
         )}
+        {t.concluida_em && <p className="text-[12.5px] text-gray-500 dark:text-gray-400">Concluída em {fmtDataHora(t.concluida_em)}{t.concluida_por ? ` por ${base.nomeUsuario(t.concluida_por)}` : ''}.</p>}
+
+        {/* Histórico recolhido, em linha do tempo */}
+        <section className="border-t border-gray-100 pt-4 dark:border-white/[0.06]">
+          <button type="button" onClick={() => setVerHistorico((v) => !v)} className="flex w-full items-center gap-2 text-[12px] font-semibold uppercase tracking-wider text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100">
+            <History className="h-3.5 w-3.5" /> Histórico
+            {(historico.data ?? []).length > 0 && <span className="rounded-full bg-gray-100 px-1.5 text-[10.5px] tabular-nums dark:bg-white/[0.08]">{historico.data!.length}</span>}
+            <ChevronDown className={cn('ml-auto h-4 w-4 transition-transform', verHistorico && 'rotate-180')} />
+          </button>
+          {verHistorico && (historico.isLoading ? (
+            <p className="mt-3 text-xs text-gray-400">Carregando…</p>
+          ) : (historico.data ?? []).length === 0 ? (
+            <p className="mt-3 text-xs text-gray-400">Nada registrado ainda.</p>
+          ) : (
+            <ol className="relative ml-1.5 mt-3 max-h-48 space-y-3 overflow-y-auto border-l border-gray-200 pl-4 dark:border-white/[0.08]">
+              {(historico.data ?? []).map((a) => (
+                <li key={a.id} className="relative text-[12.5px] leading-snug text-gray-600 dark:text-gray-300">
+                  <span className="absolute -left-[21px] top-1 h-2 w-2 rounded-full bg-gray-300 ring-2 ring-white dark:bg-gray-600 dark:ring-gray-900" />
+                  <span className="font-medium text-gray-800 dark:text-gray-100">{a.autor_nome ?? 'Alguém'}</span> {ATIVIDADE_VERBO[a.tipo]}
+                  {a.detalhe && a.tipo !== 'criada' && a.tipo !== 'gerada' ? <> {a.detalhe.startsWith(t.titulo) ? a.detalhe.slice(t.titulo.length).replace(/^\s*—\s*/, '') || 'a tarefa' : a.detalhe}</> : ' a tarefa'}
+                  <span className="block text-[11px] text-gray-400">{fmtDataHora(a.criado_em)}</span>
+                </li>
+              ))}
+            </ol>
+          ))}
+        </section>
+
+        {/* Confirmações (aparecem acima dos botões) */}
         {excluindo && (
-          <div className="space-y-2 rounded-lg border border-red-300 bg-red-50 p-3 dark:border-red-900/60 dark:bg-red-950/30">
-            <p className="text-xs font-semibold text-red-800 dark:text-red-300">Excluir esta tarefa de vez?</p>
-            <p className="text-[11px] text-red-700 dark:text-red-400">Some da lista, do painel e da agenda, e leva junto o histórico e os anexos. Não dá para desfazer. Se a ideia é só tirar do caminho, prefira Cancelar: ela fica no histórico.</p>
-            <div className="flex justify-end gap-2">
-              <button type="button" className={cn(btnGhost, 'h-8 text-xs')} onClick={() => setExcluindo(false)} disabled={excluindoSalva}>Voltar</button>
-              <button type="button" className={cn(btnGhost, 'h-8 border-red-400 bg-red-600 text-xs text-white hover:bg-red-700 dark:border-red-700 dark:bg-red-700')} onClick={() => void confirmarExcluir()} disabled={excluindoSalva}>
+          <div className="rounded-xl bg-red-50 p-3.5 dark:bg-red-500/10">
+            <p className="text-[13px] font-semibold text-red-800 dark:text-red-300">Excluir esta tarefa de vez?</p>
+            <p className="mt-0.5 text-[12px] text-red-700 dark:text-red-400">Some da lista, do painel e da agenda, com o histórico e os anexos. Não dá para desfazer. Para só tirar do caminho, use Cancelar tarefa.</p>
+            <div className="mt-2.5 flex justify-end gap-2">
+              <button type="button" className={cn(btnGhost, 'h-8 rounded-full text-xs')} onClick={() => setExcluindo(false)} disabled={excluindoSalva}>Voltar</button>
+              <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-full bg-red-600 px-3.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-60" onClick={() => void confirmarExcluir()} disabled={excluindoSalva}>
                 {excluindoSalva ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Sim, excluir
               </button>
             </div>
           </div>
         )}
         {cancelando && (
-          <div className="space-y-2 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900/50 dark:bg-red-950/20">
-            <p className="text-xs font-semibold text-red-800 dark:text-red-300">Cancelar esta tarefa?</p>
-            <p className="text-[11px] text-red-700 dark:text-red-400">Ela sai das listas e não conta como feita. O histórico fica, e dá para reabrir depois. Se quiser, escreva o motivo na observação acima.</p>
-            <div className="flex justify-end gap-2">
-              <button type="button" className={cn(btnGhost, 'h-8 text-xs')} onClick={() => setCancelando(false)}>Voltar</button>
-              <button type="button" className={cn(btnGhost, 'h-8 border-red-300 text-xs text-red-700 hover:bg-red-100 dark:border-red-800 dark:text-red-300')} onClick={() => { setCancelando(false); mudarComObs(t, 'cancelada') }}><XCircle className="h-3.5 w-3.5" /> Sim, cancelar</button>
+          <div className="rounded-xl bg-red-50 p-3.5 dark:bg-red-500/10">
+            <p className="text-[13px] font-semibold text-red-800 dark:text-red-300">Cancelar esta tarefa?</p>
+            <p className="mt-0.5 text-[12px] text-red-700 dark:text-red-400">Ela sai das listas e não conta como feita. O histórico fica e dá para reabrir depois.</p>
+            <div className="mt-2.5 flex justify-end gap-2">
+              <button type="button" className={cn(btnGhost, 'h-8 rounded-full text-xs')} onClick={() => setCancelando(false)}>Voltar</button>
+              <button type="button" className="inline-flex h-8 items-center gap-1.5 rounded-full bg-red-600 px-3.5 text-xs font-semibold text-white hover:bg-red-700" onClick={() => { setCancelando(false); mudarComObs(t, 'cancelada') }}><XCircle className="h-3.5 w-3.5" /> Sim, cancelar</button>
             </div>
           </div>
         )}
         {adiando && (
-          <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/20">
-            <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">Adiar para</p>
-            <div className="flex flex-wrap items-end gap-2">
-              <div><label className={labelCls} htmlFor="adiar-data">Dia</label><input id="adiar-data" type="date" className={cn(inputCls, 'h-9 w-auto')} value={novaData} min={hojeLocal()} onChange={(e) => setNovaData(e.target.value)} /></div>
-              <div><label className={labelCls} htmlFor="adiar-hora">Hora</label><input id="adiar-hora" type="time" className={cn(inputCls, 'h-9 w-auto')} value={novaHora} onChange={(e) => setNovaHora(e.target.value)} /></div>
-              <button type="button" className={cn(btnGhost, 'h-9 px-2 text-xs')} onClick={() => setNovaData(somaDias(hojeLocal(), 1))}>Amanhã</button>
-              <button type="button" className={cn(btnGhost, 'h-9 px-2 text-xs')} onClick={() => setNovaData(somaDias(hojeLocal(), 7))}>+7 dias</button>
+          <div className="rounded-xl bg-gray-50 p-3.5 dark:bg-white/[0.04]">
+            <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">Adiar para</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <input id="adiar-data" type="date" aria-label="Dia" className={cn(inputCls, 'h-9 w-auto')} value={novaData} min={hojeLocal()} onChange={(e) => setNovaData(e.target.value)} />
+              <SeletorHora id="adiar-hora" aria-label="Hora" value={novaHora} onChange={setNovaHora} />
+              <button type="button" className="h-8 rounded-full border border-gray-200 px-3 text-xs font-semibold text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.06]" onClick={() => setNovaData(somaDias(hojeLocal(), 1))}>Amanhã</button>
+              <button type="button" className="h-8 rounded-full border border-gray-200 px-3 text-xs font-semibold text-gray-600 hover:bg-white dark:border-gray-700 dark:text-gray-300 dark:hover:bg-white/[0.06]" onClick={() => setNovaData(somaDias(hojeLocal(), 7))}>+7 dias</button>
             </div>
-            <p className="text-[11px] text-amber-700 dark:text-amber-400">O motivo, se houver, é a observação acima. Fica registrado no histórico.</p>
-            <div className="flex justify-end gap-2">
-              <button type="button" className={cn(btnGhost, 'h-8 text-xs')} onClick={() => setAdiando(false)}>Voltar</button>
-              <button type="button" className={cn(btnPrimary, 'h-8 text-xs')} disabled={adiandoSalva || !novaData} onClick={() => void confirmarAdiar()}>
-                {adiandoSalva ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarClock className="h-3.5 w-3.5" />} Confirmar adiamento
+            <p className="mt-2 text-[11.5px] text-gray-500 dark:text-gray-400">Se escrever uma observação, ela vira o motivo no histórico.</p>
+            <div className="mt-2.5 flex justify-end gap-2">
+              <button type="button" className={cn(btnGhost, 'h-8 rounded-full text-xs')} onClick={() => setAdiando(false)}>Voltar</button>
+              <button type="button" className={cn(btnPrimary, 'h-8 rounded-full text-xs')} disabled={adiandoSalva || !novaData} onClick={() => void confirmarAdiar()}>
+                {adiandoSalva ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarClock className="h-3.5 w-3.5" />} Adiar
               </button>
             </div>
           </div>
         )}
-        {t.concluida_em && <p className="text-xs text-gray-500">Concluída em {fmtDataHora(t.concluida_em)}{t.concluida_por ? ` por ${base.nomeUsuario(t.concluida_por)}` : ''}.</p>}
 
-        {/* Histórico: quem fez o quê e quando (inclui observações, adiamentos e edições). */}
-        <div>
-          <p className={cn(labelCls, 'inline-flex items-center gap-1')}><History className="h-3.5 w-3.5" /> Histórico <InfoHint text="Tudo que aconteceu com esta tarefa, do mais novo para o mais antigo: quem criou ou gerou, iniciou, mexeu no checklist, adiou, editou, concluiu, reabriu ou cancelou, com a observação de cada ação." /></p>
-          {historico.isLoading ? (
-            <p className="text-xs text-gray-400">Carregando…</p>
-          ) : (historico.data ?? []).length === 0 ? (
-            <p className="text-xs text-gray-400">Nada registrado ainda.</p>
-          ) : (
-            <ul className="max-h-40 space-y-1 overflow-y-auto text-xs">
-              {(historico.data ?? []).map((a) => (
-                <li key={a.id} className="text-gray-600 dark:text-gray-300">
-                  <span className="font-medium text-gray-800 dark:text-gray-200">{a.autor_nome ?? 'Alguém'}</span> {ATIVIDADE_VERBO[a.tipo]}
-                  {a.detalhe && a.tipo !== 'criada' && a.tipo !== 'gerada' ? <> <span className="text-gray-700 dark:text-gray-300">{a.detalhe.startsWith(t.titulo) ? a.detalhe.slice(t.titulo.length).replace(/^\s*—\s*/, '') || 'a tarefa' : a.detalhe}</span></> : ' a tarefa'}
-                  <span className="text-gray-400"> · {fmtDataHora(a.criado_em)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <ModalRodape className="justify-between">
-          <span className="flex flex-wrap gap-1.5">
-            {aberta && base.podeGerir && (
-              <button type="button" className={cn(btnGhost, 'h-8 px-2 text-xs text-red-600 dark:text-red-400')} onClick={() => { setAdiando(false); setCancelando(true) }} disabled={cancelando}><XCircle className="h-3.5 w-3.5" /> Cancelar tarefa</button>
-            )}
-            {onEditar && aberta && (
-              <button type="button" className={cn(btnGhost, 'h-8 px-2 text-xs')} onClick={() => onEditar(t)}><Pencil className="h-3.5 w-3.5" /> Editar</button>
-            )}
-            {podeAdiar && !adiando && (
-              <button type="button" className={cn(btnGhost, 'h-8 px-2 text-xs')} onClick={() => setAdiando(true)}><CalendarClock className="h-3.5 w-3.5" /> Adiar</button>
-            )}
-            {onExcluir && (
-              <button type="button" className={cn(btnGhost, 'h-8 px-2 text-xs text-red-600 dark:text-red-400')} onClick={() => { setCancelando(false); setAdiando(false); setExcluindo(true) }} disabled={excluindo} title="Só gestor ou diretor"><Trash2 className="h-3.5 w-3.5" /> Excluir</button>
-            )}
-          </span>
-          <AcoesTarefa t={t} onMudar={mudarComObs} destaque={checklistCompleto && !bloqueio} bloqueio={bloqueio} />
-        </ModalRodape>
       </div>
+
+      {/* Rodapé: só as ações do dia a dia (filho direto do modal, para encostar no fundo) */}
+        {!painelAberto && (
+          <ModalRodape className="gap-2">
+            {aberta ? (
+              <>
+                {t.status === 'a_fazer' && (
+                  <button type="button" onClick={() => mudarComObs(t, 'em_andamento')}
+                    className="inline-flex h-10 items-center gap-2 rounded-full border border-gray-300 px-5 text-[13.5px] font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-white/[0.06]">
+                    <Play className="h-4 w-4" /> Iniciar
+                  </button>
+                )}
+                <button type="button" onClick={() => void concluir()} aria-disabled={!!bloqueio || concluindo}
+                  className={cn('inline-flex h-10 items-center gap-2 rounded-full bg-emerald-600 px-5 text-[13.5px] font-semibold text-white shadow-sm hover:bg-emerald-700', (bloqueio || concluindo) && 'cursor-not-allowed opacity-40 hover:bg-emerald-600')}>
+                  {concluindo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} {concluindo ? 'Concluindo…' : 'Concluir'}
+                </button>
+              </>
+            ) : (
+              <button type="button" onClick={() => mudarComObs(t, 'a_fazer')}
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-gray-300 px-5 text-[13.5px] font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-white/[0.06]">
+                <RotateCcw className="h-4 w-4" /> Reabrir
+              </button>
+            )}
+          </ModalRodape>
+        )}
     </Modal>
   )
 }
+
+const capitalizar = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 /* ─── responsável com busca (redes com muita gente) ─────────────────────── */
 
@@ -852,7 +1027,7 @@ export const TarefaForm = ({ tarefa, inicial, onClose, onSalva }: { tarefa?: Tar
   }
 
   return (
-    <Modal guia={GUIAS.tarefaForm} open onClose={onClose} largura="max-w-2xl" titulo={<span className="inline-flex items-center gap-2">{edicao ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />} {edicao ? 'Editar tarefa' : 'Nova tarefa'}</span>}>
+    <Modal guia={GUIAS.tarefaForm} open onClose={onClose} largura="max-w-2xl" rolagemFina titulo={<span className="inline-flex items-center gap-2">{edicao ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />} {edicao ? 'Editar tarefa' : 'Nova tarefa'}</span>}>
       <div className="space-y-3">
         <div>
           <label className={labelCls} htmlFor="tf-titulo">Título</label>
@@ -883,7 +1058,7 @@ export const TarefaForm = ({ tarefa, inicial, onClose, onSalva }: { tarefa?: Tar
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div><label className={labelCls} htmlFor="tf-data">Vence em</label><input id="tf-data" type="date" className={cn(inputCls, tentou && !data && campoErro)} value={data} onChange={(e) => setData(e.target.value)} /></div>
-            <div><label className={labelCls} htmlFor="tf-hora">Horário</label><input id="tf-hora" type="time" className={inputCls} value={hora} onChange={(e) => setHora(e.target.value)} /></div>
+            <div><label className={labelCls} htmlFor="tf-hora">Horário</label><SeletorHora id="tf-hora" className="w-full" value={hora} onChange={setHora} /></div>
             <div className="col-span-2 -mt-1 flex flex-wrap gap-1">
               {([['Hoje', hojeLocal()], ['Amanhã', somaDias(hojeLocal(), 1)], ['Segunda', proximaSegunda(hojeLocal())]] as const).map(([rotulo, dia]) => (
                 <button key={rotulo} type="button" onClick={() => setData(dia)}
