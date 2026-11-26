@@ -408,7 +408,8 @@ const VisaoGeralGraficos = () => {
       {/* ── Ranking por posto ── */}
       <Card
         Icon={Trophy}
-        title={`Ranking por ${RANK_TABS.find((t) => t.id === rankMetric)!.label.toLowerCase()}`}
+        // Título fixo: com o nome da medida ele mudava de tamanho e as abas pulavam de linha.
+        title="Ranking dos postos"
         hint="Lucro bruto e faturamento somam os três setores. Margem = lucro bruto total ÷ faturamento total do posto. Litros considera só combustível."
         className="xl:col-span-4"
         right={

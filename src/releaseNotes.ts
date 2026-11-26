@@ -35,6 +35,19 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    versao: '1.2.41',
+    data: '2026-11-26',
+    resumo: 'Ajustes no sistema.',
+    itens: [
+      {
+        icone: 'ajuste',
+        tipo: 'melhoria',
+        titulo: 'Ajustes no sistema',
+        descricao: 'A moldura das telas agora fecha também embaixo: ao rolar, as tabelas passam por trás da borda em vez de encostar nela. E nas tabelas longas os títulos das colunas ficam presos no alto: só as linhas rolam, então você sempre sabe o que é cada coluna. Na Central, as abas do Ranking dos postos não pulam mais de lugar ao trocar a medida.',
+      },
+    ],
+  },
+  {
     versao: '1.2.40',
     data: '2026-11-25',
     resumo: 'Ajustes no sistema.',

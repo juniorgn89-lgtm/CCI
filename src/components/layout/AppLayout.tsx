@@ -277,8 +277,9 @@ const AppLayout = () => {
         </Sheet>
 
         {/* Painel de conteúdo — cantos arredondados sobre o fundo cinza do shell
-            (estilo Gmail). TopBar + main vivem dentro dele. */}
-        <div className="relative flex flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-[#0b1220] md:m-2 md:rounded-2xl">
+            (estilo Gmail). TopBar + main vivem dentro dele. O md:pb-3 é a faixa fixa de
+            baixo: o conteúdo rola POR TRÁS dela, como nas laterais (não encosta na borda). */}
+        <div className="relative flex flex-1 flex-col overflow-hidden bg-gray-50 dark:bg-[#0b1220] md:m-2 md:rounded-2xl md:pb-3">
           {/* TopBar consolidada — título (slot-portal por página) + cluster único de
               filtros. Fica fixa no topo (irmã do <main> que rola). O período
               (DateRangeToolbar) chega via slot-portal que cada página preenche. */}
@@ -303,7 +304,7 @@ const AppLayout = () => {
               // um pouco mais largos com 2 casas decimais empurrando o layout 1-2px).
               // Tabelas largas mantêm seu próprio overflow-x-auto interno.
               // acetinado: acabamento fosco do escuro em TODOS os módulos (index.css).
-              'acetinado flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 pt-4 md:px-6 md:pb-6 md:pt-5',
+              'acetinado flex-1 overflow-y-auto overflow-x-hidden px-4 pb-4 pt-4 md:px-6 md:pb-3 md:pt-5',
               filterDirty && 'pointer-events-none select-none opacity-50 blur-[2px] transition-all',
               // Atualizando (recorte aplicado mudou): pulsa o conteúdo. Não
               // combina com filterDirty (um é antes de aplicar, outro depois).
