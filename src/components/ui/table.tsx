@@ -59,7 +59,7 @@ const TableRow = React.forwardRef<
     ref={ref}
     className={cn(
       // Cor da borda explícita: a padrão saía quase branca no escuro (1ª linha e cabeçalho).
-      "border-b border-gray-200 transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted dark:border-gray-700/70",
+      "border-b border-gray-200 transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted dark:border-gray-700",
       className
     )}
     {...props}
