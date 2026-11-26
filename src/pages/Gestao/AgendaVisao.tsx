@@ -353,7 +353,8 @@ export const AgendaVisao = (p: AgendaVisaoProps) => {
   }, [])
   const lateralEl = (
     <aside className={cn('hidden shrink-0 flex-col overflow-hidden border-r border-gray-200 transition-[width] duration-200 dark:border-gray-800 lg:flex', lateral ? 'w-[256px]' : 'w-0 border-r-0')}>
-      <div className="flex w-[256px] flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4 pt-3 [&>*]:shrink-0">
+      {/* Criar, mini calendário, busca e o título "Pessoas" ficam parados; só a lista de pessoas rola. */}
+      <div className="flex min-h-0 w-[256px] flex-1 flex-col gap-5 overflow-hidden px-4 pb-4 pt-3 [&>*]:shrink-0">
         {p.podeCriar && (
           <button type="button" onClick={() => p.onCriar({ data: ref })}
             className="inline-flex h-12 w-fit items-center gap-3 rounded-2xl bg-white pl-4 pr-6 text-[14px] font-semibold text-gray-800 shadow-md ring-1 ring-gray-200 transition-shadow hover:shadow-lg dark:bg-gray-800 dark:text-gray-100 dark:ring-gray-700">
@@ -399,14 +400,14 @@ export const AgendaVisao = (p: AgendaVisaoProps) => {
             className="h-10 w-full rounded-lg border-0 bg-gray-100 pl-9 pr-2 text-[13px] text-gray-800 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/40 dark:bg-white/[0.06] dark:text-gray-100 dark:focus:ring-teal-500/40" />
         </label>
 
-        {/* Pessoas */}
-        <div>
+        {/* Pessoas: o título fica fixo; a lista rola por dentro. */}
+        <div className="flex min-h-0 !shrink flex-1 flex-col">
           <button type="button" onClick={() => setPessoasAbertas((v) => !v)} className="flex w-full items-center justify-between rounded-md py-1 pl-1 text-[13.5px] font-semibold text-gray-800 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-white/[0.04]">
             Pessoas
             <ChevronDown className={cn('h-4 w-4 text-gray-500 transition-transform', !pessoasAbertas && '-rotate-90')} />
           </button>
           {pessoasAbertas && (
-            <ul className="mt-1 space-y-px">
+            <ul className="-mr-2 mt-1 min-h-[96px] flex-1 space-y-px overflow-y-auto pr-2">
               {pessoasFiltradas.map((x) => {
                 const on = ligada(x.id)
                 return (
@@ -428,9 +429,6 @@ export const AgendaVisao = (p: AgendaVisaoProps) => {
           )}
         </div>
 
-        <p className="mt-auto text-[10.5px] leading-snug text-gray-400">
-          Arraste no mini calendário para escolher vários dias. Dois cliques numa pessoa mostram só ela. Atalhos: D dia · W semana · M mês · Y ano · A programação · X 4 dias · T hoje · J/K próximo/anterior.
-        </p>
       </div>
     </aside>
   )
@@ -684,7 +682,7 @@ export const AgendaVisao = (p: AgendaVisaoProps) => {
             {noPeriodo.length} {noPeriodo.length === 1 ? 'tarefa' : 'tarefas'} · {abertasN} {abertasN === 1 ? 'aberta' : 'abertas'}
             {atrasadasN > 0 && <b className="text-red-600 dark:text-red-400"> · {atrasadasN} {atrasadasN === 1 ? 'atrasada' : 'atrasadas'}</b>}
           </span>
-          <InfoHint side="bottom" text="Cada pessoa tem uma cor; ligue e desligue na lateral (☰ recolhe). No Mês e no Ano, a rodinha do mouse troca de período; no Dia e na Semana ela rola as horas. Arraste uma tarefa aberta para outro dia ou horário: o vencimento muda e fica no histórico. Clique num horário vazio para criar uma tarefa ali." />
+          <InfoHint side="bottom" text="Cada pessoa tem uma cor; ligue e desligue na lateral (☰ recolhe). No Mês e no Ano, a rodinha do mouse troca de período; no Dia e na Semana ela rola as horas. Arraste uma tarefa aberta para outro dia ou horário: o vencimento muda e fica no histórico. Clique num horário vazio para criar uma tarefa ali. Arraste no mini calendário para escolher vários dias; dois cliques numa pessoa mostram só ela. Atalhos: D dia · W semana · M mês · Y ano · A programação · X 4 dias · T hoje · J/K próximo/anterior." />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" className="inline-flex h-9 items-center gap-2 rounded-full border border-gray-300 pl-4 pr-3 text-[13.5px] font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-white/[0.06]">

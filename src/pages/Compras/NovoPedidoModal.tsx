@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { EMBALAGENS, embalagemDe, temFator, arredondarUnidades, qtdEmbalagens, textoQtd } from '@/pages/Compras/lib/embalagem'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, Search, Trash2, Loader2, Send, Save, AlertTriangle, Check, ShoppingCart, Truck, Calendar, ChevronDown, ChevronUp, Sparkles, Fuel, Wrench, Store, Boxes, Layers, SlidersHorizontal } from 'lucide-react'
+import { Plus, Search, Trash2, Loader2, Send, Save, AlertTriangle, Check, ShoppingCart, Truck, Calendar, ChevronDown, ChevronUp, Sparkles, Fuel, Wrench, Store, Boxes, Layers } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, formatCurrencyInt } from '@/lib/formatters'
 import { useFilterStore } from '@/store/filters'
@@ -9,10 +9,12 @@ import InfoHint from '@/components/ui/InfoHint'
 import RowActionButton from '@/components/tables/RowAction'
 import BalaoAcao from '@/components/ui/BalaoAcao'
 import { Modal, Erro } from '@/pages/Gestao/comumUi'
+import SeletorPostos from '@/pages/Gestao/SeletorPostos'
+import { CAMPO, ROTULO } from '@/pages/Gestao/estiloForm'
 import {
   SETOR_LABEL, STATUS_LABEL, criarPedido, editarPedido, garantirFornecedor, fetchItensAbertosDoPosto, fetchItensDoPedido,
   type ItemInput, type PedidoRow, type SetorCompra, type TetoRow, fetchEmbalagensUsadas } from '@/api/supabase/compras'
-import { useComprasBase, inputCls, selectCls, labelCls, btnPrimary, btnGhost, nomeProprio, fmtCnpj, qtdFmt } from './comum'
+import { useComprasBase, inputCls, labelCls, btnPrimary, btnGhost, nomeProprio, fmtCnpj, qtdFmt } from './comum'
 import { usePedidos, liberadoNoMes } from './hooks/usePedidos'
 import { useFornecedores, type FornecedorOpcao, type FaixaFornecedor } from './hooks/useFornecedores'
 import { useSugestoes, COBERTURA_PADRAO, LEAD_TIME_PADRAO, type Sugestao, type StatusSugestao } from './hooks/useSugestoes'
@@ -268,6 +270,17 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
     .filter((s) => filtroStatus === 'todos' || statusVisual(s) === filtroStatus),
   // eslint-disable-next-line react-hooks/exhaustive-deps -- grupoAtivo deriva de gruposSel
   [daCategoria, gruposSel, filtroStatus])
+  const porStatus = useMemo(() => {
+    const m: Record<'todos' | 'ruptura' | 'critico' | 'baixo', number> = { todos: 0, ruptura: 0, critico: 0, baixo: 0 }
+    for (const x of daCategoria) {
+      if (!grupoAtivo(x.categoria)) continue
+      const st = statusVisual(x)
+      m.todos++
+      if (st === 'ruptura' || st === 'critico' || st === 'baixo') m[st]++
+    }
+    return m
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- grupoAtivo deriva de gruposSel
+  }, [daCategoria, gruposSel])
   const grupos = useMemo(() => (['ruptura', 'critico', 'baixo'] as StatusVisual[]).map((st) => ({ st, lista: sugestoesSetor.filter((s) => statusVisual(s) === st) })).filter((g) => g.lista.length > 0), [sugestoesSetor])
   const nGruposMarcados = gruposSel == null ? gruposProduto.length : gruposProduto.filter((g) => gruposSel.has(g.nome)).length
   const gruposVisiveis = gruposProduto.filter((g) => !buscaGrupo.trim() || g.nome.toLowerCase().includes(buscaGrupo.trim().toLowerCase()))
@@ -375,7 +388,7 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
 
   const resultados = buscaProd.trim() ? sug.buscar(buscaProd, 30, sug.todos) : []
   const totalSugestoes = sug.sugestoes.length
-  const campoNum = cn(inputCls, 'h-10 pl-9 tabular-nums')
+  const campoNum = cn(CAMPO, 'pl-10 pr-12 font-semibold tabular-nums')
 
   // Funções de render (não componentes): assim o React não recria a linha a cada
   // tecla e o campo de quantidade não perde o foco.
@@ -386,8 +399,8 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
     const fi = fornDe(s.produtoCodigo)
     const u = ultimo.porProduto.get(s.produtoCodigo)
     return (
-      <tr key={s.produtoCodigo} className="text-[12.5px] text-gray-800 dark:text-gray-200">
-        <td className="py-1.5 pl-3 pr-2">
+      <tr key={s.produtoCodigo} className={cn('text-[12.5px] text-gray-800 transition-colors hover:bg-gray-50/80 dark:text-gray-200 dark:hover:bg-white/[0.03]', ja && 'bg-emerald-50/40 dark:bg-emerald-500/[0.04]')}>
+        <td className="py-2.5 pl-4 pr-2">
           <p className="font-semibold">{comStatus && <span className={cn('mr-1.5 inline-flex rounded px-1 py-px align-middle text-[9px] font-bold uppercase tracking-wider ring-1', meta.cls)}>{meta.label}</span>}{nomeProprio(s.nome)}</p>
           {fi && u ? (
             <p className="text-[10.5px] text-gray-500 dark:text-gray-400">últ. <b className="font-semibold text-gray-700 dark:text-gray-200">{fi.nome}</b> · {u.data.split('-').reverse().slice(0, 2).join('/')} · {mesmaUnidade(u.custo, s.custo) ? formatCurrency(u.custo) : <span className="text-amber-600 dark:text-amber-400">{formatCurrency(u.custo)} em outra unidade (caixa?)</span>}{u.doPosto ? '' : ' · outro posto'}</p>
@@ -400,12 +413,12 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
         <td className="px-2 py-1.5 text-right">
           <QtdStepper label={`Quantidade de ${s.nome}`} value={qtds[s.produtoCodigo] ?? String(Math.max(1, s.qtdSugerida))} onChange={(v) => setQtds((q) => ({ ...q, [s.produtoCodigo]: v }))} disabled={ja} className="h-8 w-20" />
         </td>
-        <td className="py-1.5 pl-1 pr-3 text-right">
+        <td className="py-1.5 pl-1 pr-4 text-right">
           <BalaoAcao lado="left" texto={ja ? 'Este item já está no pedido. Para mudar a quantidade, use o campo no pedido ao lado.' : 'Adicionar item ao pedido com a quantidade informada em "Comprar".'}>
             {ja ? (
                     <RowActionButton icon={Check} label="No pedido" disabled className="border-emerald-200 bg-emerald-50 text-emerald-700 opacity-100 dark:border-emerald-900 dark:bg-emerald-900/30 dark:text-emerald-300" />
                   ) : (
-                    <RowActionButton icon={ShoppingCart} label="Adicionar" onClick={() => adicionar(s)} className="border-[#1e3a5f] bg-[#1e3a5f] text-white hover:border-[#172d4a] hover:bg-[#172d4a] hover:text-white dark:border-transparent dark:bg-blue-600 dark:text-white dark:hover:border-transparent dark:hover:bg-blue-700 dark:hover:text-white" />
+                    <RowActionButton icon={ShoppingCart} label="Adicionar" onClick={() => adicionar(s)} className="border-[#1e3a5f]/40 text-[#1e3a5f] hover:border-[#1e3a5f] hover:bg-[#1e3a5f] hover:text-white dark:border-teal-500/50 dark:bg-transparent dark:text-teal-300 dark:hover:border-teal-500 dark:hover:bg-teal-600 dark:hover:text-white" />
                   )}
           </BalaoAcao>
         </td>
@@ -413,14 +426,14 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
     )
   }
   const cabecalho = () => (
-    <thead className="sticky top-0 z-[1] bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 dark:bg-gray-900 dark:text-gray-400">
+    <thead className="sticky top-0 z-[2] bg-white text-[10.5px] uppercase tracking-wider text-gray-500 shadow-[inset_0_-1px_0_#e5e7eb] dark:bg-[#1e293b] dark:text-gray-400 dark:shadow-[inset_0_-1px_0_#2f3b4f]">
       <tr>
-        <th className="py-2 pl-3 pr-2 text-left font-semibold">Produto</th>
+        <th className="py-2.5 pl-4 pr-2 text-left font-semibold">Produto</th>
         <th className="px-2 py-2 text-right font-semibold">Estoque</th>
         <th className="px-2 py-2 text-right font-semibold">Dura</th>
         <th className="px-2 py-2 text-right font-semibold">Custo</th>
         <th className="px-2 py-2 text-right font-semibold">Comprar</th>
-        <th className="py-2 pl-1 pr-3 text-right font-semibold">Ação</th>
+        <th className="py-2.5 pl-1 pr-4 text-right font-semibold">Ação</th>
       </tr>
     </thead>
   )
@@ -453,7 +466,7 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
     }
     const dup = i.produto_codigo > 0 ? duplicado(i.produto_codigo) : undefined
     return (
-      <li key={i.key} className="px-3 py-2.5">
+      <li key={i.key} className="px-4 py-3">
         <div className="flex items-start gap-2">
           <p className="min-w-0 flex-1 text-[12.5px] font-medium leading-snug text-gray-900 dark:text-gray-100">
             {nomeProprio(i.produto_nome)}
@@ -500,21 +513,22 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
         <Erro msg={erro} />
 
         {/* Topo numa linha: posto · fornecedor · prazo · cobertura */}
-        <div className="grid items-end gap-4 md:grid-cols-[minmax(0,1fr)_370px]">
-         <div className="grid items-end gap-3 md:grid-cols-[220px_minmax(0,1fr)]">
-          <label>
-            <span className={labelCls}>Posto</span>
-            <select value={empresa ?? ''} onChange={(e) => { setEmpresa(Number(e.target.value) || null); setItens([]); setQtds({}) }} className={cn(selectCls, 'h-10')} disabled={!!pedido && pedido.status !== 'rascunho'}>
-              {base.postos.map((p) => <option key={p.codigo} value={p.codigo}>{p.fantasia || p.razao}</option>)}
-            </select>
-          </label>
+        <div className="grid items-end gap-4 md:grid-cols-[minmax(0,1fr)_380px]">
+         <div className="grid items-end gap-3 md:grid-cols-[260px_minmax(0,1fr)]">
+          <div>
+            <span className={ROTULO}>Posto</span>
+            {pedido && pedido.status !== 'rascunho'
+              ? <div className={cn(CAMPO, 'flex items-center font-semibold')}>{base.postos.find((p) => p.codigo === empresa)?.fantasia ?? '—'}</div>
+              : <SeletorPostos unico postos={base.postos} valor={empresa != null ? [empresa] : []} rotuloVazio="Escolha o posto"
+                  onChange={(v) => { if (v[0] != null && v[0] !== empresa) { setEmpresa(v[0]); setItens([]); setQtds({}) } }} />}
+          </div>
           <div className="relative">
-            <span className={cn(labelCls, 'inline-flex items-center gap-1')}>Fornecedor
+            <span className={ROTULO}>Fornecedor
               {fornecedor ? <span className="font-normal normal-case text-gray-400">{fornecedor.codigo_erp ? <> · cód <b className="font-semibold text-[#1e3a5f] dark:text-blue-300">{fornecedor.codigo_erp}</b></> : ' · novo'}{fornecedor.cnpj ? ` · CNPJ ${fmtCnpj(fornecedor.cnpj)}` : ''}</span>
                 : <InfoHint text="A lista mostra quem emitiu nota de compra para a rede no último ano (primeiro quem vendeu para este posto). Qualquer outro fornecedor cadastrado no ERP aparece ao digitar o nome, razão social, código ou CNPJ. Ao adicionar o primeiro produto, o fornecedor da última compra dele já entra aqui." />}
             </span>
             {fornecedor ? (
-              <div className="flex h-10 items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 text-sm dark:border-gray-700 dark:bg-[#0f0f0f]">
+              <div className={cn(CAMPO, 'flex items-center gap-2')}>
                 <Truck className="h-4 w-4 shrink-0 text-gray-400" />
                 <span className="min-w-0 flex-1 truncate font-semibold text-gray-900 dark:text-gray-100">{fornecedor.nome}</span>
                 {!fornecedorEscolhido && <span className="shrink-0 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-[#2563eb] dark:bg-blue-950/30 dark:text-blue-300">sugerido pela última compra</span>}
@@ -522,9 +536,9 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
               </div>
             ) : (
               <>
-                <span className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input value={buscaF} onFocus={() => setListaAberta(true)} onBlur={() => setTimeout(() => setListaAberta(false), 150)} onChange={(e) => { setBuscaF(e.target.value); setListaAberta(true) }} placeholder={itens.length > 0 && ultimo.carregando ? "Buscando o fornecedor da última compra…" : "Digite para buscar qualquer fornecedor: nome, código ou CNPJ"} autoFocus={listaAberta} className={cn(inputCls, 'h-10 pl-9')} /></span>
+                <span className="relative block"><Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input value={buscaF} onFocus={() => setListaAberta(true)} onBlur={() => setTimeout(() => setListaAberta(false), 150)} onChange={(e) => { setBuscaF(e.target.value); setListaAberta(true) }} placeholder={itens.length > 0 && ultimo.carregando ? "Buscando o fornecedor da última compra…" : "Digite para buscar qualquer fornecedor: nome, código ou CNPJ"} autoFocus={listaAberta} className={cn(CAMPO, 'pl-10')} /></span>
                 {listaAberta && (
-                  <div className="absolute left-0 right-0 z-30 mt-1 max-h-64 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+                  <div className="absolute left-0 right-0 z-30 mt-1.5 max-h-72 overflow-auto rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-[#2f3b4f] dark:bg-[#1e293b]">
                     {!buscaF.trim() && (
                       <p className="flex items-start gap-1.5 border-b border-blue-100 bg-blue-50 px-3 py-2 text-[11.5px] text-[#1e3a5f] dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200">
                         <Search className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -565,28 +579,28 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
          </div>
          <div className="grid grid-cols-2 items-end gap-3">
           <label>
-            <span className={cn(labelCls, 'inline-flex items-center gap-1')}>Fornecedor entrega em <InfoHint text="Não é filtro: é um ajuste da conta da quantidade sugerida. Informe quantos dias o fornecedor leva do pedido até a mercadoria chegar. O sistema soma esses dias para o produto não acabar enquanto a entrega não chega. Ex.: vende 10/dia e o fornecedor leva 7 dias → entram mais 70 na sugestão." /></span>
-            <span className="relative block"><Truck className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><DiasInput label="Dias de entrega" value={leadTime} onChange={setLeadTime} min={0} max={90} className={campoNum} /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400">dias</span></span>
+            <span className={ROTULO}>Fornecedor entrega em <InfoHint text="Não é filtro: é um ajuste da conta da quantidade sugerida. Informe quantos dias o fornecedor leva do pedido até a mercadoria chegar. O sistema soma esses dias para o produto não acabar enquanto a entrega não chega. Ex.: vende 10/dia e o fornecedor leva 7 dias → entram mais 70 na sugestão." /></span>
+            <span className="relative block"><Truck className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><DiasInput label="Dias de entrega" value={leadTime} onChange={setLeadTime} min={0} max={90} className={campoNum} /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400">dias</span></span>
           </label>
           <label>
-            <span className={cn(labelCls, 'inline-flex items-center gap-1')}>Estoque para durar <InfoHint text="Não é filtro: é a sua meta de estoque. Quantos dias de venda você quer ter na prateleira depois que a compra chegar. A sugestão de compra = venda por dia × (estes dias + dias de entrega) − o que já tem. Ex.: vende 10/dia, quer 30 dias, entrega em 7, tem 100 → comprar 10 × 37 − 100 = 270. Também define os alertas: estoque para menos da metade desses dias = Crítico; menos que esses dias = Baixo." /></span>
-            <span className="relative block"><Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><DiasInput label="Dias de cobertura" value={cobertura} onChange={setCobertura} min={1} max={180} className={campoNum} /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400">dias</span></span>
+            <span className={ROTULO}>Estoque para durar <InfoHint text="Não é filtro: é a sua meta de estoque. Quantos dias de venda você quer ter na prateleira depois que a compra chegar. A sugestão de compra = venda por dia × (estes dias + dias de entrega) − o que já tem. Ex.: vende 10/dia, quer 30 dias, entrega em 7, tem 100 → comprar 10 × 37 − 100 = 270. Também define os alertas: estoque para menos da metade desses dias = Crítico; menos que esses dias = Baixo." /></span>
+            <span className="relative block"><Calendar className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><DiasInput label="Dias de cobertura" value={cobertura} onChange={setCobertura} min={1} max={180} className={campoNum} /><span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-gray-400">dias</span></span>
           </label>
          </div>
         </div>
 
         {/* Duas colunas: escolher produtos | pedido */}
-        <div className="grid gap-4 md:h-[min(720px,calc(92vh-13rem))] md:grid-cols-[minmax(0,1fr)_370px]">
+        <div className="grid gap-4 md:h-[min(720px,calc(92vh-13rem))] md:grid-cols-[minmax(0,1fr)_380px]">
           {/* ── Esquerda: escolher produtos ── */}
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700">
-            <header className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-gray-100 px-3 py-2.5 dark:border-gray-800">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1e3a5f] text-[11px] font-bold text-white dark:bg-blue-600">1</span>
-              <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">Encontre os produtos</p>
-              <p className="text-[11.5px] text-gray-500 dark:text-gray-400">busque no catálogo do posto ou escolha nas sugestões; <Plus className="inline h-3 w-3" /> leva para o pedido ao lado</p>
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 dark:border-white/[0.08]">
+            <header className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 border-b border-gray-100 px-4 py-3 dark:border-white/[0.06]">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#1e3a5f] text-[11.5px] font-bold text-white dark:bg-teal-600">1</span>
+              <p className="text-[14px] font-semibold text-gray-900 dark:text-gray-100">Encontre os produtos</p>
+              <p className="text-[12px] text-gray-500 dark:text-gray-400">nas sugestões ou buscando no catálogo do posto</p>
             </header>
-            <div className="space-y-2 border-b border-gray-100 p-3 dark:border-gray-800">
+            <div className="space-y-3 border-b border-gray-100 px-4 py-3 dark:border-white/[0.06]">
               <div className="flex gap-2">
-                <span className="relative block flex-1"><Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#1e3a5f] dark:text-blue-300" /><input value={buscaProd} onChange={(e) => setBuscaProd(e.target.value)} placeholder="Buscar produto do posto pelo nome ou código (ex.: 473 antar)" aria-label="Buscar produto no catálogo do posto" className={cn(inputCls, 'h-11 border-[#1e3a5f]/30 pl-10 text-[14px] focus:border-[#1e3a5f] dark:border-blue-400/30')} disabled={empresa == null || sug.carregando} /></span>
+                <span className="relative block flex-1"><Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-gray-400" /><input value={buscaProd} onChange={(e) => setBuscaProd(e.target.value)} placeholder="Buscar produto do posto pelo nome ou código (ex.: 473 antar)" aria-label="Buscar produto no catálogo do posto" className={cn(CAMPO, 'pl-10')} disabled={empresa == null || sug.carregando} /></span>
                 {buscaProd.trim() && <button type="button" onClick={() => setBuscaProd('')} className={cn(btnGhost, 'h-11')}>Limpar</button>}
                 <button type="button" onClick={() => setNovoProd(novoProd ? null : { nome: '', qtd: '1', custo: '' })} className={cn(btnGhost, 'h-11')}><Plus className="h-4 w-4" /> Produto novo</button>
               </div>
@@ -645,13 +659,14 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
                         </>
                       )}
                     </div>
-                    <span className="relative inline-flex items-center"><SlidersHorizontal className="pointer-events-none absolute left-2 h-3.5 w-3.5 text-gray-400" />
-                      <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value as typeof filtroStatus)} className={cn(selectCls, 'h-7 w-auto py-0 pl-7 text-[11.5px]')}>
-                        <option value="todos">Todos os status</option>
-                        <option value="ruptura">Só ruptura</option>
-                        <option value="critico">Só crítico</option>
-                        <option value="baixo">Só baixo</option>
-                      </select>
+                    <span className="inline-flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 dark:bg-white/[0.05]" role="group" aria-label="Situação">
+                      {([['todos', 'Todos', ''], ['ruptura', 'Ruptura', 'bg-red-500'], ['critico', 'Crítico', 'bg-red-400'], ['baixo', 'Baixo', 'bg-amber-500']] as const).map(([id, rot, cor]) => (
+                        <button key={id} type="button" onClick={() => setFiltroStatus(id)} disabled={id !== 'todos' && porStatus[id] === 0}
+                          className={cn('inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11.5px] font-semibold transition-colors disabled:opacity-40',
+                            filtroStatus === id ? 'bg-white text-gray-900 shadow-sm dark:bg-teal-600 dark:text-white' : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white')}>
+                          {cor && <span className={cn('h-1.5 w-1.5 rounded-full', cor)} />}{rot}<span className={cn('tabular-nums', filtroStatus === id ? 'text-gray-500 dark:text-white/80' : 'text-gray-400')}>{porStatus[id]}</span>
+                        </button>
+                      ))}
                     </span>
                     {fornecedor?.codigo_erp && (ultimo.carregando
                       ? <span className="inline-flex items-center gap-1 text-[11px] text-gray-400"><Loader2 className="h-3 w-3 animate-spin" /> lendo notas do fornecedor…</span>
@@ -667,7 +682,7 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
               {empresa == null ? <p className="p-4 text-[12px] text-gray-400">Escolha um posto.</p>
                 : sug.carregando ? <p className="inline-flex items-center gap-2 p-4 text-[12px] text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Lendo estoque e vendas do posto…</p>
                 : buscaProd.trim() ? (
-                  resultados.length === 0 ? <p className="p-4 text-[12px] text-gray-400">Nenhum produto com esses termos neste posto.</p> : (
+                  resultados.length === 0 ? <p className="p-5 text-[12.5px] text-gray-500">Nenhum produto com esses termos neste posto. Se ele não está no cadastro, use <b className="font-semibold">Produto novo</b>.</p> : (
                     <table className="w-full">
                       {cabecalho()}
                       <tbody className="divide-y divide-gray-100 dark:divide-gray-800">{resultados.map((s) => linhaProduto(s, true))}</tbody>
@@ -681,31 +696,36 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
                     {cabecalho()}
                     {grupos.map((g) => (
                       <tbody key={g.st} className="divide-y divide-gray-100 dark:divide-gray-800">
-                        <tr className="bg-gray-50/70 dark:bg-gray-800/30"><td colSpan={6} className="px-3 py-1.5"><span className={cn('inline-flex rounded px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider ring-1', STATUS_SUG[g.st].cls)}>{STATUS_SUG[g.st].label}</span><span className="ml-2 text-[11px] text-gray-500">{g.lista.length} {g.lista.length === 1 ? 'produto' : 'produtos'}</span></td></tr>
+                        <tr className="bg-gray-50 dark:bg-white/[0.025]"><td colSpan={6} className="px-4 py-2">
+                          <span className="flex items-center gap-2">
+                            <span className={cn('inline-flex rounded px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wider ring-1', STATUS_SUG[g.st].cls)}>{STATUS_SUG[g.st].label}</span>
+                            <span className="text-[11.5px] text-gray-500 dark:text-gray-400">{g.lista.length} {g.lista.length === 1 ? 'produto' : 'produtos'}</span>
+                            {g.lista.some((x) => !noPedido.has(x.produtoCodigo)) && <button type="button" onClick={() => g.lista.forEach((x) => { if (!noPedido.has(x.produtoCodigo)) adicionar(x) })} className="ml-auto text-[11.5px] font-semibold text-[#1e3a5f] hover:underline dark:text-teal-300">Adicionar estes {g.lista.filter((x) => !noPedido.has(x.produtoCodigo)).length}</button>}
+                          </span>
+                        </td></tr>
                         {g.lista.map((s) => linhaProduto(s))}
                       </tbody>
                     ))}
                   </table>
                 )}
             </div>
-            {empresa != null && !sug.carregando && (
-              <p className="flex shrink-0 items-start gap-2 border-t border-gray-100 px-3 py-2 text-[11.5px] text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                <Search className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span>Não achou o produto? Procure pelo nome ou código no campo de busca acima. Item que não está no cadastro: use <b className="font-semibold">Produto novo</b>.</span>
-              </p>
-            )}
           </section>
 
           {/* ── Direita: o pedido ── */}
-          <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-[#1e3a5f]/25 bg-[#1e3a5f]/[0.02] dark:border-blue-400/25 dark:bg-blue-400/[0.03]">
-            <header className="flex items-center gap-2 border-b border-gray-100 px-3 py-2.5 dark:border-gray-800">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#1e3a5f] text-[11px] font-bold text-white dark:bg-blue-600">2</span>
-              <p className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">Seu pedido <span className="font-normal text-gray-400">({itens.length} {itens.length === 1 ? 'item' : 'itens'})</span></p>
+          <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50/60 dark:border-white/[0.08] dark:bg-white/[0.02]">
+            <header className="flex items-center gap-2.5 border-b border-gray-100 px-4 py-3 dark:border-white/[0.06]">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#1e3a5f] text-[11.5px] font-bold text-white dark:bg-teal-600">2</span>
+              <p className="text-[14px] font-semibold text-gray-900 dark:text-gray-100">Seu pedido</p>
+              {itens.length > 0 && <span className="rounded-full bg-[#1e3a5f]/10 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-[#1e3a5f] dark:bg-teal-500/15 dark:text-teal-300">{itens.length} {itens.length === 1 ? 'item' : 'itens'}</span>}
               {vaiSeparar && <span className="ml-auto rounded-full bg-blue-50 px-2 py-0.5 text-[10.5px] font-semibold text-[#2563eb] dark:bg-blue-950/30 dark:text-blue-300">vira {nPedidos} pedidos</span>}
             </header>
             <div className="min-h-0 flex-1 overflow-auto max-md:max-h-[50vh]">
               {itens.length === 0 ? (
-                <p className="px-4 py-8 text-center text-[12px] text-gray-400">Nada no pedido ainda.<br />Encontre os produtos ao lado e clique no <Plus className="inline h-3 w-3" /> para trazer para cá.</p>
+                <div className="flex flex-col items-center px-6 py-12 text-center">
+                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#1e3a5f]/[0.07] text-[#1e3a5f] dark:bg-teal-500/10 dark:text-teal-300"><ShoppingCart className="h-6 w-6" /></span>
+                  <p className="mt-3 text-[14px] font-semibold text-gray-800 dark:text-gray-100">Nada no pedido ainda</p>
+                  <p className="mt-1 max-w-[240px] text-[12.5px] leading-snug text-gray-500 dark:text-gray-400">Escolha os produtos ao lado e clique em <b className="font-semibold">Adicionar</b>. Eles aparecem aqui com quantidade e custo.</p>
+                </div>
               ) : blocosPedido.map((b, idx) => (
                 <div key={b.titulo ?? idx}>
                   {b.titulo && (
@@ -713,11 +733,11 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
                       <Truck className="h-3 w-3" /><span className="min-w-0 flex-1 truncate">{b.titulo}</span><span className="tabular-nums normal-case tracking-normal">{formatCurrency(subtotalBloco(b.itens))}</span>
                     </p>
                   )}
-                  <ul className="divide-y divide-gray-100 dark:divide-gray-800">{b.itens.map((i) => itemPedido(i))}</ul>
+                  <ul className="divide-y divide-gray-100 dark:divide-white/[0.06]">{b.itens.map((i) => itemPedido(i))}</ul>
                 </div>
               ))}
             </div>
-            <div className="space-y-2.5 border-t border-gray-200 p-3 dark:border-gray-700">
+            <div className="space-y-3 border-t border-gray-200 bg-white p-4 dark:border-white/[0.08] dark:bg-[#1e293b]">
               {!pedido && deOutros.length > 0 && (
                 <label className="flex cursor-pointer items-start gap-2 text-[11.5px] text-gray-700 dark:text-gray-200">
                   <input type="checkbox" checked={separar} onChange={(e) => setSeparar(e.target.checked)} className="mt-0.5 h-3.5 w-3.5 accent-[#1e3a5f]" />
@@ -730,14 +750,14 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
                   <div className="mt-1 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800"><div className={cn('h-full rounded-full', estoura ? 'bg-amber-500' : 'bg-[#1e3a5f] dark:bg-blue-500')} style={{ width: `${Math.min(100, ((usadoMes + total) / teto) * 100)}%` }} /></div>
                 </div>
               )}
-              <textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} aria-label="Observações" placeholder="Observações: prazo, pagamento, recado para quem libera…" className={cn(inputCls, 'resize-none text-[12px]')} />
+              <textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} aria-label="Observações" placeholder="Observações: prazo, pagamento, recado para quem libera…" className={cn(CAMPO, 'h-auto resize-none py-2.5 text-[12.5px]')} />
               <div className="flex items-baseline justify-between">
-                <span className="text-[12px] text-gray-500 dark:text-gray-400">Total</span>
-                <span className="text-lg font-bold tabular-nums text-gray-900 dark:text-white">{formatCurrency(total)}</span>
+                <span className="text-[12.5px] text-gray-500 dark:text-gray-400">Total do pedido</span>
+                <span className="text-[22px] font-bold tabular-nums text-gray-900 dark:text-white">{formatCurrency(total)}</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => salvar(false)} disabled={!podeSalvar || !!salvando} className={cn(btnGhost, 'justify-center')}>{salvando === 'rascunho' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {vaiSeparar ? `${nPedidos} rascunhos` : 'Rascunho'}</button>
-                <button type="button" onClick={() => salvar(true)} disabled={!podeSalvar || !!salvando} className={cn(btnPrimary, 'justify-center')}>{salvando === 'enviar' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {vaiSeparar ? `Enviar ${nPedidos}` : 'Enviar'}</button>
+              <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
+                <button type="button" onClick={() => salvar(false)} disabled={!podeSalvar || !!salvando} className={cn(btnGhost, 'h-11 justify-center px-4')}>{salvando === 'rascunho' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {vaiSeparar ? `${nPedidos} rascunhos` : 'Rascunho'}</button>
+                <button type="button" onClick={() => salvar(true)} disabled={!podeSalvar || !!salvando} className={cn(btnPrimary, 'h-11 justify-center text-[14px] dark:bg-teal-600 dark:hover:bg-teal-500')}>{salvando === 'enviar' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {vaiSeparar ? `Enviar ${nPedidos}` : 'Enviar'}</button>
               </div>
             </div>
           </section>
