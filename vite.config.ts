@@ -75,17 +75,17 @@ export default defineConfig({
         ],
         icons: [
           {
-            src: '/brand/visor360-icon-192.png',
+            src: '/brand/visor360-app-192.png',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: '/brand/visor360-icon-512.png',
+            src: '/brand/visor360-app-512.png',
             sizes: '512x512',
             type: 'image/png',
           },
           {
-            src: '/brand/visor360-maskable-512.png',
+            src: '/brand/visor360-app-maskable-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',

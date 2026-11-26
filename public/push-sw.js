@@ -9,7 +9,7 @@ self.addEventListener('push', (event) => {
     body: d.body || '',
     tag: d.tag || undefined,
     renotify: !!d.tag,
-    icon: '/brand/visor360-icon-192.png',
+    icon: '/brand/visor360-app-192.png',
     badge: '/brand/visor360-icon-192.png',
     lang: 'pt-BR',
     data: { url: d.url || '/' },
