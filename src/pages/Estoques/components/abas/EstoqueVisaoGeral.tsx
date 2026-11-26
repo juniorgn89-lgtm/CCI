@@ -47,10 +47,10 @@ const EstoqueVisaoGeral = ({ data, setorDe, coberturaDias, janelaDias, onAbrirPr
     for (const r of data) m[setorDe(r.produtoCodigo)].push(r)
     return m
   }, [data, setorDe])
-  // Setor inicial: o de maior valor em estoque.
+  // Setor inicial: Automotivos (a ordem dos botões); se o posto não tiver, o próximo com produtos.
   const [setorSel, setSetorSel] = useState<SetorEstoque | null>(null)
-  const setor: SetorEstoque = (setorSel && porSetor[setorSel].length > 0 ? setorSel : null) ?? (SETORES.map((s) => s.id).sort((a, b) =>
-    porSetor[b].reduce((n, r) => n + Math.max(0, r.valorEstoque), 0) - porSetor[a].reduce((n, r) => n + Math.max(0, r.valorEstoque), 0))[0])
+  const setor: SetorEstoque = (setorSel && porSetor[setorSel].length > 0 ? setorSel : null)
+    ?? (['automotivos', 'conveniencia', 'combustivel'] as SetorEstoque[]).find((id) => porSetor[id].length > 0) ?? 'automotivos'
   const rows = porSetor[setor]
   const ehComb = setor === 'combustivel'
 

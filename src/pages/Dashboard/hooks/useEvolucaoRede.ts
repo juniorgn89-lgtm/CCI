@@ -22,6 +22,8 @@ export interface PontoEvolucao {
   /** Período ainda em andamento (mês/ano atual) ou com dias sem apuração. */
   parcial: boolean
   nota?: string
+  /** Dias com venda apurada no período (mês/ano); base da comparação por média diária. */
+  dias?: number
 }
 
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
@@ -114,6 +116,7 @@ const useEvolucaoRede = (gran: Granularidade) => {
         faturamento: fat, lucroBruto: lb, margem: fat > 0 ? (lb / fat) * 100 : 0,
         parcial: emAndamento || incompleto || !e,
         nota,
+        dias: e ? [...e.diasPorMes.values()].reduce((a, b) => a + b, 0) : 0,
       }
     })
   }, [rows, gran, mesAtual, anoAtual])

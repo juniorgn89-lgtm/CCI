@@ -12,7 +12,7 @@ export const GUIAS = {
   // ── Central ──────────────────────────────────────────────────────────────
   tanquesPosto: g('tanques-posto', 'Os tanques do posto', [
     'Aqui você vê cada tanque do posto: quanto tem agora, quanto cabe, quanto consome por dia e quantos dias dura.',
-    'No topo, o pedido sugerido soma os tanques de cada combustível e diz quanto pedir até o fim do mês.',
+    'No topo, o pedido de combustível: digite os litros de cada um e veja quanto cabe no tanque e quantos dias dura.',
     'Os litros partem da última medição do LMC. Se ela for antiga, a tela avisa: confira a régua antes de pedir.',
   ]),
   postoResumo: g('posto-resumo', 'O resumo do posto', [

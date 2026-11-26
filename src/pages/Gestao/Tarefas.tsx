@@ -17,7 +17,7 @@ import { Kanban } from './TarefasVisoes'
 import { Agenda } from './Agenda'
 import AnexosTarefa from './Anexos'
 import SeletorPostos from './SeletorPostos'
-import { BlocoForm, EtapasCampo } from './BlocoForm'
+import { BlocoForm, EtapasCampo, Obrigatorio } from './BlocoForm'
 import { CAMPO, CAMPO_ERRO, ROTULO, ERRO_CAMPO, TRILHO, pilula, segmento, corPrioridade } from './estiloForm'
 import { celebrarConclusao } from './concluirEvento'
 import { SeloPrioridade } from './Prioridade'
@@ -1047,7 +1047,7 @@ export const TarefaForm = ({ tarefa, inicial, onClose, onSalva }: { tarefa?: Tar
       <div className="space-y-6">
         <BlocoForm n={1} titulo="O quê">
           <div>
-            <label className={ROTULO} htmlFor="tf-titulo">Título</label>
+            <label className={ROTULO} htmlFor="tf-titulo">Título <Obrigatorio /></label>
             <input id="tf-titulo" className={cn(CAMPO, tentou && tituloInvalido && CAMPO_ERRO)} placeholder="Ex.: Conferir fechamento de caixa" value={titulo} onChange={(e) => setTitulo(e.target.value)} autoFocus />
             {tentou && tituloInvalido && <p className={ERRO_CAMPO}>Dê um título com 3 letras ou mais.</p>}
           </div>
@@ -1063,7 +1063,7 @@ export const TarefaForm = ({ tarefa, inicial, onClose, onSalva }: { tarefa?: Tar
 
         <BlocoForm n={2} titulo="Onde e quem">
           <div>
-            <span className={ROTULO}>Responsável <InfoHint text="Quem vai executar. Precisa ter login no Visor nesta rede: a tarefa aparece em Minhas pendentes dele e conta na bolinha do menu." /></span>
+            <span className={ROTULO}>Responsável <Obrigatorio /> <InfoHint text="Quem vai executar. Precisa ter login no Visor nesta rede: a tarefa aparece em Minhas pendentes dele e conta na bolinha do menu." /></span>
             <BuscaResponsavel id="tf-resp" usuarios={base.usuarios} valor={responsavel} onChange={setResponsavel} erro={tentou && respInvalido} />
             {tentou && respInvalido && <p className={ERRO_CAMPO}>Escolha quem vai fazer.</p>}
           </div>
@@ -1095,11 +1095,11 @@ export const TarefaForm = ({ tarefa, inicial, onClose, onSalva }: { tarefa?: Tar
         <BlocoForm n={3} titulo="Quando">
           <div className="grid grid-cols-2 gap-4">
             <label className="block">
-              <span className={ROTULO}>Vence em</span>
+              <span className={ROTULO}>Vence em <Obrigatorio /></span>
               <input id="tf-data" type="date" className={cn(CAMPO, tentou && !data && CAMPO_ERRO)} value={data} onChange={(e) => setData(e.target.value)} />
             </label>
             <div>
-              <span className={ROTULO}>Horário</span>
+              <span className={ROTULO}>Horário <Obrigatorio /></span>
               <SeletorHora id="tf-hora" className="h-11 w-full" value={hora} onChange={setHora} />
             </div>
           </div>

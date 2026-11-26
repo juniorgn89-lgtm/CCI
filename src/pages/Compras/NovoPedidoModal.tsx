@@ -11,6 +11,7 @@ import BalaoAcao from '@/components/ui/BalaoAcao'
 import { Modal, Erro } from '@/pages/Gestao/comumUi'
 import SeletorPostos from '@/pages/Gestao/SeletorPostos'
 import { CAMPO, ROTULO } from '@/pages/Gestao/estiloForm'
+import { Obrigatorio } from '@/pages/Gestao/BlocoForm'
 import {
   SETOR_LABEL, STATUS_LABEL, criarPedido, editarPedido, garantirFornecedor, fetchItensAbertosDoPosto, fetchItensDoPedido,
   type ItemInput, type PedidoRow, type SetorCompra, type TetoRow, fetchEmbalagensUsadas } from '@/api/supabase/compras'
@@ -334,6 +335,14 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
     setBuscaF(''); setListaAberta(false)
   }
 
+  // O que falta para salvar/enviar (aparece ao lado dos botões, em vez de só apagá-los).
+  const faltando = [
+    empresa == null && 'o posto',
+    !fornecedor && 'o fornecedor',
+    itens.length === 0 && 'ao menos um produto',
+    itens.length > 0 && itens.map(efetivo).some((i) => i.qtd_solicitada <= 0) && 'a quantidade de todos os itens',
+    itens.length > 0 && itens.map(efetivo).some((i) => embalagemDe(i.embalagem).comFator && !temFator(i.embalagem, i.qtd_por_embalagem)) && 'quantas unidades vêm em cada caixa/fardo',
+  ].filter(Boolean) as string[]
   const podeSalvar = empresa != null && !!fornecedor && itens.length > 0 && itens.map(efetivo).every((i) => i.qtd_solicitada > 0 && (!embalagemDe(i.embalagem).comFator || temFator(i.embalagem, i.qtd_por_embalagem)))
   // Itens comprados por último de OUTRO fornecedor (≠ o escolhido): viram pedidos à parte.
   const deOutros = useMemo(() => {
@@ -516,14 +525,14 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
         <div className="grid items-end gap-4 md:grid-cols-[minmax(0,1fr)_380px]">
          <div className="grid items-end gap-3 md:grid-cols-[260px_minmax(0,1fr)]">
           <div>
-            <span className={ROTULO}>Posto</span>
+            <span className={ROTULO}>Posto <Obrigatorio /></span>
             {pedido && pedido.status !== 'rascunho'
               ? <div className={cn(CAMPO, 'flex items-center font-semibold')}>{base.postos.find((p) => p.codigo === empresa)?.fantasia ?? '—'}</div>
               : <SeletorPostos unico postos={base.postos} valor={empresa != null ? [empresa] : []} rotuloVazio="Escolha o posto"
                   onChange={(v) => { if (v[0] != null && v[0] !== empresa) { setEmpresa(v[0]); setItens([]); setQtds({}) } }} />}
           </div>
           <div className="relative">
-            <span className={ROTULO}>Fornecedor
+            <span className={ROTULO}>Fornecedor <Obrigatorio />
               {fornecedor ? <span className="font-normal normal-case text-gray-400">{fornecedor.codigo_erp ? <> · cód <b className="font-semibold text-[#1e3a5f] dark:text-blue-300">{fornecedor.codigo_erp}</b></> : ' · novo'}{fornecedor.cnpj ? ` · CNPJ ${fmtCnpj(fornecedor.cnpj)}` : ''}</span>
                 : <InfoHint text="A lista mostra quem emitiu nota de compra para a rede no último ano (primeiro quem vendeu para este posto). Qualquer outro fornecedor cadastrado no ERP aparece ao digitar o nome, razão social, código ou CNPJ. Ao adicionar o primeiro produto, o fornecedor da última compra dele já entra aqui." />}
             </span>
@@ -755,6 +764,11 @@ const Formulario = ({ open, onClose, pedido, itensIniciais, empresaInicial, seto
                 <span className="text-[12.5px] text-gray-500 dark:text-gray-400">Total do pedido</span>
                 <span className="text-[22px] font-bold tabular-nums text-gray-900 dark:text-white">{formatCurrency(total)}</span>
               </div>
+              {faltando.length > 0 && (
+                <p className="rounded-lg bg-amber-50 px-3 py-2 text-[12px] font-medium leading-snug text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+                  Para enviar, falta: {faltando.length === 1 ? faltando[0] : `${faltando.slice(0, -1).join(', ')} e ${faltando[faltando.length - 1]}`}.
+                </p>
+              )}
               <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-2">
                 <button type="button" onClick={() => salvar(false)} disabled={!podeSalvar || !!salvando} className={cn(btnGhost, 'h-11 justify-center px-4')}>{salvando === 'rascunho' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {vaiSeparar ? `${nPedidos} rascunhos` : 'Rascunho'}</button>
                 <button type="button" onClick={() => salvar(true)} disabled={!podeSalvar || !!salvando} className={cn(btnPrimary, 'h-11 justify-center text-[14px] dark:bg-teal-600 dark:hover:bg-teal-500')}>{salvando === 'enviar' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} {vaiSeparar ? `Enviar ${nPedidos}` : 'Enviar'}</button>

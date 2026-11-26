@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useFiltrosColuna, type DefColuna } from '@/lib/filtroColuna'
+import { AvisoFiltros } from '@/components/tables/FiltroColuna'
 import BalaoAcao from '@/components/ui/BalaoAcao'
 import { Search, Package, ShoppingCart, X, CheckCircle2, Sparkles } from 'lucide-react'
 import AnaliseProdutosModal from '@/pages/Estoques/components/AnaliseProdutosModal'
-import SelectBusca from '@/components/filters/SelectBusca'
 import { Link } from 'react-router-dom'
 import { useFilterStore } from '@/store/filters'
 import useVisivel from '@/hooks/useVisivel'
@@ -108,7 +109,6 @@ const ProdutosEstoque = ({ data, categorias, janelaDias, coberturaDias, setorDe,
 }) => {
   const hoje = todayLocal()
   const [busca, setBusca] = useState('')
-  const [categoria, setCategoria] = useState(filtroInicial?.categoria ?? '')
   const [situacao, setSituacao] = useState<Situacao>(filtroInicial?.situacao ?? 'todos')
   const [setor, setSetor] = useState<SetorEstoque | ''>(filtroInicial?.setor ?? '')
   // Guarda só o código: o detalhe lê a linha ATUAL (não congela dado em carregamento).
@@ -128,11 +128,35 @@ const ProdutosEstoque = ({ data, categorias, janelaDias, coberturaDias, setorDe,
   const [daAnalise, setDaAnalise] = useState(false)
   const columns = buildColumns(janelaDias, { ativo: podePedir, marcados, alternar }, ultimaCompra, historicoCompras)
 
-  const filtered = useMemo(() => data
-    .filter((r) => (!setor || setorDe(r.produtoCodigo) === setor) && (!categoria || r.categoria === categoria) && casaBusca(r, busca) && casaSituacao(r, situacao, coberturaDias, hoje))
-    .sort((a, b) => b.valorEstoque - a.valorEstoque), [data, busca, categoria, situacao, setor, setorDe, coberturaDias, hoje])
+  const base = useMemo(() => data
+    .filter((r) => (!setor || setorDe(r.produtoCodigo) === setor) && casaBusca(r, busca) && casaSituacao(r, situacao, coberturaDias, hoje))
+    .sort((a, b) => b.valorEstoque - a.valorEstoque), [data, busca, situacao, setor, setorDe, coberturaDias, hoje])
   // Custo da última compra vira campo da linha para a coluna poder ordenar (sem nota = vai para o fim).
-  const linhas = useMemo(() => filtered.map((r) => ({ ...r, _ultimaCompra: ultimaCompra.get(r.produtoCodigo)?.custo ?? null })), [filtered, ultimaCompra])
+  const linhasBase = useMemo(() => base.map((r) => ({ ...r, _ultimaCompra: ultimaCompra.get(r.produtoCodigo)?.custo ?? null })), [base, ultimaCompra])
+
+  // Filtro estilo Excel em todas as colunas: o valor como aparece na tela; a ordem, pelo número.
+  type Linha = (typeof linhasBase)[number]
+  const num = (v: number) => String(Math.round(v * 1000) + 1e12).padStart(16, '0')
+  const COLS = useMemo<Record<string, DefColuna<Linha>>>(() => ({
+    produtoNome: (r) => r.produtoNome,
+    categoria: (r) => r.categoria,
+    saldoAtual: { valor: (r) => fmtUnidades(r.saldoAtual), ordem: (r) => num(r.saldoAtual) },
+    estoqueMinimo: { valor: (r) => (r.estoqueMinimo > 0 ? fmtUnidades(r.estoqueMinimo) : 'sem mínimo'), ordem: (r) => num(r.estoqueMinimo) },
+    _ultimaCompra: { valor: (r) => (r._ultimaCompra != null ? formatCurrency(r._ultimaCompra) : 'sem nota'), ordem: (r) => num(r._ultimaCompra ?? -1) },
+    valorEstoque: { valor: (r) => formatCurrencyInt(r.valorEstoque), ordem: (r) => num(r.valorEstoque) },
+    vendasJanela: { valor: (r) => (r.vendasJanela > 0 ? fmtUnidades(r.vendasJanela) : 'sem venda'), ordem: (r) => num(r.vendasJanela) },
+    mediaDiariaVendas: { valor: (r) => (r.mediaDiariaVendas > 0 ? fmtUnidades(r.mediaDiariaVendas) : 'sem venda'), ordem: (r) => num(r.mediaDiariaVendas) },
+    giroJanela: { valor: (r) => (r.giroJanela >= 2 ? 'Roda bem (2x ou mais)' : r.giroJanela >= 0.5 ? 'Normal (0,5x a 2x)' : r.giroJanela > 0 ? 'Quase parado (abaixo de 0,5x)' : 'Sem giro'), ordem: (r) => num(-r.giroJanela) },
+    ultimaVenda: { valor: (r) => fmtDataBR(r.ultimaVenda), ordem: (r) => String(r.ultimaVenda ?? '') },
+  }), [])
+  const fc = useFiltrosColuna(linhasBase, COLS)
+  const linhas = fc.filtradas
+  const filtered = linhas
+  // Vindo de um bloco da Visão Geral com categoria: abre com o funil da Categoria já marcado.
+  useEffect(() => {
+    if (filtroInicial?.categoria) fc.de('categoria').aplicar(new Set([filtroInicial.categoria]))
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- só ao abrir
+  }, [])
 
   const totais = useMemo(() => ({
     valor: filtered.reduce((s, r) => s + r.valorEstoque, 0),
@@ -141,8 +165,8 @@ const ProdutosEstoque = ({ data, categorias, janelaDias, coberturaDias, setorDe,
     semMov: filtered.filter((r) => r.vendasJanela === 0).length,
   }), [filtered])
 
-  const filtrando = busca.trim() !== '' || categoria !== '' || situacao !== 'todos' || setor !== ''
-  const selectCls = 'rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none dark:border-gray-600 dark:bg-[#0f0f0f] dark:text-gray-300'
+  const filtrando = busca.trim() !== '' || situacao !== 'todos' || setor !== '' || fc.qtdAtivos > 0
+  const limparTudo = () => { setBusca(''); setSituacao('todos'); setSetor(''); fc.limpar() }
 
   return (
     <div className="space-y-4">
@@ -163,27 +187,29 @@ const ProdutosEstoque = ({ data, categorias, janelaDias, coberturaDias, setorDe,
       />
 
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-        <div className="flex flex-wrap items-center gap-3 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
-          <div className="relative min-w-[200px] flex-1">
+        <div className="flex flex-wrap items-center gap-2.5 border-b border-gray-200 px-5 py-3 dark:border-gray-700">
+          <div className="relative min-w-[220px] max-w-md flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input type="text" placeholder="Buscar produto, Ref. ou cód. barras..." value={busca} onChange={(e) => setBusca(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-[#0f0f0f] dark:text-gray-100 dark:placeholder:text-gray-500" />
+            <input type="text" placeholder="Buscar produto, Ref. ou cód. barras…" value={busca} onChange={(e) => setBusca(e.target.value)}
+              className="h-9 w-full rounded-lg border border-gray-200 bg-gray-50 pl-9 pr-3 text-[13px] text-gray-900 placeholder:text-gray-400 focus:border-[#1e3a5f] focus:outline-none dark:border-gray-600 dark:bg-[#0f172a] dark:text-gray-100 dark:placeholder:text-gray-500" />
           </div>
-          <select value={setor} onChange={(e) => setSetor(e.target.value as SetorEstoque | '')} className={selectCls}>
-            <option value="">Todos os setores</option>
-            {(Object.keys(SETOR_ESTOQUE_LABEL) as SetorEstoque[]).map((k) => <option key={k} value={k}>{SETOR_ESTOQUE_LABEL[k]}</option>)}
+          {/* Setor em pílulas (antes: caixa de seleção) */}
+          <span className="inline-flex items-center gap-0.5 rounded-lg bg-gray-100 p-0.5 dark:bg-white/[0.05]" role="group" aria-label="Setor">
+            {([['', 'Todos'], ...(Object.keys(SETOR_ESTOQUE_LABEL) as SetorEstoque[]).map((k) => [k, SETOR_ESTOQUE_LABEL[k]])] as [SetorEstoque | '', string][]).map(([k, rot]) => (
+              <button key={k || 'todos'} type="button" onClick={() => setSetor(k)}
+                className={cn('h-8 rounded-md px-2.5 text-[12px] font-semibold transition-colors', setor === k ? 'bg-white text-gray-900 shadow-sm dark:bg-teal-600 dark:text-white' : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white')}>{rot}</button>
+            ))}
+          </span>
+          <select value={situacao} onChange={(e) => setSituacao(e.target.value as Situacao)} aria-label="Situação"
+            className={cn('h-9 rounded-lg border px-2.5 text-[12.5px] focus:outline-none', situacao !== 'todos' ? 'border-[#1e3a5f] bg-[#1e3a5f]/[0.06] font-semibold text-[#1e3a5f] dark:border-teal-500 dark:bg-teal-500/10 dark:text-teal-200' : 'border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-600 dark:bg-[#0f172a] dark:text-gray-300')}>
+            {SITUACOES.map((x) => <option key={x.v} value={x.v}>{x.l}</option>)}
           </select>
-          <select value={situacao} onChange={(e) => setSituacao(e.target.value as Situacao)} className={selectCls}>
-            {SITUACOES.map((s) => <option key={s.v} value={s.v}>{s.l}</option>)}
-          </select>
-          <SelectBusca valor={categoria} onChange={setCategoria} opcoes={categorias} rotuloTodos="Todas as categorias" placeholder="Buscar categoria…" ariaLabel="Categoria" className="w-56" />
+          <AvisoFiltros qtd={fc.qtdAtivos} onLimpar={fc.limpar} />
+          {filtrando && <button type="button" onClick={limparTudo} className="text-[12px] font-semibold text-[#2563eb] hover:underline dark:text-blue-300">Limpar tudo</button>}
           <button type="button" onClick={() => setAnalise(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 text-[13px] font-semibold text-teal-800 hover:bg-teal-100 dark:border-[#0d9488]/40 dark:bg-[#0d9488]/[0.10] dark:text-[#5eead4] dark:hover:bg-[#0d9488]/[0.18]">
+            className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-3 text-[12.5px] font-semibold text-teal-800 hover:bg-teal-100 dark:border-[#0d9488]/40 dark:bg-[#0d9488]/[0.10] dark:text-[#5eead4] dark:hover:bg-[#0d9488]/[0.18]">
             <Sparkles className="h-4 w-4" /> Analisar produtos
           </button>
-          {filtrando && (
-            <button type="button" onClick={() => { setBusca(''); setCategoria(''); setSituacao('todos'); setSetor('') }} className="text-xs font-semibold text-[#2563eb] hover:underline dark:text-blue-300">Limpar</button>
-          )}
         </div>
 
         {podePedir && (marcados.size > 0 || pedidoOk) && (
@@ -212,6 +238,7 @@ const ProdutosEstoque = ({ data, categorias, janelaDias, coberturaDias, setorDe,
           columns={columns}
           data={linhas}
           keyExtractor={(r) => r.produtoCodigo}
+          filtroDe={(k) => (k in COLS ? fc.de(k) : null)}
           enableRowHighlight
           onRowClick={(r) => setAbertoCodigo(r.produtoCodigo)}
           groups={[

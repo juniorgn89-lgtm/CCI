@@ -34,6 +34,10 @@ const painelCls = 'rounded-xl border border-gray-200 bg-white shadow-sm dark:bor
 const brData = (iso: string) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '—')
 const hora = (iso: string) => (iso && iso.length >= 16 ? iso.slice(11, 16) : '—')
 const litrosFmt = (v: number) => `${v.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} L`
+/** "GASOLINA COMUM" → "Gasolina comum"; "DAVID ROCHA" → "David Rocha". */
+const nomeProprioAf = (n: string) => n.toLowerCase().replace(/(^|\s)(\S)/g, (_m: string, e: string, l: string) => e + l.toUpperCase()).replace(/\b(De|Da|Do|Dos|Das|E)\b/g, (x) => x.toLowerCase())
+const mesCurtoAf = (iso: string) => { const [y, m, d] = iso.slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '') }
+const diaSemana = (iso: string) => { const [y, m, d] = iso.slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('pt-BR', { weekday: 'long' }) }
 const nomeCurto = (n: string) => { const p = n.trim().split(/\s+/); return p.length > 2 ? `${p[0]} ${p[p.length - 1]}` : n }
 const bicoLabel = (a: { bicoNumero?: string; bicoCodigo: number }) => `Bico ${a.bicoNumero || a.bicoCodigo}`
 
@@ -199,48 +203,70 @@ const AfericoesTab = ({ postos }: { postos: PostoOption[] }) => {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
-              <thead className="text-[10px] uppercase tracking-wider text-gray-400">
-                <tr className="border-b border-gray-100 dark:border-gray-800">
-                  <th className="px-4 py-2 text-left font-semibold">Dia · posto</th>
-                  <th className="px-3 py-2 text-right font-semibold">Combustíveis</th>
-                  <th className="px-3 py-2 text-right font-semibold">Aferições</th>
-                  <th className="px-3 py-2 text-right font-semibold">Bicos</th>
-                  <th className="px-3 py-2 text-right font-semibold">Litros</th>
-                  <th className="px-3 py-2 text-left font-semibold">Quem aferiu</th>
-                  <th className="px-4 py-2 text-right font-semibold">Ação</th>
+              <thead className="text-[10.5px] uppercase tracking-wider text-gray-400">
+                <tr className="border-b border-gray-100 dark:border-white/[0.06]">
+                  <th className="py-2.5 pl-4 pr-3 text-left font-semibold">Posto</th>
+                  <th className="px-3 py-2.5 text-left font-semibold">Quem aferiu</th>
+                  <th className="px-3 py-2.5 text-left font-semibold">Combustíveis</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Bicos</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">Litros</th>
+                  <th className="px-3 py-2.5 text-left font-semibold"><span className="inline-flex items-center gap-1">Fora do padrão <InfoHint text="Aferições com volume que não fecha em múltiplo de 10 L (o balde aferidor é de 10 ou 20 L). Pode ser erro de registro ou teste incompleto: vale conferir." /></span></th>
+                  <th className="py-2.5 pl-3 pr-4 text-right font-semibold">Ação</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {porDia.map((g) => (
+              <tbody>
+                {porDia.map((g, gi) => (
                   <Fragment key={g.dia}>
-                    <tr className="bg-gray-50/80 text-gray-900 dark:bg-gray-800/40 dark:text-gray-100">
-                      <td className="whitespace-nowrap px-4 py-2 font-bold tabular-nums">
-                        <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5 text-gray-400" />{brData(g.dia)}</span>
-                        <span className="ml-2 text-[11px] font-normal text-gray-500 dark:text-gray-400">{g.rs.length} {g.rs.length === 1 ? 'posto' : 'postos'}</span>
+                    {/* Espaço entre um dia e outro: cada dia vira um bloco. */}
+                    {gi > 0 && <tr aria-hidden className="!bg-transparent"><td colSpan={7} className="h-4 p-0" /></tr>}
+                    {/* Faixa do dia: folhinha do calendário + resumo, com fundo e borda de destaque */}
+                    <tr className="!bg-[#1e3a5f]/[0.05] dark:!bg-white/[0.06]">
+                      <td colSpan={7} className="border-l-[3px] border-l-amber-500 px-4 py-2.5">
+                        <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12.5px] text-gray-500 dark:text-gray-400">
+                          <span className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-white leading-none shadow-sm ring-1 ring-gray-200 dark:bg-[#0f172a] dark:ring-white/[0.08]">
+                            <b className="text-[16px] font-bold tabular-nums text-gray-900 dark:text-white">{g.dia.slice(8, 10)}</b>
+                            <span className="mt-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">{mesCurtoAf(g.dia)}</span>
+                          </span>
+                          <span className="flex flex-col leading-tight">
+                            <b className="text-[13.5px] font-semibold text-gray-900 dark:text-gray-100">{diaSemana(g.dia).replace(/^./, (c) => c.toUpperCase())}</b>
+                            <span className="text-[11px] tabular-nums text-gray-500 dark:text-gray-400">{brData(g.dia)}</span>
+                          </span>
+                          <span className="ml-2 text-gray-300 dark:text-gray-600">·</span>
+                          <span>{g.rs.length} {g.rs.length === 1 ? 'posto' : 'postos'}</span>
+                          <span className="text-gray-300 dark:text-gray-600">·</span>
+                          <span className="tabular-nums">{g.count} {g.count === 1 ? 'aferição' : 'aferições'}</span>
+                          <span className="text-gray-300 dark:text-gray-600">·</span>
+                          <span className="font-semibold tabular-nums text-gray-700 dark:text-gray-200">{litrosFmt(g.litros)}</span>
+                        </span>
                       </td>
-                      <td className="px-3 py-2" />
-                      <td className="px-3 py-2 text-right font-bold tabular-nums">
-                        {g.count}
-                        {g.atipicas > 0 && <span className="ml-1.5 inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-1.5 py-px align-middle text-[10px] font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"><AlertTriangle className="h-3 w-3" />{g.atipicas}</span>}
-                      </td>
-                      <td className="px-3 py-2 text-right font-semibold tabular-nums">{g.bicos}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-right font-bold tabular-nums">{litrosFmt(g.litros)}</td>
-                      <td className="px-3 py-2" colSpan={2} />
                     </tr>
-                    {g.rs.map((r) => (
-                      <tr key={r.chave} onClick={() => setRodadaAberta(r.chave)} className="cursor-pointer text-gray-800 transition-colors hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-800/40">
-                        <td className="whitespace-nowrap py-2.5 pl-10 pr-3">{r.posto}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">{r.produtos}</td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">
-                          {r.itens.length}
-                          {r.atipicas > 0 && <span className="ml-1.5 inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-1.5 py-px align-middle text-[10px] font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"><AlertTriangle className="h-3 w-3" />{r.atipicas}</span>}
-                        </td>
-                        <td className="px-3 py-2.5 text-right tabular-nums">{r.bicos}</td>
-                        <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">{litrosFmt(r.litros)}</td>
-                        <td className="px-3 py-2.5 text-gray-600 dark:text-gray-300">{nomeCurto(r.pessoas[0] ?? '—')}{r.pessoas.length > 1 && <span className="text-gray-400"> +{r.pessoas.length - 1}</span>}</td>
-                        <td className="px-4 py-2.5 text-right" onClick={(e) => e.stopPropagation()}><RowActionButton icon={Eye} label="Ver" onClick={() => setRodadaAberta(r.chave)} /></td>
-                      </tr>
-                    ))}
+                    {g.rs.map((r) => {
+                      const combs = [...new Set(r.itens.map((a) => a.combustivelNome))]
+                      return (
+                        <tr key={r.chave} onClick={() => setRodadaAberta(r.chave)} className="cursor-pointer border-t border-gray-100 !bg-transparent text-gray-800 transition-colors hover:!bg-gray-50 dark:border-white/[0.04] dark:text-gray-200 dark:hover:!bg-white/[0.03]">
+                          <td className="whitespace-nowrap border-l-[3px] border-l-amber-500/25 py-2.5 pl-4 pr-3 font-semibold">{r.posto}</td>
+                          <td className="whitespace-nowrap px-3 py-2.5">
+                            {nomeProprioAf(nomeCurto(r.pessoas[0] ?? "—"))}{r.pessoas.length > 1 && <span className="ml-1 rounded-full bg-gray-100 px-1.5 text-[11px] font-semibold text-gray-500 dark:bg-white/[0.06] dark:text-gray-400">+{r.pessoas.length - 1}</span>}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <span className="flex flex-wrap gap-1">
+                              {combs.slice(0, 3).map((c) => <span key={c} className="rounded-md bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-800 dark:bg-sky-500/10 dark:text-sky-300">{nomeProprioAf(c)}</span>)}
+                              {combs.length > 3 && <span className="rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-medium text-gray-500 dark:bg-white/[0.06] dark:text-gray-400">+{combs.length - 3}</span>}
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums">
+                            {r.bicos}{r.itens.length !== r.bicos && <span className="block text-[10.5px] text-gray-400">{r.itens.length} testes</span>}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold tabular-nums">{litrosFmt(r.litros)}</td>
+                          <td className="px-3 py-2.5">
+                            {r.atipicas > 0
+                              ? <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"><AlertTriangle className="h-3 w-3" />{r.atipicas} {r.atipicas === 1 ? 'aferição' : 'aferições'}</span>
+                              : <span className="text-[12px] text-gray-400">—</span>}
+                          </td>
+                          <td className="py-2.5 pl-3 pr-4 text-right" onClick={(e) => e.stopPropagation()}><RowActionButton icon={Eye} label="Ver" onClick={() => setRodadaAberta(r.chave)} /></td>
+                        </tr>
+                      )
+                    })}
                   </Fragment>
                 ))}
               </tbody>

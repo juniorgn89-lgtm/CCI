@@ -72,6 +72,7 @@ const PainelRedePosto = ({ postos, allowTodos, redeWide, onClose }: Props) => {
     if (id === tenant?.id) { setRedeAlvoId(null); return }
     setRedeAlvoId(id)
     setPostosAlvoSel([])
+    setRascunho([])
     setBuscaPosto('')
   }
   const { data: empresasAlvo, isLoading: carregandoAlvo } = useQuery({
@@ -213,9 +214,20 @@ const PainelRedePosto = ({ postos, allowTodos, redeWide, onClose }: Props) => {
 
       {redeAlvo ? (
         <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-3 py-2.5 dark:border-white/[0.06]">
-          <button type="button" onClick={() => setRedeAlvoId(null)} className="text-[12.5px] text-gray-500 hover:text-gray-800 dark:text-[#94a3b8] dark:hover:text-white">Cancelar</button>
-          <button type="button" onClick={() => (varios ? aplicarRedeCom(rascunho) : aplicarRede())} disabled={carregandoAlvo}
-            className="rounded-lg bg-teal-600 px-3.5 py-1.5 text-[13px] font-semibold text-white hover:bg-teal-700 disabled:opacity-50">Aplicar filtro</button>
+          {varios && mostraPostos && !carregandoAlvo ? (
+            <span className="flex flex-col gap-0.5">
+              <span className="text-[12.5px] text-gray-500 dark:text-[#94a3b8]">{rascunho.length === 0 ? 'Nenhum marcado = todos' : `${rascunho.length} ${rascunho.length === 1 ? 'posto marcado' : 'postos marcados'}`}</span>
+              <button type="button" onClick={() => setRascunho(listaPostos.every((p) => rascunho.includes(p.codigo)) ? [] : listaPostos.map((p) => p.codigo))}
+                className="w-fit text-[12px] font-semibold text-teal-700 hover:underline dark:text-[#5eead4]">
+                {listaPostos.length > 0 && listaPostos.every((p) => rascunho.includes(p.codigo)) ? 'Desmarcar todos' : 'Marcar todos'}
+              </button>
+            </span>
+          ) : <span />}
+          <span className="flex items-center gap-3">
+            <button type="button" onClick={() => setRedeAlvoId(null)} className="text-[12.5px] text-gray-500 hover:text-gray-800 dark:text-[#94a3b8] dark:hover:text-white">Cancelar</button>
+            <button type="button" onClick={() => (varios ? aplicarRedeCom(rascunho) : aplicarRede())} disabled={carregandoAlvo}
+              className="rounded-lg bg-teal-600 px-3.5 py-1.5 text-[13px] font-semibold text-white hover:bg-teal-700 disabled:opacity-50">Aplicar filtro</button>
+          </span>
         </div>
       ) : varios && mostraPostos && !redeWide ? (
         <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-3 py-2.5 dark:border-white/[0.06]">

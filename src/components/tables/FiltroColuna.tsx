@@ -24,13 +24,13 @@ import { cn } from '@/lib/utils'
 import { VAZIO, type FiltroDeColuna } from '@/lib/filtroColuna'
 
 /** Rótulo da coluna + funil. `alinhar="direita"` para colunas numéricas. */
-export const CabecalhoFiltro = ({ rotulo, filtro, alinhar = 'esquerda' }: { rotulo: string; filtro: FiltroDeColuna; alinhar?: 'esquerda' | 'direita' }) => {
+export const CabecalhoFiltro = ({ rotulo, filtro, alinhar = 'esquerda', soFunil = false }: { rotulo: string; filtro: FiltroDeColuna; alinhar?: 'esquerda' | 'direita'; /** Só o funil (o rótulo já aparece no cabeçalho). */ soFunil?: boolean }) => {
   const [aberto, setAberto] = useState(false)
   const botao = useRef<HTMLButtonElement>(null)
   const fechar = useCallback(() => setAberto(false), [])
   return (
     <span className={cn('inline-flex items-center gap-1', alinhar === 'direita' && 'flex-row-reverse')}>
-      <span>{rotulo}</span>
+      {!soFunil && <span>{rotulo}</span>}
       <button
         ref={botao}
         type="button"

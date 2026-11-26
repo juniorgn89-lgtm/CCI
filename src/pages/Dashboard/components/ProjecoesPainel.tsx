@@ -18,6 +18,7 @@ import useCentralSazonal from '@/pages/Dashboard/hooks/useCentralSazonal'
 import ProjecaoModoAviso from '@/components/kpi/ProjecaoModoAviso'
 import SetorPostosModal, { type SetorModal } from '@/pages/Dashboard/components/modais/SetorPostosModal'
 import PostoResumoModal from '@/pages/Dashboard/components/modais/PostoResumoModal'
+import LinhaRitmo from '@/components/kpi/LinhaRitmo'
 
 const SETORES_PROJ = ['combustivel', 'automotivos', 'conveniencia'] as const
 const SETOR_NOME: Record<(typeof SETORES_PROJ)[number], string> = { combustivel: 'combustível', automotivos: 'automotivos', conveniencia: 'conveniência' }
@@ -104,18 +105,17 @@ interface SegmentCardProps {
   rodape: { label: string; value: string }[]
   /** Clique no card → modal do setor posto a posto. */
   onClick?: () => void
+  /** Linha do lucro de cada dia + projeção dos dias que faltam. 'vazio' = setor sem venda; null = período que não é um mês só. */
+  ritmo?: { diario: number[]; projecao: number[] | null; diasNoMes: number; cor: string } | 'vazio' | null
 }
 
 /**
- * Card de setor: realizado em destaque, barra de ritmo (cheio = realizado,
- * vazio = o que falta até a projeção), "fecha em" comparado ao mês inteiro do
- * ano/mês anterior, e o que falta por dia. Mês fechado → "Fechou em", sem barra.
+ * Card de setor: realizado em destaque, "fecha em" comparado ao mês inteiro do
+ * ano/mês anterior e a linha do ritmo (acumulado × mês anterior). O detalhe da
+ * projeção (quanto falta, por dia, % do mês) fica no cartão de Projeção ao lado.
  */
-const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBruto, lucroBrutoAnterior, cmpLabel, cmpTitle, proj, cheioAnterior, cheioLabel, rodape, onClick }: SegmentCardProps) => {
+const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBruto, lucroBrutoAnterior, cmpLabel, cmpTitle, proj, cheioAnterior, cheioLabel, rodape, onClick, ritmo }: SegmentCardProps) => {
   const fechado = proj.diasRestantes <= 0
-  const entregue = proj.lucro > 0 ? Math.min(100, (lucroBruto / proj.lucro) * 100) : 0
-  const falta = Math.max(0, proj.lucro - lucroBruto)
-  const porDia = proj.diasRestantes > 0 ? falta / proj.diasRestantes : 0
   const vsCheio = cheioAnterior && cheioAnterior > 0 ? ((proj.lucro - cheioAnterior) / cheioAnterior) * 100 : null
   return (
     <div
@@ -159,12 +159,6 @@ const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBru
             </p>
           ) : (
             <>
-              <div className="flex items-center gap-2">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200/80 dark:bg-gray-700/80" title={`${Math.round(entregue)}% do lucro projetado já realizado`}>
-                  <div className="h-full rounded-full bg-[#1e3a5f] dark:bg-[#5b7fb4]" style={{ width: `${Math.max(2, entregue)}%` }} />
-                </div>
-                <span className="shrink-0 text-[10px] font-semibold tabular-nums text-gray-500 dark:text-gray-400">{Math.round(entregue)}% do mês</span>
-              </div>
               <p className="flex flex-wrap items-baseline gap-x-1.5 text-[12px] leading-snug">
                 <span className="text-gray-500 dark:text-gray-400">Fecha em</span>
                 <span className="font-bold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(proj.lucro)}</span>
@@ -180,11 +174,19 @@ const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBru
                   </span>
                 )}
               </p>
-              <p className="text-[11px] tabular-nums text-gray-500 dark:text-gray-400">
-                faltam {formatCurrencyInt(falta)} · {formatCurrencyInt(porDia)}/dia · {proj.diasRestantes} dia{proj.diasRestantes === 1 ? '' : 's'}
-              </p>
             </>
           )}
+        </div>
+      )}
+
+      {/* Linha do ritmo: preenche o miolo do cartão e mostra se está à frente do mês anterior. */}
+      {!loading && ritmo === 'vazio' && (
+        <p className="mt-4 text-[11.5px] text-gray-400 dark:text-gray-500">Sem venda neste período.</p>
+      )}
+      {!loading && ritmo && ritmo !== 'vazio' && ritmo.diario.length > 0 && (
+        // Centralizada no espaço livre entre a previsão e o rodapé.
+        <div className="flex min-h-[88px] flex-1 items-center py-3">
+        <LinhaRitmo diario={ritmo.diario} projecao={fechado ? null : ritmo.projecao} diasNoMes={ritmo.diasNoMes} cor={ritmo.cor} />
         </div>
       )}
 
@@ -357,6 +359,58 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
     }
   }, [cheioRows, cheioFetched])
   const cheioLabel = mesCheio?.label ?? (comparisonMode === 'prevYear' ? 'ano ant.' : 'mês ant.')
+
+  // ── Linha do dia a dia nos cartões: lucro bruto de CADA dia fechado do mês + a
+  // projeção de cada dia que falta, SAZONAL: mesma conta da projecaoSazonal do
+  // "Fecha em" — ritmo = realizado ÷ Σ índice dos dias fechados; dia futuro =
+  // ritmo × índice do seu dia da semana. Hoje (incompleto) entra na projeção.
+  // Só quando o período é um mês só (ex.: novembro, ou 1 a 26 de novembro).
+  const dataFinalFiltro = useFilterStore((st) => st.dataFinal)
+  const ritmos = useMemo(() => {
+    type Chave = 'combustivel' | 'automotivos' | 'conveniencia' | 'global'
+    const vazio = { combustivel: null, automotivos: null, conveniencia: null, global: null } as Record<Chave, SegmentCardProps['ritmo']>
+    if (!dataInicial || !dataFinalFiltro || dataInicial.slice(0, 7) !== dataFinalFiltro.slice(0, 7)) return vazio
+    const mes = dataInicial.slice(0, 7)
+    const [y, m] = dataInicial.split('-').map(Number)
+    const diasNoMes = new Date(y, m, 0).getDate()
+    const porDia: Record<Chave, Map<number, number>> = { combustivel: new Map(), automotivos: new Map(), conveniencia: new Map(), global: new Map() }
+    let ultimoDia = 0
+    for (const [k, obj] of [['combustivel', combustivel], ['automotivos', automotivos], ['conveniencia', conveniencia]] as const) {
+      for (const d of obj.daily) {
+        if (d.data.slice(0, 7) !== mes) continue
+        const dia = Number(d.data.slice(8, 10))
+        porDia[k].set(dia, (porDia[k].get(dia) ?? 0) + d.lucroBruto)
+        porDia.global.set(dia, (porDia.global.get(dia) ?? 0) + d.lucroBruto)
+        if (d.lucroBruto !== 0 || d.faturamento !== 0) ultimoDia = Math.max(ultimoDia, dia)
+      }
+    }
+    const cor: Record<Chave, string> = { combustivel: '#5b7fb4', automotivos: '#c79a4a', conveniencia: '#4f9d84', global: '#8b7fc0' }
+    // Mês corrente: a linha cheia vai até ONTEM (hoje ainda está pela metade).
+    const hoje = todayLocal()
+    const mesCorrente = hoje.slice(0, 7) === mes
+    const ultimoFechado = mesCorrente ? Math.min(ultimoDia, Number(hoje.slice(8, 10)) - 1) : ultimoDia
+    const diaSemana = (dia: number) => new Date(y, m - 1, dia).getDay()
+    // Projeção sazonal por setor (global = soma dos três, dia a dia).
+    const projecao: Partial<Record<Chave, number[]>> = {}
+    if (mesCorrente && ultimoFechado < diasNoMes) {
+      const futuros = Array.from({ length: diasNoMes - ultimoFechado }, (_, i) => ultimoFechado + 1 + i)
+      for (const k of ['combustivel', 'automotivos', 'conveniencia'] as const) {
+        const ind = sazonal.indice(k, 'lucro')
+        const peso = (dia: number) => ind[diaSemana(dia)] ?? 1
+        let realizado = 0, somaPesos = 0
+        for (const [dia, v] of porDia[k]) if (dia <= ultimoFechado) { realizado += v; somaPesos += peso(dia) }
+        const ritmo = somaPesos > 0 ? realizado / somaPesos : 0
+        projecao[k] = futuros.map((dia) => ritmo * peso(dia))
+      }
+      projecao.global = futuros.map((_, i) => (projecao.combustivel?.[i] ?? 0) + (projecao.automotivos?.[i] ?? 0) + (projecao.conveniencia?.[i] ?? 0))
+    }
+    const out = { ...vazio }
+    for (const k of ['combustivel', 'automotivos', 'conveniencia', 'global'] as Chave[]) {
+      const diario = Array.from({ length: ultimoFechado }, (_, i) => porDia[k].get(i + 1) ?? 0)
+      out[k] = !diario.length || diario.every((v) => v === 0) ? 'vazio' : { diario, projecao: projecao[k] ?? null, diasNoMes, cor: cor[k] }
+    }
+    return out
+  }, [dataInicial, dataFinalFiltro, combustivel, automotivos, conveniencia, sazonal])
   const projFatTotal = projLinhas.reduce((s, r) => s + r.faturamento, 0)
   const projLucroTotal = projLinhas.reduce((s, r) => s + r.lucroBruto, 0)
   const projTotal = {
@@ -520,7 +574,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
             iconBg="bg-blue-100 dark:bg-blue-900/30" iconColor="text-blue-600 dark:text-blue-400"
             loading={isLoading} lucroBruto={combustivel.lucroBruto}
             lucroBrutoAnterior={combustivel.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
-            proj={projCard(projComb)} cheioAnterior={cheio.combustivel} cheioLabel={cheioLabel}
+            proj={projCard(projComb)} cheioAnterior={cheio.combustivel} cheioLabel={cheioLabel} ritmo={ritmos.combustivel}
             rodape={[
               { label: 'Margem', value: fmtPct(combustivel.margem) },
               { label: 'L.B./litro', value: formatCurrency(combustivel.lucroPorUnidade) },
@@ -533,7 +587,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
             iconBg="bg-amber-100 dark:bg-amber-900/30" iconColor="text-amber-600 dark:text-amber-400"
             loading={isLoading} lucroBruto={automotivos.lucroBruto}
             lucroBrutoAnterior={automotivos.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
-            proj={projCard(projAuto)} cheioAnterior={cheio.automotivos} cheioLabel={cheioLabel}
+            proj={projCard(projAuto)} cheioAnterior={cheio.automotivos} cheioLabel={cheioLabel} ritmo={ritmos.automotivos}
             rodape={[
               { label: 'Fatur.', value: formatCurrencyShort(automotivos.faturamento) },
               { label: 'Margem', value: fmtPct(automotivos.margem) },
@@ -546,7 +600,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
             iconBg="bg-emerald-100 dark:bg-emerald-900/30" iconColor="text-emerald-600 dark:text-emerald-400"
             loading={isLoading} lucroBruto={conveniencia.lucroBruto}
             lucroBrutoAnterior={conveniencia.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
-            proj={projCard(projConv)} cheioAnterior={cheio.conveniencia} cheioLabel={cheioLabel}
+            proj={projCard(projConv)} cheioAnterior={cheio.conveniencia} cheioLabel={cheioLabel} ritmo={ritmos.conveniencia}
             rodape={[
               { label: 'Fatur.', value: formatCurrencyShort(conveniencia.faturamento) },
               { label: 'Margem', value: fmtPct(conveniencia.margem) },
@@ -559,7 +613,7 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
             iconBg="bg-violet-100 dark:bg-violet-900/30" iconColor="text-violet-600 dark:text-violet-400"
             loading={isLoading} lucroBruto={global.lucroBruto}
             lucroBrutoAnterior={global.lucroBrutoAnoAnterior} cmpLabel={cmpLabel} cmpTitle={cmpTitle}
-            proj={projGlobalCard} cheioAnterior={cheio.total} cheioLabel={cheioLabel}
+            proj={projGlobalCard} cheioAnterior={cheio.total} cheioLabel={cheioLabel} ritmo={ritmos.global}
             rodape={[
               { label: 'Fatur.', value: formatCurrencyShort(global.faturamento) },
               { label: 'Margem', value: fmtPct(global.margem) },

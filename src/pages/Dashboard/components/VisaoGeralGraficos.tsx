@@ -188,6 +188,57 @@ const Donut = ({ title, dados, total, totalLabel, fmt, onSetor }: {
 
 /* ───────────────────────────── componente ───────────────────────────── */
 
+/**
+ * Tooltip da Evolução da rede: o período (faturamento, lucro bruto, margem) e,
+ * embaixo, quanto subiu ou desceu em relação ao período anterior. Período em
+ * andamento (ou com dias sem apuração) não se compara pelo total — isso daria
+ * sempre "caiu" —, e sim pela MÉDIA POR DIA; a margem (que é proporção) sempre.
+ */
+const TooltipEvolucao = ({ active, payload, serie, gran }: { active?: boolean; payload?: { payload?: PontoEvolucao }[]; serie: PontoEvolucao[]; gran: Granularidade }) => {
+  const p = payload?.[0]?.payload
+  if (!active || !p) return null
+  const ant = serie[p.idx - 1]
+  const incompleto = p.parcial || !!ant?.parcial
+  const porDia = gran === 'mes' && incompleto && !!p.dias && !!ant?.dias
+  const soMargem = !!ant && incompleto && !porDia && gran !== 'dia'
+  const base = (v: number, d?: number) => (porDia && d ? v / d : v)
+  const varPct = (a: number, b: number) => (b > 0 ? ((a - b) / b) * 100 : null)
+  const linhas = ant ? [
+    !soMargem && { rot: 'Faturamento', v: varPct(base(p.faturamento, p.dias), base(ant.faturamento, ant.dias)), un: '%' },
+    !soMargem && { rot: 'Lucro bruto', v: varPct(base(p.lucroBruto, p.dias), base(ant.lucroBruto, ant.dias)), un: '%' },
+    { rot: 'Margem', v: ant.faturamento > 0 && p.faturamento > 0 ? p.margem - ant.margem : null, un: ' p.p.' },
+  ].filter(Boolean) as { rot: string; v: number | null; un: string }[] : []
+  const fmtVar = (v: number, un: string) => `${v >= 0 ? '▲ +' : '▼ '}${Math.abs(v).toFixed(1).replace('.', ',')}${un}`
+  const rotAnt = gran === 'dia' ? 'o dia anterior' : ant?.rotulo
+  return (
+    <div className="min-w-[230px] rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-[12px] shadow-xl dark:border-[#2f3b4f] dark:bg-[#0f172a]">
+      <p className="font-semibold text-gray-900 dark:text-gray-100">{p.rotulo}{p.nota && <span className="font-normal text-gray-500 dark:text-gray-400"> · {p.nota}</span>}</p>
+      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1">
+        <dt className="text-gray-500 dark:text-gray-400">Faturamento</dt><dd className="text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(p.faturamento)}</dd>
+        <dt className="text-gray-500 dark:text-gray-400">Lucro bruto</dt><dd className="text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{formatCurrencyInt(p.lucroBruto)}</dd>
+        <dt className="text-gray-500 dark:text-gray-400">Margem</dt><dd className="text-right font-semibold tabular-nums text-gray-900 dark:text-gray-100">{pct(p.margem)}</dd>
+      </dl>
+      {ant && linhas.length > 0 && (
+        <div className="mt-2.5 border-t border-gray-100 pt-2 dark:border-white/[0.08]">
+          <p className="mb-1 text-[11px] text-gray-500 dark:text-gray-400">vs {rotAnt}{porDia && ' · média por dia'}</p>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5">
+            {linhas.map((l) => (
+              <div key={l.rot} className="contents">
+                <dt className="text-gray-500 dark:text-gray-400">{l.rot}</dt>
+                <dd className={cn('text-right font-semibold tabular-nums', l.v === null ? 'text-gray-400' : l.v >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400')}>
+                  {l.v === null ? '—' : fmtVar(l.v, l.un)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          {porDia && <p className="mt-1.5 text-[10.5px] leading-snug text-gray-400">Mês em andamento: comparado pela média por dia, não pelo total.</p>}
+          {soMargem && <p className="mt-1.5 text-[10.5px] leading-snug text-gray-400">Período em andamento: só a margem é comparável.</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 const VisaoGeralGraficos = () => {
   const rede = useRedeSetores()
   const ct = useChartTheme()
@@ -362,14 +413,7 @@ const VisaoGeralGraficos = () => {
                 quebrava em duas linhas. */}
             <YAxis yAxisId="rs" tickFormatter={kShort} tick={{ fontSize: 11, fill: ct.axis }} axisLine={false} tickLine={false} width={44} />
             <YAxis yAxisId="lb" orientation="right" tickFormatter={kShort} tick={{ fontSize: 11, fill: ct.dark ? '#34d399' : '#059669' }} axisLine={false} tickLine={false} width={44} domain={[0, 'auto']} />
-            <Tooltip
-              labelFormatter={((l: string, payload: { payload?: PontoEvolucao }[]) => {
-                const nota = payload?.[0]?.payload?.nota
-                return nota ? `${l} · ${nota}` : l
-              }) as never}
-              formatter={((v: number, name: string) => name === 'Margem' ? [pct(v), name] : [formatCurrencyInt(v), name]) as never}
-              contentStyle={{ fontSize: 12, borderRadius: 8, ...ct.tooltip }}
-            />
+            <Tooltip content={((props: { active?: boolean; payload?: { payload?: PontoEvolucao }[] }) => <TooltipEvolucao {...props} serie={serie} gran={gran} />) as never} />
             <Bar yAxisId="rs" dataKey="faturamento" name="Faturamento" fill={FAT_COR(ct.dark)} radius={[3, 3, 0, 0]} maxBarSize={gran === 'dia' ? 22 : 40} isAnimationActive={false}>
               {/* Período em andamento / incompleto em barra clara: não é queda, é falta de dias. */}
               {serie.map((p) => <Cell key={p.data} fillOpacity={p.parcial ? 0.4 : 1} />)}

@@ -1,12 +1,12 @@
-import { useMemo } from 'react'
-import { Fuel, Loader2, Gauge, AlertTriangle } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Fuel, Loader2, Gauge, AlertTriangle, Plus, X } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
 import { useAuthStore } from '@/store/auth'
 import useReabastecimento, { type ReabastTanque } from '@/pages/Dashboard/hooks/useReabastecimento'
-import { COR_NIVEL, MEDICAO_VELHA_DIAS } from '@/pages/Dashboard/components/tanqueNivel'
+import { COR_NIVEL, MEDICAO_VELHA_DIAS, produtoBonito } from '@/pages/Dashboard/components/tanqueNivel'
 import TanqueDetalheCard from '@/pages/Dashboard/components/TanqueDetalheCard'
 import { agruparPorCombustivel } from '@/pages/Dashboard/components/pedidoCombustivel'
 import PedidoSugeridoCombustivel from '@/pages/Dashboard/components/PedidoSugeridoCombustivel'
@@ -46,6 +46,20 @@ const Inner = ({ onClose, empresaCodigo, empresaNome, tanquesIniciais, tanqueFoc
   }, [aoVivo, live.tanques, tanquesIniciais])
   const buscando = live.isLoadingDetalhes || (!aoVivo && live.isLoading)
   const pedido = useMemo(() => agruparPorCombustivel(tanques), [tanques])
+
+  // Clicou num tanque → abre só com o combustível dele; dá para adicionar os outros.
+  // Clicou no posto → todos (null = sem filtro).
+  const produtoFoco = tanquesIniciais.find((t) => t.tanqueCodigo === tanqueFoco)?.produtoCodigo ?? null
+  const [sel, setSel] = useState<number[] | null>(produtoFoco != null ? [produtoFoco] : null)
+  const combustiveis = useMemo(() => pedido.map((g) => ({ codigo: g.produtoCodigo, nome: produtoBonito(g.produto), nivel: g.nivel })), [pedido])
+  const filtrando = !!sel && sel.length > 0 && sel.length < combustiveis.length
+  const tanquesVis = filtrando ? tanques.filter((t) => sel!.includes(t.produtoCodigo)) : tanques
+  const pedidoVis = filtrando ? pedido.filter((g) => sel!.includes(g.produtoCodigo)) : pedido
+  const alternar = (cod: number) => setSel((atual) => {
+    const base = atual ?? combustiveis.map((c) => c.codigo)
+    const n = base.includes(cod) ? base.filter((x) => x !== cod) : [...base, cod]
+    return n.length === 0 ? atual : n // sempre fica ao menos um
+  })
 
   const total = useMemo(() => {
     const atual = tanques.reduce((s, t) => s + t.estoqueAtual, 0)
@@ -91,9 +105,35 @@ const Inner = ({ onClose, empresaCodigo, empresaNome, tanquesIniciais, tanqueFoc
               <span>A última medição no LMC é de <b>{brDateShort(total.ultimaMedicao ?? '')}</b> ({medicaoDias} dias atrás). Os litros em tanque são <b>estimados</b> a partir dela. <b>Confira a régua antes de pedir.</b></span>
             </p>
           )}
-          {canReabast && aoVivo && pedido.length > 0 && <PedidoSugeridoCombustivel empresaCodigo={empresaCodigo} pedido={pedido} tanques={tanques} />}
+          {/* Combustíveis na tela: o clicado vem marcado; os outros entram com um clique. */}
+          {combustiveis.length > 1 && (
+            <div className="mb-3 flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Combustível</span>
+              {combustiveis.map((c) => {
+                const on = !filtrando || sel!.includes(c.codigo)
+                return on ? (
+                  <span key={c.codigo} className="inline-flex items-center gap-1.5 rounded-full bg-[#1e3a5f] py-1 pl-3 pr-1.5 text-[12px] font-semibold text-white dark:bg-teal-600">
+                    <span className={cn('h-1.5 w-1.5 rounded-full', COR_NIVEL[c.nivel].dot)} />{c.nome}
+                    {filtrando && sel!.length > 1 && (
+                      <button type="button" aria-label={`Tirar ${c.nome}`} onClick={() => alternar(c.codigo)} className="rounded-full p-0.5 hover:bg-white/20"><X className="h-3 w-3" /></button>
+                    )}
+                    {(!filtrando || sel!.length === 1) && <span className="w-1" />}
+                  </span>
+                ) : (
+                  <button key={c.codigo} type="button" onClick={() => alternar(c.codigo)}
+                    className="inline-flex items-center gap-1 rounded-full border border-dashed border-gray-300 px-2.5 py-1 text-[12px] font-semibold text-gray-600 hover:border-solid hover:border-[#1e3a5f] hover:text-[#1e3a5f] dark:border-[#3e4c63] dark:text-gray-300 dark:hover:border-teal-500 dark:hover:text-teal-300">
+                    <Plus className="h-3 w-3" />{c.nome}
+                  </button>
+                )
+              })}
+              {filtrando
+                ? <button type="button" onClick={() => setSel(null)} className="ml-1 text-[12px] font-semibold text-[#1e3a5f] hover:underline dark:text-teal-300">Ver todos</button>
+                : produtoFoco != null && <button type="button" onClick={() => setSel([produtoFoco])} className="ml-1 text-[12px] text-gray-500 hover:underline dark:text-gray-400">Só o clicado</button>}
+            </div>
+          )}
+          {canReabast && aoVivo && pedidoVis.length > 0 && <PedidoSugeridoCombustivel empresaCodigo={empresaCodigo} pedido={pedidoVis} tanques={tanques} />}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {tanques.map((t) => (
+            {tanquesVis.map((t) => (
               <TanqueDetalheCard key={t.tanqueCodigo} t={t} foco={t.tanqueCodigo === tanqueFoco} buscando={buscando} aoVivo={aoVivo} avisoMedicao={!medicaoVelha} />
             ))}
           </div>

@@ -80,7 +80,7 @@ const Operacao = () => {
       <PageHeaderTitle>
         <div className="flex items-center gap-1.5">
           <ModuloAbas active={activeTab} onChange={(id) => setTab(id as OperacaoTab)} tabs={visibleTabs} />
-          <InfoHint side="bottom" text="Visão Geral: o nível dos tanques de cada posto; clique no posto para o detalhe e o pedido sugerido. Manutenção: o desgaste de cada bomba, em grupos por posto (todos os do filtro do topo). Aferições: os testes de bomba do período, por rodada (dia × posto), e os bicos sem teste." />
+          <InfoHint side="bottom" text="Visão Geral: o nível dos tanques de cada posto; clique no posto para o detalhe e o pedido de combustível. Manutenção: o desgaste de cada bomba, em grupos por posto (todos os do filtro do topo). Aferições: os testes de bomba do período, por rodada (dia × posto), e os bicos sem teste." />
         </div>
       </PageHeaderTitle>
       <PageHeaderActions>

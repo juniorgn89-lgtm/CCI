@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 import InfoHint from '@/components/ui/InfoHint'
+import { CabecalhoFiltro } from '@/components/tables/FiltroColuna'
+import type { FiltroDeColuna } from '@/lib/filtroColuna'
 
 export interface Column<T> {
   key: string
@@ -52,6 +54,11 @@ interface DataTableProps<T> {
    * que abrem modal/drawer no onRowClick — fica confuso.
    */
   enableRowHighlight?: boolean
+  /**
+   * Filtro estilo Excel por coluna: devolve o filtro da coluna (de useFiltrosColuna)
+   * ou null para não ter funil. Quem chama aplica o filtro nos dados (f.filtradas).
+   */
+  filtroDe?: (key: string) => FiltroDeColuna | null
 }
 
 type SortDirection = 'asc' | 'desc' | null
@@ -64,6 +71,7 @@ const DataTable = <T extends Record<string, unknown>>({
   groups,
   onRowClick,
   enableRowHighlight = false,
+  filtroDe,
 }: DataTableProps<T>) => {
   const [sortKey, setSortKey] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>(null)
@@ -184,6 +192,11 @@ const DataTable = <T extends Record<string, unknown>>({
               >
                 {col.label}
                 {col.help && <InfoHint text={col.help} />}
+                {(() => {
+                  const f = filtroDe?.(col.key)
+                  // O funil não pode disparar a ordenação do cabeçalho.
+                  return f ? <span onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}><CabecalhoFiltro soFunil rotulo={col.label} filtro={f} alinhar={col.align === 'right' ? 'direita' : 'esquerda'} /></span> : null
+                })()}
                 {col.sortable && <SortIcon columnKey={col.key} />}
               </div>
             </TableHead>

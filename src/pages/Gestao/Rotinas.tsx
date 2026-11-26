@@ -15,8 +15,8 @@ import { GUIAS } from '@/lib/guiasModais'
 import InfoHint from '@/components/ui/InfoHint'
 import SeletorHora from '@/components/ui/SeletorHora'
 import SeletorPostos from './SeletorPostos'
-import { BlocoForm, EtapasCampo } from './BlocoForm'
-import { CAMPO, ROTULO, pilula, segmento, corPrioridade } from './estiloForm'
+import { BlocoForm, EtapasCampo, Obrigatorio } from './BlocoForm'
+import { CAMPO, CAMPO_ERRO, ERRO_CAMPO, ROTULO, pilula, segmento, corPrioridade } from './estiloForm'
 import { BuscaResponsavel } from './Tarefas'
 
 /**
@@ -236,8 +236,13 @@ export const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { ro
   }
   const resumo = `${descreverRegra(regra)}, com vencimento às ${hora}.`
 
+  const [tentou, setTentou] = useState(false)
+  const nomeInvalido = nome.trim().length < 3
+  const respInvalido = !responsavel
   const salvar = async () => {
-    if (nome.trim().length < 3) { setErro('Dê um nome à rotina.'); return }
+    setTentou(true)
+    // Nome e responsável: o erro aparece embaixo do campo (sem responsável a rotina não gera nada).
+    if (nomeInvalido || respInvalido) { setErro(null); return }
     if (pers && modo === 'semana' && dias.length === 0) { setErro('Escolha ao menos um dia da semana.'); return }
     if (pers && modo === 'mes' && diasMes.length === 0) { setErro('Escolha ao menos um dia do mês.'); return }
     if (pers && modo === 'ano' && datasAno.length === 0) { setErro('Adicione ao menos uma data do ano.'); return }
@@ -277,8 +282,9 @@ export const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { ro
         {Bloco({ n: 1, titulo: 'O quê', children: (
           <>
             <label className="block">
-              <span className={rotulo}>Nome da rotina</span>
-              <input className={campo} placeholder="Ex.: Medição dos tanques" value={nome} onChange={(e) => setNome(e.target.value)} autoFocus />
+              <span className={rotulo}>Nome da rotina <Obrigatorio /></span>
+              <input className={cn(campo, tentou && nomeInvalido && CAMPO_ERRO)} placeholder="Ex.: Medição dos tanques" value={nome} onChange={(e) => setNome(e.target.value)} autoFocus />
+              {tentou && nomeInvalido && <span className={cn(ERRO_CAMPO, 'block')}>Dê um nome com 3 letras ou mais.</span>}
             </label>
             {verDescricao ? (
               <label className="block">
@@ -299,8 +305,9 @@ export const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { ro
               <SeletorPostos postos={base.postos} valor={empresas} onChange={setEmpresas} />
             </div>
             <div>
-              <span className={rotulo}>Responsável <InfoHint text="Quem recebe as tarefas geradas. Sem responsável a rotina fica cadastrada, mas não gera nada." /></span>
-              <BuscaResponsavel id="rotina-resp" usuarios={base.usuarios} valor={responsavel} onChange={setResponsavel} vazio="Sem responsável (não gera tarefas)" />
+              <span className={rotulo}>Responsável <Obrigatorio /> <InfoHint text="Quem recebe as tarefas geradas. Para pausar uma rotina, use o botão de ligar/desligar na lista." /></span>
+              <BuscaResponsavel id="rotina-resp" usuarios={base.usuarios} valor={responsavel} onChange={setResponsavel} erro={tentou && respInvalido} />
+              {tentou && respInvalido && <p className={ERRO_CAMPO}>Escolha quem vai fazer: sem responsável a rotina não gera nenhuma tarefa.</p>}
             </div>
             <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
               <label className="block">
@@ -328,7 +335,7 @@ export const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { ro
         {Bloco({ n: 3, titulo: 'Quando', children: (
           <>
             <div>
-              <span className={rotulo}>Repete <InfoHint text="Todos os dias, só dias úteis (segunda a sexta) ou Personalizada: dias da semana, dias do mês (ex.: todo dia 5, ou o último dia), datas no ano (ex.: 31/12) ou escala (ex.: trabalha 1, folga 1)." /></span>
+              <span className={rotulo}>Repete <Obrigatorio /> <InfoHint text="Todos os dias, só dias úteis (segunda a sexta) ou Personalizada: dias da semana, dias do mês (ex.: todo dia 5, ou o último dia), datas no ano (ex.: 31/12) ou escala (ex.: trabalha 1, folga 1)." /></span>
               <div className="flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-white/[0.05]">
                 {(Object.keys(RECORRENCIA_LABEL) as Recorrencia[]).map((r) => (
                   <button key={r} type="button" onClick={() => setRecorrencia(r)} className={segmento(recorrencia === r)}>{RECORRENCIA_LABEL[r]}</button>
@@ -412,11 +419,11 @@ export const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { ro
 
             <div className="grid grid-cols-2 gap-4">
               <label className="block">
-                <span className={rotulo}>Começa em</span>
+                <span className={rotulo}>Começa em <Obrigatorio /></span>
                 <input type="date" className={campo} value={inicio} onChange={(e) => setInicio(e.target.value)} />
               </label>
               <div>
-                <span className={rotulo}>Vence às</span>
+                <span className={rotulo}>Vence às <Obrigatorio /></span>
                 <SeletorHora aria-label="Vence às" className="h-11 w-full" value={hora} onChange={setHora} />
               </div>
             </div>
@@ -440,7 +447,7 @@ export const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { ro
                 <p className={cn('font-semibold', responsavel && proxima ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300')}>{resumo}</p>
                 <p className="mt-0.5 text-gray-600 dark:text-gray-300">
                   {!responsavel
-                    ? 'Sem responsável, nada é gerado. Escolha quem vai fazer.'
+                    ? 'Escolha o responsável para ver a próxima geração.'
                     : !proxima
                       ? 'Com essa repetição, nenhuma tarefa seria gerada no próximo ano.'
                       : <>Próxima: <b>{fmtData(proxima)}</b>{proxima === hojeLocal() ? ' (hoje, assim que salvar)' : ''} · {nTarefas} {nTarefas > 1 ? 'tarefas (uma por posto)' : 'tarefa'}</>}

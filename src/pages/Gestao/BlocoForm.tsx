@@ -47,3 +47,6 @@ export const EtapasCampo = ({ itens, onRemover, novo, onNovo, onAdd, placeholder
     </div>
   </div>
 )
+
+/** Asterisco vermelho de campo obrigatório (vai logo depois do rótulo). */
+export const Obrigatorio = () => <span className="text-red-500" aria-label="obrigatório">*</span>
