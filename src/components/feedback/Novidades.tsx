@@ -74,7 +74,7 @@ export const NovidadesLista = ({ itens, tom = 'claro', className }: NovidadesLis
                     </span>
                     <div className="min-w-0">
                       <p className={cn('text-[14px] font-semibold leading-tight', escuro ? 'text-[#f1f5f9]' : 'text-gray-900 dark:text-[#f1f5f9]')}>{item.titulo}</p>
-                      <p className={cn('mt-1 text-[13px] leading-snug', escuro ? 'text-[#94a3b8]' : 'text-gray-500 dark:text-[#94a3b8]')}>{item.descricao}</p>
+                      {item.descricao && <p className={cn('mt-1 text-[13px] leading-snug', escuro ? 'text-[#94a3b8]' : 'text-gray-500 dark:text-[#94a3b8]')}>{item.descricao}</p>}
                     </div>
                   </li>
                 )

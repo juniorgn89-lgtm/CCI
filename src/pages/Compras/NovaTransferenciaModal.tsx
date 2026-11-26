@@ -4,10 +4,12 @@ import { Plus, Search, Trash2, Loader2, Send, Save, Check, ArrowRight } from 'lu
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
-import { Modal, ModalRodape, Erro, Segmentos } from '@/pages/Gestao/comumUi'
+import { Modal, ModalRodape, Erro } from '@/pages/Gestao/comumUi'
+import SeletorPostos from '@/pages/Gestao/SeletorPostos'
+import { BlocoForm } from '@/pages/Gestao/BlocoForm'
+import { CAMPO, ROTULO, TRILHO, segmento } from '@/pages/Gestao/estiloForm'
 import { SETOR_LABEL, STATUS_TRANSF_LABEL, criarTransferencia, editarTransferencia, fetchTransfItens, type SetorCompra, type TransferenciaRow, type TransfItemInput } from '@/api/supabase/compras'
-import { useComprasBase, inputCls, selectCls, labelCls, btnPrimary, btnGhost, nomeProprio } from './comum'
-import { GUIAS } from '@/lib/guiasModais'
+import { useComprasBase, inputCls, btnPrimary, btnGhost, nomeProprio } from './comum'
 import { useSugestoes, type Sugestao } from './hooks/useSugestoes'
 
 interface ItemLocal extends TransfItemInput { key: string }
@@ -22,7 +24,7 @@ const fmtQ = (v: number) => v.toLocaleString('pt-BR', { maximumFractionDigits: v
 const NovaTransferenciaModal = ({ open, onClose, transferencia, onSalvo }: { open: boolean; onClose: () => void; transferencia: TransferenciaRow | null; onSalvo: () => void }) => {
   const base = useComprasBase()
   const itensQ = useQuery({ queryKey: ['compras-transf-itens', transferencia?.id], queryFn: () => fetchTransfItens(transferencia!.id), enabled: !!transferencia })
-  if (transferencia && itensQ.isLoading) return <Modal fundo="" open={open} onClose={onClose} titulo={`Editar transferência nº ${transferencia.numero}`} largura="max-w-4xl"><p className="inline-flex items-center gap-2 py-6 text-sm text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Carregando…</p></Modal>
+  if (transferencia && itensQ.isLoading) return <Modal open={open} onClose={onClose} lateral titulo={`Editar transferência nº ${transferencia.numero}`} largura="max-w-[900px]"><p className="inline-flex items-center gap-2 py-6 text-sm text-gray-500"><Loader2 className="h-4 w-4 animate-spin" /> Carregando…</p></Modal>
   return <Form key={transferencia?.id ?? 'nova'} open={open} onClose={onClose} transferencia={transferencia} itensIniciais={(itensQ.data ?? []).map((i) => ({ key: i.id, produto_codigo: i.produto_codigo, produto_nome: i.produto_nome, unidade: i.unidade, qtd: i.qtd, custo_ref: i.custo_ref, justificativa: i.justificativa }))} onSalvo={onSalvo} base={base} />
 }
 
@@ -74,31 +76,34 @@ const Form = ({ open, onClose, transferencia, itensIniciais, onSalvo, base }: { 
   const Dot = ({ s }: { s: Sugestao['status'] }) => <span className={cn('inline-block h-1.5 w-1.5 shrink-0 rounded-full', s === 'critico' ? 'bg-red-500' : s === 'baixo' ? 'bg-amber-500' : s === 'ok' ? 'bg-emerald-500' : 'bg-gray-300')} />
 
   return (
-    <Modal guia={GUIAS.novaTransferencia} fundo="" open={open} onClose={onClose} titulo={transferencia ? `Editar transferência nº ${transferencia.numero}` : 'Nova transferência entre postos'} descricao={transferencia ? `Situação atual: ${STATUS_TRANSF_LABEL[transferencia.status]}.` : 'Escolha quem recebe e quem manda; o Visor cruza o que falta num posto com o que sobra no outro.'} largura="max-w-4xl">
-      <div className="space-y-4">
+    <Modal open={open} onClose={onClose} lateral titulo={transferencia ? `Editar transferência nº ${transferencia.numero}` : 'Nova transferência entre postos'} descricao={transferencia ? `Situação atual: ${STATUS_TRANSF_LABEL[transferencia.status]}.` : 'Escolha quem recebe e quem manda; o Visor cruza o que falta num posto com o que sobra no outro.'} largura="max-w-[900px]">
+      <div className="space-y-6">
         <Erro msg={erro} />
-        <div className="grid items-end gap-3 md:grid-cols-[1fr_auto_1fr_auto]">
-          <label>
-            <span className={labelCls}>Origem (quem manda)</span>
-            <select value={origem ?? ''} onChange={(e) => { setOrigem(Number(e.target.value) || null); setItens([]) }} className={selectCls}>
-              {postos.map((p) => <option key={p.codigo} value={p.codigo} disabled={p.codigo === destino}>{p.fantasia || p.razao}</option>)}
-            </select>
-          </label>
-          <ArrowRight className="mb-2.5 hidden h-5 w-5 text-gray-400 md:block" />
-          <label>
-            <span className={labelCls}>Destino (quem recebe)</span>
-            <select value={destino ?? ''} onChange={(e) => { setDestino(Number(e.target.value) || null); setItens([]) }} className={selectCls}>
-              {postos.map((p) => <option key={p.codigo} value={p.codigo} disabled={p.codigo === origem}>{p.fantasia || p.razao}</option>)}
-            </select>
-          </label>
-          <div>
-            <span className={labelCls}>Setor</span>
-            <Segmentos opcoes={SETORES} valor={setor} onChange={(v) => setSetor(v)} />
+        <BlocoForm n={1} titulo="De onde para onde">
+          <div className="grid items-end gap-3 md:grid-cols-[1fr_auto_1fr]">
+            <div>
+              <span className={ROTULO}>Origem (quem manda)</span>
+              <SeletorPostos unico postos={postos.filter((p) => p.codigo !== destino)} valor={origem != null ? [origem] : []} rotuloVazio="Escolha o posto"
+                onChange={(v) => { if (v[0] != null) { setOrigem(v[0]); setItens([]) } }} />
+            </div>
+            <ArrowRight className="mb-3 hidden h-5 w-5 text-gray-400 md:block" />
+            <div>
+              <span className={ROTULO}>Destino (quem recebe)</span>
+              <SeletorPostos unico postos={postos.filter((p) => p.codigo !== origem)} valor={destino != null ? [destino] : []} rotuloVazio="Escolha o posto"
+                onChange={(v) => { if (v[0] != null) { setDestino(v[0]); setItens([]) } }} />
+            </div>
           </div>
-        </div>
+          <div>
+            <span className={ROTULO}>Setor</span>
+            <div className={TRILHO}>
+              {SETORES.map((o) => <button key={o.value} type="button" onClick={() => setSetor(o.value)} className={segmento(setor === o.value)}>{o.label}</button>)}
+            </div>
+          </div>
+        </BlocoForm>
 
-        <section className="rounded-xl border border-gray-200 dark:border-gray-700">
-          <header className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
+        <BlocoForm n={2} titulo="O que mandar">
+        <section className="rounded-xl border border-gray-200 dark:border-white/[0.08]">
+          <header className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-4 py-2.5 dark:border-white/[0.06]">
             <p className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-gray-900 dark:text-gray-100">O que o destino precisa e a origem tem <InfoHint text="Produtos abaixo da cobertura de 30 dias no destino. Para cada um, quanto a origem pode mandar sem ficar descoberta: saldo da origem menos o maior entre o mínimo cadastrado e 30 dias de venda dela. Produtos sem folga na origem aparecem por último, só para informação." /></p>
             {!dest.carregando && !orig.carregando && <span className="text-[11px] text-gray-400">{cruzadas.filter((c) => c.podeMandar > 0).length} com folga na origem</span>}
             {cruzadas.some((c) => c.podeMandar > 0) && <button type="button" onClick={() => cruzadas.filter((c) => c.podeMandar > 0).forEach((c) => adicionar(c.d, c.podeMandar))} className="ml-auto text-[11.5px] font-semibold text-[#1e3a5f] hover:underline dark:text-blue-300">Adicionar todas com folga</button>}
@@ -126,8 +131,8 @@ const Form = ({ open, onClose, transferencia, itensIniciais, onSalvo, base }: { 
             )}
         </section>
 
-        <section className="rounded-xl border border-gray-200 dark:border-gray-700">
-          <header className="border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
+        <section className="rounded-xl border border-gray-200 dark:border-white/[0.08]">
+          <header className="border-b border-gray-100 px-4 py-2.5 dark:border-white/[0.06]">
             <span className="relative block"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" /><input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar qualquer produto no estoque da origem" className={cn(inputCls, 'h-9 pl-9')} disabled={origem == null || orig.carregando} /></span>
           </header>
           {busca.trim() && (resultados.length === 0 ? <p className="px-4 py-3 text-[12px] text-gray-400">Nada com esse nome na origem.</p> : (
@@ -145,9 +150,11 @@ const Form = ({ open, onClose, transferencia, itensIniciais, onSalvo, base }: { 
             </ul>
           ))}
         </section>
+        </BlocoForm>
 
-        <section className="rounded-xl border border-gray-200 dark:border-gray-700">
-          <header className="flex items-center gap-2 border-b border-gray-100 px-4 py-2.5 dark:border-gray-800">
+        <BlocoForm n={3} titulo="Itens da transferência">
+        <section className="rounded-xl border border-gray-200 dark:border-white/[0.08]">
+          <header className="flex items-center gap-2 border-b border-gray-100 px-4 py-2.5 dark:border-white/[0.06]">
             <p className="text-[12.5px] font-semibold text-gray-900 dark:text-gray-100">Itens ({itens.length})</p>
             <span className="ml-auto text-[12px] tabular-nums text-gray-600 dark:text-gray-300">Valor de referência <b className="font-semibold text-gray-900 dark:text-white">{formatCurrency(total)}</b> <InfoHint text="Só para medir o tamanho da transferência: quantidade × custo cadastrado. Não há compra nem venda entre os postos aqui." /></span>
           </header>
@@ -168,7 +175,11 @@ const Form = ({ open, onClose, transferencia, itensIniciais, onSalvo, base }: { 
           )}
         </section>
 
-        <label><span className={labelCls}>Observações</span><textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} placeholder="Quem leva, quando, recado para a origem…" className={inputCls} /></label>
+        </BlocoForm>
+
+        <BlocoForm n={4} titulo="Recado">
+          <label className="block"><span className={ROTULO}>Observações <span className="font-normal text-gray-400">(opcional)</span></span><textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} placeholder="Quem leva, quando, recado para a origem…" className={cn(CAMPO, 'h-auto py-2.5')} /></label>
+        </BlocoForm>
       </div>
       <ModalRodape>
         <button type="button" onClick={onClose} className={btnGhost}>Cancelar</button>

@@ -610,3 +610,22 @@ html.dark .acetinado tfoot tr {
     box-shadow: inset 0 -1px 0 #2f3b4f;
   }
 }
+
+/* Rodapé de botões dentro do painel lateral: mesma cor do painel (não o preto do modal). */
+.painel-lateral .modal-rodape { background-color: #ffffff; }
+html.dark .painel-lateral .modal-rodape { background-color: #1e293b; border-color: #2f3b4f; }
+
+/* Abrir e fechar janelas com suavidade (useSaidaSuave + PainelLateral + Dialog).
+   Painel lateral entra deslizando da direita (desacelera no fim) e sai para a
+   direita; o fundo escurece/clareia; o modal do centro sai encolhendo de leve.
+   Usa as propriedades `translate`/`scale` (somam com o transform das classes). */
+@keyframes painel-entra { from { translate: 100% 0; } to { translate: 0 0; } }
+@keyframes painel-sai { to { translate: 100% 0; } }
+@keyframes janela-fundo-entra { from { opacity: 0; } }
+@keyframes janela-fundo-saida { to { opacity: 0; } }
+@keyframes dialogo-sai { to { opacity: 0; scale: .96; } }
+.painel-entra { animation: painel-entra .32s cubic-bezier(.22, 1, .36, 1); }
+.janela-fundo-entra { animation: janela-fundo-entra .25s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .painel-entra, .janela-fundo-entra { animation: none; }
+}

@@ -2,9 +2,10 @@ import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
 import { Modal, ModalRodape, Erro } from '@/pages/Gestao/comumUi'
+import { CAMPO, ROTULO } from '@/pages/Gestao/estiloForm'
 import { SETOR_LABEL, salvarTeto, type PedidoRow, type SetorCompra, type TetoRow } from '@/api/supabase/compras'
-import { useComprasBase, btnGhost, inputCls } from './comum'
-import { GUIAS } from '@/lib/guiasModais'
+import { useComprasBase, btnGhost } from './comum'
+import { Loader2 } from 'lucide-react'
 import { liberadoNoMes } from './hooks/usePedidos'
 
 const SETORES: SetorCompra[] = ['conveniencia', 'automotivos', 'combustivel', 'outros']
@@ -26,39 +27,41 @@ const TetosModal = ({ onClose, tetos, pedidos, onMudou }: { onClose: () => void;
   }
 
   return (
-    <Modal guia={GUIAS.tetos} fundo="" open onClose={onClose} titulo="Tetos de compra do mês" descricao="Valor máximo a liberar por posto e setor em cada mês. Zero = sem teto. O pedido que passar do teto não é bloqueado: ele avisa quem libera." largura="max-w-3xl">
+    <Modal open onClose={onClose} lateral titulo="Tetos de compra do mês" descricao="Valor máximo a liberar por posto e setor em cada mês. Zero = sem teto. O pedido que passar do teto não é bloqueado: ele avisa quem libera." largura="max-w-[720px]">
       <Erro msg={erro} />
-      <div className="overflow-x-auto">
-        <table className="w-full text-[12.5px]">
-          <thead className="text-[10px] uppercase tracking-wider text-gray-400">
-            <tr>
-              <th className="py-2 pr-3 text-left font-semibold">Posto</th>
-              {SETORES.map((s) => <th key={s} className="px-2 py-2 text-left font-semibold">{SETOR_LABEL[s]}</th>)}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-            {base.postos.map((p) => (
-              <tr key={p.codigo}>
-                <td className="py-2 pr-3 font-medium text-gray-800 dark:text-gray-200">{p.fantasia || p.razao}</td>
-                {SETORES.map((s) => {
-                  const k = `${p.codigo}:${s}`
-                  const teto = Number((valores[k] ?? '').replace(',', '.')) || 0
-                  const usado = liberadoNoMes(pedidos, p.codigo, s)
-                  const pct = teto > 0 ? Math.min(100, (usado / teto) * 100) : 0
-                  return (
-                    <td key={s} className="px-2 py-2 align-top">
-                      <input inputMode="decimal" value={valores[k] ?? ''} placeholder="0" onChange={(e) => setValores({ ...valores, [k]: e.target.value })} onBlur={() => salvar(p.codigo, s)} disabled={salvando === k} className={cn(inputCls, 'h-8 w-28 px-2 text-right text-[12px] tabular-nums')} />
-                      <div className="mt-1 h-1 w-28 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                        <div className={cn('h-full rounded-full', pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-[#1e3a5f] dark:bg-blue-500')} style={{ width: `${teto > 0 ? pct : 0}%` }} />
-                      </div>
-                      <p className="mt-0.5 text-[10px] tabular-nums text-gray-400">liberado {formatCurrencyInt(usado)}{teto > 0 ? ` de ${formatCurrencyInt(teto)}` : ''}</p>
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Um cartão por posto; cada setor com o teto em R$ e quanto já foi liberado no mês. */}
+      <div className="space-y-3">
+        {base.postos.map((p) => (
+          <section key={p.codigo} className="rounded-xl border border-gray-200 p-4 dark:border-white/[0.08]">
+            <p className="text-[14px] font-semibold text-gray-900 dark:text-gray-100">{p.fantasia || p.razao}</p>
+            {p.cidade && <p className="text-[11.5px] text-gray-500 dark:text-gray-400">{p.cidade}</p>}
+            <div className="mt-3 grid gap-4 sm:grid-cols-3">
+              {SETORES.map((st) => {
+                const k = `${p.codigo}:${st}`
+                const teto = Number((valores[k] ?? '').replace(',', '.')) || 0
+                const usado = liberadoNoMes(pedidos, p.codigo, st)
+                const pct = teto > 0 ? Math.min(100, (usado / teto) * 100) : 0
+                return (
+                  <label key={st} className="block">
+                    <span className={ROTULO}>{SETOR_LABEL[st]}</span>
+                    <span className="relative block">
+                      <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[12.5px] text-gray-400">R$</span>
+                      <input inputMode="decimal" value={valores[k] ?? ''} placeholder="sem teto" onChange={(e) => setValores({ ...valores, [k]: e.target.value })} onBlur={() => salvar(p.codigo, st)} disabled={salvando === k}
+                        className={cn(CAMPO, 'pl-9 text-right tabular-nums')} />
+                      {salvando === k && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-gray-400" />}
+                    </span>
+                    <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-white/[0.08]">
+                      <span className={cn('block h-full rounded-full', pct >= 100 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-[#1e3a5f] dark:bg-teal-500')} style={{ width: `${teto > 0 ? pct : 0}%` }} />
+                    </span>
+                    <span className={cn('mt-1 block text-[11.5px] tabular-nums', pct >= 100 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400')}>
+                      liberado {formatCurrencyInt(usado)}{teto > 0 ? ` de ${formatCurrencyInt(teto)}` : ''}
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+          </section>
+        ))}
       </div>
       <ModalRodape>
         <button type="button" onClick={onClose} className={btnGhost}>Fechar</button>

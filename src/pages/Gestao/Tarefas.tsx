@@ -16,6 +16,9 @@ import { Modal, ModalRodape, Erro, Segmentos, ConfirmaAcao } from './comumUi'
 import { Kanban } from './TarefasVisoes'
 import { Agenda } from './Agenda'
 import AnexosTarefa from './Anexos'
+import SeletorPostos from './SeletorPostos'
+import { BlocoForm, EtapasCampo } from './BlocoForm'
+import { CAMPO, CAMPO_ERRO, ROTULO, ERRO_CAMPO, TRILHO, pilula, segmento, corPrioridade } from './estiloForm'
 import { celebrarConclusao } from './concluirEvento'
 import { SeloPrioridade } from './Prioridade'
 import { ExigirAnexoCampos } from './Rotinas'
@@ -896,12 +899,14 @@ const capitalizar = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
 /* ─── responsável com busca (redes com muita gente) ─────────────────────── */
 
-const BuscaResponsavel = ({ id, usuarios, valor, onChange, erro }: {
+export const BuscaResponsavel = ({ id, usuarios, valor, onChange, erro, vazio }: {
   id: string
   usuarios: { user_id: string; nome: string; email: string }[]
   valor: string
   onChange: (v: string) => void
   erro?: boolean
+  /** Se informado, a lista começa com esta opção (valor vazio). Ex.: "Sem responsável". */
+  vazio?: string
 }) => {
   const [aberto, setAberto] = useState(false)
   const [q, setQ] = useState('')
@@ -925,7 +930,7 @@ const BuscaResponsavel = ({ id, usuarios, valor, onChange, erro }: {
       <button id={id} type="button" onClick={() => setAberto((v) => !v)} aria-expanded={aberto}
         className={cn(inputCls, 'flex items-center gap-2 text-left', erro && 'border-red-400 dark:border-red-700')}>
         <User className="h-4 w-4 shrink-0 text-gray-400" />
-        <span className={cn('min-w-0 flex-1 truncate', !sel && 'text-gray-400')}>{sel ? sel.nome : 'Selecione quem vai fazer…'}</span>
+        <span className={cn('min-w-0 flex-1 truncate', !sel && 'text-gray-400')}>{sel ? sel.nome : vazio && !valor ? vazio : 'Selecione quem vai fazer…'}</span>
         {sel && <span className="hidden truncate text-[11.5px] text-gray-400 sm:inline">{sel.email}</span>}
         <ChevronDown className={cn('h-4 w-4 shrink-0 text-gray-400 transition-transform', aberto && 'rotate-180')} />
       </button>
@@ -938,6 +943,15 @@ const BuscaResponsavel = ({ id, usuarios, valor, onChange, erro }: {
               className="h-10 w-full bg-transparent pl-9 pr-3 text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-100" />
           </div>
           <ul className="max-h-56 overflow-y-auto py-1" role="listbox">
+            {vazio && !q.trim() && (
+              <li>
+                <button type="button" role="option" aria-selected={!valor} onClick={() => escolher('')}
+                  className={cn('flex w-full items-center gap-2 px-3 py-2 text-left text-sm italic text-gray-500 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-[#223049]', !valor && 'bg-teal-50 dark:bg-[#0d9488]/[0.12]')}>
+                  <span className="min-w-0 flex-1 truncate">{vazio}</span>
+                  {!valor && <Check className="h-4 w-4 shrink-0 text-[#0d9488]" />}
+                </button>
+              </li>
+            )}
             {lista.map((u) => (
               <li key={u.user_id}>
                 <button type="button" role="option" aria-selected={u.user_id === valor} onClick={() => escolher(u.user_id)}
@@ -995,12 +1009,12 @@ export const TarefaForm = ({ tarefa, inicial, onClose, onSalva }: { tarefa?: Tar
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [tentou, setTentou] = useState(false)
+  const [verDescricao, setVerDescricao] = useState(!!(tarefa?.descricao ?? inicial?.descricao))
 
   // Validação visível no campo (não só na mensagem de erro).
   const tituloInvalido = titulo.trim().length < 3
   const respInvalido = !responsavel
   const dataPassada = !!data && (data < hojeLocal() || (data === hojeLocal() && (hora || '18:00') < horaDe(new Date().toISOString())))
-  const campoErro = 'border-red-400 focus:border-red-500 focus:ring-red-500 dark:border-red-700'
 
   const salvar = async () => {
     setTentou(true)
@@ -1027,79 +1041,84 @@ export const TarefaForm = ({ tarefa, inicial, onClose, onSalva }: { tarefa?: Tar
   }
 
   return (
-    <Modal guia={GUIAS.tarefaForm} open onClose={onClose} largura="max-w-2xl" rolagemFina titulo={<span className="inline-flex items-center gap-2">{edicao ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />} {edicao ? 'Editar tarefa' : 'Nova tarefa'}</span>}>
-      <div className="space-y-3">
-        <div>
-          <label className={labelCls} htmlFor="tf-titulo">Título</label>
-          <input id="tf-titulo" className={cn(inputCls, tentou && tituloInvalido && campoErro)} placeholder="Ex.: Conferir fechamento de caixa" value={titulo} onChange={(e) => setTitulo(e.target.value)} autoFocus />
-          {tentou && tituloInvalido && <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">Dê um título com 3 letras ou mais.</p>}
-        </div>
-        <div>
-          <label className={cn(labelCls, 'inline-flex items-center gap-1')} htmlFor="tf-resp">Responsável <span className="font-normal text-gray-400">(obrigatório)</span> <InfoHint text="Quem vai executar. Precisa ter login no Visor nesta rede: a tarefa aparece em Minhas pendentes dele e conta na bolinha do menu." /></label>
-          <BuscaResponsavel id="tf-resp" usuarios={base.usuarios} valor={responsavel} onChange={setResponsavel} erro={tentou && respInvalido} />
-          {tentou && respInvalido && <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">Escolha quem vai fazer.</p>}
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div><label className={labelCls} htmlFor="tf-posto">Posto</label>
-            <select id="tf-posto" className={selectCls} value={empresa} onChange={(e) => setEmpresa(e.target.value)}>
-              <option value="">Sem posto (rede)</option>
-              {base.postos.map((p) => <option key={p.codigo} value={p.codigo}>{p.fantasia || p.razao || `Posto ${p.codigo}`}</option>)}
-            </select></div>
-          <div className="grid grid-cols-2 gap-2">
-            <div><label className={labelCls} htmlFor="tf-setor">Setor</label>
-              <select id="tf-setor" className={selectCls} value={setor} onChange={(e) => setSetor(e.target.value)}>
-                <option value="">Sem setor</option>
-                {base.setores.filter((s) => s.ativo || s.id === setor).map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-              </select></div>
-            <div><label className={labelCls} htmlFor="tf-prio">Prioridade</label>
-              <select id="tf-prio" className={selectCls} value={prioridade} onChange={(e) => setPrioridade(e.target.value as Prioridade)}>
-                {(Object.keys(PRIORIDADE_LABEL) as Prioridade[]).map((p) => <option key={p} value={p}>{PRIORIDADE_LABEL[p]}</option>)}
-              </select></div>
+    <Modal open onClose={onClose} largura="max-w-[600px]" lateral
+      titulo={<span className="inline-flex items-center gap-2">{edicao ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />} {edicao ? 'Editar tarefa' : 'Nova tarefa'}</span>}
+      descricao={edicao ? 'As mudanças ficam registradas no histórico da tarefa.' : 'Uma tarefa avulsa, para uma pessoa, com prazo.'}>
+      <div className="space-y-6">
+        <BlocoForm n={1} titulo="O quê">
+          <div>
+            <label className={ROTULO} htmlFor="tf-titulo">Título</label>
+            <input id="tf-titulo" className={cn(CAMPO, tentou && tituloInvalido && CAMPO_ERRO)} placeholder="Ex.: Conferir fechamento de caixa" value={titulo} onChange={(e) => setTitulo(e.target.value)} autoFocus />
+            {tentou && tituloInvalido && <p className={ERRO_CAMPO}>Dê um título com 3 letras ou mais.</p>}
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div><label className={labelCls} htmlFor="tf-data">Vence em</label><input id="tf-data" type="date" className={cn(inputCls, tentou && !data && campoErro)} value={data} onChange={(e) => setData(e.target.value)} /></div>
-            <div><label className={labelCls} htmlFor="tf-hora">Horário</label><SeletorHora id="tf-hora" className="w-full" value={hora} onChange={setHora} /></div>
-            <div className="col-span-2 -mt-1 flex flex-wrap gap-1">
-              {([['Hoje', hojeLocal()], ['Amanhã', somaDias(hojeLocal(), 1)], ['Segunda', proximaSegunda(hojeLocal())]] as const).map(([rotulo, dia]) => (
-                <button key={rotulo} type="button" onClick={() => setData(dia)}
-                  className={cn('rounded-md px-2 py-0.5 text-[11px] font-medium', data === dia ? 'bg-[#1e3a5f] text-white dark:bg-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#0f0f0f] dark:text-gray-300')}>
-                  {rotulo}
-                </button>
-              ))}
+          {verDescricao ? (
+            <div>
+              <label className={ROTULO} htmlFor="tf-desc">Descrição</label>
+              <textarea id="tf-desc" className={cn(CAMPO, 'h-auto min-h-[96px] resize-y py-2.5 leading-relaxed')} rows={4} value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: cliente pediu para ligar depois das 14h" />
             </div>
-            {dataPassada && <p className="col-span-2 -mt-1 text-[11px] text-amber-600 dark:text-amber-400">Essa data já passou: a tarefa vai nascer atrasada.</p>}
-          </div>
-        </div>
-        <label className={cn('flex h-12 cursor-pointer items-center gap-3 rounded-lg border px-3 transition-colors', prioridade === 'urgente'
-          ? 'border-rose-300 bg-rose-50 dark:border-rose-400/30 dark:bg-rose-400/10'
-          : 'border-gray-300 dark:border-[#2f3b4f]')}>
-          <input type="checkbox" className="h-4 w-4 accent-rose-600" checked={prioridade === 'urgente'}
-            onChange={(e) => setPrioridade(e.target.checked ? 'urgente' : 'alta')} />
-          <Siren className="h-4 w-4 text-rose-600 dark:text-rose-400" />
-          <span className="flex-1 text-sm font-medium text-gray-800 dark:text-gray-100">Urgente</span>
-          <span className="text-[12px] text-gray-500 dark:text-gray-400">aparece com selo vermelho para quem vai fazer</span>
-        </label>
-        <div><label className={labelCls} htmlFor="tf-desc">Descrição (opcional)</label><textarea id="tf-desc" className={cn(inputCls, 'min-h-[120px] resize-y leading-relaxed')} rows={5} value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Ex.: cliente pediu para ligar depois das 14h" /></div>
-        <div>
-          <label className={cn(labelCls, 'inline-flex items-center gap-1')} htmlFor="tf-check">Checklist (opcional) <InfoHint text="Etapas que precisam ser marcadas antes de concluir. Com checklist, a lista mostra Abrir checklist em vez de Concluir, e marcar a primeira etapa já põe a tarefa em andamento." /></label>
-          {checklist.length > 0 && (
-            <ul className="mb-2 space-y-1">
-              {checklist.map((c, i) => (
-                <li key={i} className="flex items-center gap-2 rounded-md bg-gray-50 px-2 py-1 text-sm text-gray-700 dark:bg-white/[0.04] dark:text-gray-200">
-                  <span className="flex-1">{i + 1}. {c.texto}{c.feito && <span className="ml-1 text-[11px] text-emerald-600">(feita)</span>}</span>
-                  <button type="button" className="text-xs text-gray-400 hover:text-red-600" onClick={() => setChecklist((xs) => xs.filter((_, j) => j !== i))} aria-label="Remover etapa"><X className="h-3.5 w-3.5" /></button>
-                </li>
-              ))}
-            </ul>
+          ) : (
+            <button type="button" onClick={() => setVerDescricao(true)} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100"><Plus className="h-4 w-4" /> Adicionar descrição</button>
           )}
-          <div className="flex gap-2">
-            <input id="tf-check" className={inputCls} placeholder="Ex.: Conferir sangrias" value={novaEtapa} onChange={(e) => setNovaEtapa(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addEtapa() } }} />
-            <button type="button" className={cn(btnGhost, 'shrink-0')} onClick={addEtapa} disabled={!novaEtapa.trim()}><Plus className="h-4 w-4" /> Etapa</button>
+        </BlocoForm>
+
+        <BlocoForm n={2} titulo="Onde e quem">
+          <div>
+            <span className={ROTULO}>Responsável <InfoHint text="Quem vai executar. Precisa ter login no Visor nesta rede: a tarefa aparece em Minhas pendentes dele e conta na bolinha do menu." /></span>
+            <BuscaResponsavel id="tf-resp" usuarios={base.usuarios} valor={responsavel} onChange={setResponsavel} erro={tentou && respInvalido} />
+            {tentou && respInvalido && <p className={ERRO_CAMPO}>Escolha quem vai fazer.</p>}
           </div>
-          <p className="mt-1 text-[11px] text-gray-400">Digite a etapa e aperte Enter ou "Etapa". Com checklist, a tarefa só conclui pela lista de etapas.</p>
-        </div>
-        <ExigirAnexoCampos exige={exigeFoto} onExige={setExigeFoto} documentos={documentos} onDocumentos={setDocumentos} novoDoc={novoDoc} onNovoDoc={setNovoDoc} onAdd={addDoc} />
+          <div>
+            <span className={ROTULO}>Posto</span>
+            <SeletorPostos unico postos={base.postos} valor={empresa ? [Number(empresa)] : []} onChange={(v) => setEmpresa(v[0] != null ? String(v[0]) : '')} rotuloVazio="Sem posto (tarefa da rede)" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <label className="block">
+              <span className={ROTULO}>Setor</span>
+              <select className={CAMPO} value={setor} onChange={(e) => setSetor(e.target.value)}>
+                <option value="">Sem setor</option>
+                {base.setores.filter((x) => x.ativo || x.id === setor).map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
+              </select>
+            </label>
+            <div>
+              <span className={ROTULO}>Prioridade <InfoHint text="Alta e Urgente ganham selo e sobem na lista. Urgente aparece em vermelho para quem vai fazer." /></span>
+              <div className={cn(TRILHO, 'h-11 items-center')}>
+                {(Object.keys(PRIORIDADE_LABEL) as Prioridade[]).map((p) => (
+                  <button key={p} type="button" onClick={() => setPrioridade(p)} className={cn(segmento(prioridade === p), 'inline-flex h-full items-center justify-center gap-1 whitespace-nowrap px-3', corPrioridade(p, prioridade === p))}>
+                    {p === 'urgente' && <Siren className="h-3.5 w-3.5 shrink-0" />}{PRIORIDADE_LABEL[p]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </BlocoForm>
+
+        <BlocoForm n={3} titulo="Quando">
+          <div className="grid grid-cols-2 gap-4">
+            <label className="block">
+              <span className={ROTULO}>Vence em</span>
+              <input id="tf-data" type="date" className={cn(CAMPO, tentou && !data && CAMPO_ERRO)} value={data} onChange={(e) => setData(e.target.value)} />
+            </label>
+            <div>
+              <span className={ROTULO}>Horário</span>
+              <SeletorHora id="tf-hora" className="h-11 w-full" value={hora} onChange={setHora} />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {([['Hoje', hojeLocal()], ['Amanhã', somaDias(hojeLocal(), 1)], ['Segunda', proximaSegunda(hojeLocal())], ['Em 7 dias', somaDias(hojeLocal(), 7)]] as const).map(([r, dia]) => (
+              <button key={r} type="button" onClick={() => setData(dia)} className={pilula(data === dia)}>{r}</button>
+            ))}
+          </div>
+          {dataPassada && <p className="rounded-lg bg-amber-50 px-3.5 py-2.5 text-[12.5px] font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">Essa data já passou: a tarefa vai nascer atrasada.</p>}
+        </BlocoForm>
+
+        <BlocoForm n={4} titulo="Etapas e comprovação">
+          <div>
+            <span className={ROTULO}>Etapas <span className="font-normal text-gray-400">(opcional)</span> <InfoHint text="Etapas que precisam ser marcadas antes de concluir. Com etapas, a lista mostra Abrir checklist em vez de Concluir, e marcar a primeira já põe a tarefa em andamento." /></span>
+            <EtapasCampo itens={checklist} onRemover={(i) => setChecklist((xs) => xs.filter((_, j) => j !== i))} novo={novaEtapa} onNovo={setNovaEtapa} onAdd={addEtapa} placeholderVazio="Ex.: Conferir sangrias e Enter…" />
+          </div>
+          <ExigirAnexoCampos exige={exigeFoto} onExige={setExigeFoto} documentos={documentos} onDocumentos={setDocumentos} novoDoc={novoDoc} onNovoDoc={setNovoDoc} onAdd={addDoc} />
+        </BlocoForm>
+
         <Erro msg={erro} />
         <ModalRodape>
           <button type="button" className={btnGhost} onClick={onClose}>Cancelar</button>

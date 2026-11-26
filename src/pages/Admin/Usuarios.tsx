@@ -28,6 +28,7 @@ import {
 const DONO_EMAIL = 'contato@cci.app.br'
 import RecoveryLinkModal from '@/components/admin/RecoveryLinkModal'
 import SenhaInicialModal from '@/components/admin/SenhaInicialModal'
+import PainelLateral from '@/components/ui/PainelLateral'
 import { fetchRedes, type RedeRow } from '@/api/supabase/redes'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useTenantStore } from '@/store/tenant'
@@ -738,146 +739,85 @@ const CreateUserModal = ({ redes, onClose, onCreated }: CreateUserModalProps) =>
     }
   }
 
+  // Painel lateral (padrão Atlas): formulário abre da direita, botões presos embaixo.
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Novo usuário</h2>
-          <button
-            onClick={onClose}
-            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
-          >
-            <X className="h-4 w-4" />
+    <PainelLateral
+      open
+      onClose={onClose}
+      titulo="Novo usuário"
+      subtitulo="Cria o acesso com uma senha inicial; a pessoa troca no primeiro login."
+      onSubmit={handleSubmit}
+      rodape={
+        <>
+          <button type="button" onClick={onClose}
+            className="h-10 rounded-lg border border-gray-300 px-4 text-[13.5px] font-semibold text-gray-700 hover:bg-gray-50 dark:border-[#3e4c63] dark:text-gray-200 dark:hover:bg-white/[0.06]">
+            Cancelar
           </button>
+          <button type="submit" disabled={submitting}
+            className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-[#1e3a5f] px-5 text-[13.5px] font-semibold text-white hover:bg-[#162d4a] disabled:opacity-60 dark:bg-teal-600 dark:hover:bg-teal-500">
+            {submitting ? <><Loader2 className="h-4 w-4 animate-spin" /> Criando…</> : 'Criar usuário'}
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        <label className="block">
+          <span className="mb-1.5 block text-[13px] font-semibold text-gray-800 dark:text-gray-200">Nome completo</span>
+          <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Ex.: João Silva" className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3.5 text-[14px] text-gray-900 placeholder:text-gray-400 focus:border-[#1e3a5f] focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/15 dark:border-[#3e4c63] dark:bg-[#0f172a] dark:text-gray-100 dark:focus:border-teal-500 dark:focus:ring-teal-500/20" required />
+        </label>
+
+        <label className="block">
+          <span className="mb-1.5 block text-[13px] font-semibold text-gray-800 dark:text-gray-200">E-mail</span>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="usuario@empresa.com" autoComplete="off" className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3.5 text-[14px] text-gray-900 placeholder:text-gray-400 focus:border-[#1e3a5f] focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/15 dark:border-[#3e4c63] dark:bg-[#0f172a] dark:text-gray-100 dark:focus:border-teal-500 dark:focus:ring-teal-500/20" required />
+        </label>
+
+        <label className="block">
+          <span className="mb-1.5 block text-[13px] font-semibold text-gray-800 dark:text-gray-200">Senha inicial</span>
+          <div className="relative">
+            <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" autoComplete="new-password" minLength={6} className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3.5 text-[14px] text-gray-900 placeholder:text-gray-400 focus:border-[#1e3a5f] focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/15 dark:border-[#3e4c63] dark:bg-[#0f172a] dark:text-gray-100 dark:focus:border-teal-500 dark:focus:ring-teal-500/20 pr-11" required />
+            <button type="button" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'Esconder senha' : 'Mostrar senha'}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          <span className="mt-1.5 block text-[12px] text-gray-500 dark:text-gray-400">Passe para a pessoa por um canal seguro (ex.: WhatsApp direto).</span>
+        </label>
+
+        <label className="block">
+          <span className="mb-1.5 block text-[13px] font-semibold text-gray-800 dark:text-gray-200">Rede</span>
+          <select value={redeId} onChange={(e) => setRedeId(e.target.value)} className="h-11 w-full rounded-lg border border-gray-300 bg-white px-3.5 text-[14px] text-gray-900 placeholder:text-gray-400 focus:border-[#1e3a5f] focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/15 dark:border-[#3e4c63] dark:bg-[#0f172a] dark:text-gray-100 dark:focus:border-teal-500 dark:focus:ring-teal-500/20" required>
+            <option value="" disabled>Selecione uma rede</option>
+            {redes.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
+          </select>
+        </label>
+
+        <div>
+          <span className="mb-1.5 block text-[13px] font-semibold text-gray-800 dark:text-gray-200">Papel</span>
+          <div className="space-y-2">
+            <button type="button" onClick={() => setRole('user')} className={`flex w-full items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors ${role === 'user' ? 'border-[#1e3a5f]/40 bg-[#1e3a5f]/[0.05] dark:border-teal-500/50 dark:bg-teal-500/10' : 'border-gray-200 hover:bg-gray-50 dark:border-[#2f3b4f] dark:hover:bg-white/[0.03]'}`}>
+              <Shield className={cn('h-4 w-4 shrink-0', role === 'user' ? 'text-[#1e3a5f] dark:text-teal-300' : 'text-gray-400')} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13.5px] font-semibold text-gray-900 dark:text-gray-100">Usuário</span>
+                <span className="block text-[12px] text-gray-500 dark:text-gray-400">Acesso comum, aos módulos e postos que você liberar.</span>
+              </span>
+              <span className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2', role === 'user' ? 'border-[#1e3a5f] dark:border-teal-400' : 'border-gray-300 dark:border-gray-600')}>{role === 'user' && <span className="h-1.5 w-1.5 rounded-full bg-[#1e3a5f] dark:bg-teal-400" />}</span>
+            </button>
+            <button type="button" onClick={() => setRole('supervisor')} className={`flex w-full items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors ${role === 'supervisor' ? 'border-[#1e3a5f]/40 bg-[#1e3a5f]/[0.05] dark:border-teal-500/50 dark:bg-teal-500/10' : 'border-gray-200 hover:bg-gray-50 dark:border-[#2f3b4f] dark:hover:bg-white/[0.03]'}`}>
+              <ShieldCheck className={cn('h-4 w-4 shrink-0', role === 'supervisor' ? 'text-[#1e3a5f] dark:text-teal-300' : 'text-gray-400')} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13.5px] font-semibold text-gray-900 dark:text-gray-100">Supervisor</span>
+                <span className="block text-[12px] text-gray-500 dark:text-gray-400">Gerencia os frentistas da própria rede.</span>
+              </span>
+              <span className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2', role === 'supervisor' ? 'border-[#1e3a5f] dark:border-teal-400' : 'border-gray-300 dark:border-gray-600')}>{role === 'supervisor' && <span className="h-1.5 w-1.5 rounded-full bg-[#1e3a5f] dark:bg-teal-400" />}</span>
+            </button>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 px-5 py-4">
-          <label className="block">
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Nome completo</span>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Ex: João Silva"
-              className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-              required
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Email</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="usuario@empresa.com"
-              autoComplete="off"
-              className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-              required
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Senha inicial</span>
-            <div className="relative mt-1">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Mín. 6 caracteres"
-                autoComplete="new-password"
-                minLength={6}
-                className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 pr-9 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            <p className="mt-1 text-[11px] text-gray-400">Compartilhe com o usuário pelo canal seguro de sua escolha.</p>
-          </label>
-
-          <label className="block">
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Rede</span>
-            <select
-              value={redeId}
-              onChange={(e) => setRedeId(e.target.value)}
-              className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-              required
-            >
-              <option value="" disabled>Selecione uma rede</option>
-              {redes.map((r) => (
-                <option key={r.id} value={r.id}>{r.nome}</option>
-              ))}
-            </select>
-          </label>
-
-          <div>
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Papel</span>
-            <div className="mt-1 inline-flex w-full items-center gap-0.5 rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800">
-              <button
-                type="button"
-                onClick={() => setRole('user')}
-                className={cn(
-                  'flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
-                  role === 'user'
-                    ? 'bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-gray-100'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-                )}
-              >
-                <Shield className="h-3 w-3" />
-                Usuário
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('supervisor')}
-                className={cn(
-                  'flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors',
-                  role === 'supervisor'
-                    ? 'bg-blue-500 text-white'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
-                )}
-              >
-                <ShieldCheck className="h-3 w-3" />
-                Supervisor
-              </button>
-            </div>
-          </div>
-
-          {err && (
-            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 dark:border-red-900/50 dark:bg-red-950/30">
-              <p className="text-xs font-medium text-red-600 dark:text-red-400">{err}</p>
-            </div>
-          )}
-
-          <div className="flex items-center gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-[#1e3a5f] px-3 py-2 text-sm font-semibold text-white hover:bg-[#162d4a] disabled:opacity-60"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Criando...
-                </>
-              ) : 'Criar usuário'}
-            </button>
-          </div>
-        </form>
+        {err && (
+          <p className="rounded-lg bg-red-50 px-3.5 py-2.5 text-[12.5px] font-medium text-red-700 dark:bg-red-500/10 dark:text-red-300">{err}</p>
+        )}
       </div>
-    </div>
+    </PainelLateral>
   )
 }
 
@@ -1056,19 +996,19 @@ const UserEditor = ({ profile: p, isSelf, redes, busy, onClose, onToggleApproved
   const restricaoModulos = p.modulos_permitidos && p.modulos_permitidos.length > 0
     ? `${p.modulos_permitidos.length} de ${MODULOS.length}`
     : null
-  // Inline (sem portal): as janelas de postos, módulos e senha abrem por cima dele.
+  // Painel lateral não-modal: as janelas de postos, módulos e senha abrem por cima dele.
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/50 px-4 py-10" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div role="dialog" aria-label={`Editar ${p.full_name || p.email}`} className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl dark:border-[#2f3b4f] dark:bg-[#1e293b]">
-        <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-[#2f3b4f]">
-          <div className="min-w-0">
-      {/* Usuário — nome + email empilhados pra economizar coluna */}
-
-        <div className="flex flex-col">
-          <div className="flex items-center gap-2">
-            <span className="whitespace-nowrap font-medium text-gray-900 dark:text-gray-100">
-              {p.full_name || '—'}
-            </span>
+    <PainelLateral
+      open
+      naoModal
+      camada={40}
+      onClose={onClose}
+      largura="max-w-[640px]"
+      semPadding
+      subtitulo={p.email}
+      titulo={
+          <span className="flex flex-wrap items-center gap-2">
+            <span>{p.full_name || '—'}</span>
             {isSelf && (
               <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-[10px] uppercase text-gray-500 dark:bg-gray-800 dark:text-gray-400">
                 você
@@ -1079,14 +1019,9 @@ const UserEditor = ({ profile: p, isSelf, redes, busy, onClose, onToggleApproved
                 inativo
               </span>
             )}
-          </div>
-          <span className="truncate text-[11px] text-gray-500 dark:text-gray-400" title={p.email}>
-            {p.email}
           </span>
-        </div>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Fechar" className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 dark:text-[#94a3b8] dark:hover:bg-white/[0.06]"><X className="h-4 w-4" /></button>
-        </div>
+      }
+    >
 
       {/* Acesso (toggle) */}
       <section className="border-b border-gray-100 px-5 py-4 last:border-b-0 dark:border-[#2f3b4f]">
@@ -1444,8 +1379,7 @@ const UserEditor = ({ profile: p, isSelf, redes, busy, onClose, onToggleApproved
           />
         </div>
       </section>
-      </div>
-    </div>
+    </PainelLateral>
   )
 }
 
@@ -1504,22 +1438,27 @@ const EmpresasModal = ({ profile, redes, onClose, onSave }: EmpresasModalProps) 
   const userName = profile.full_name || profile.email
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Postos permitidos</h2>
-            <p className="truncate text-xs text-gray-500 dark:text-gray-400">{userName}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
-          >
-            <X className="h-4 w-4" />
+    <PainelLateral
+      open
+      naoModal
+      camada={50}
+      onClose={onClose}
+      titulo="Postos permitidos"
+      subtitulo={userName}
+      rodape={
+        <>
+          <button type="button" onClick={onClose}
+            className="h-10 rounded-lg border border-gray-300 px-4 text-[13.5px] font-semibold text-gray-700 hover:bg-gray-50 dark:border-[#3e4c63] dark:text-gray-200 dark:hover:bg-white/[0.06]">
+            Cancelar
           </button>
-        </div>
-
-        <div className="px-5 py-4">
+          <button type="button" onClick={handleSave} disabled={!sameAsTenant || !profile.rede_id}
+            className="h-10 rounded-lg bg-[#1e3a5f] px-5 text-[13.5px] font-semibold text-white hover:bg-[#162d4a] disabled:opacity-50 dark:bg-teal-600 dark:hover:bg-teal-500">
+            Salvar
+          </button>
+        </>
+      }
+    >
+      <div>
           {!profile.rede_id ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400">
               Defina uma rede pro usuário antes de restringir postos.
@@ -1584,25 +1523,9 @@ const EmpresasModal = ({ profile, redes, onClose, onSave }: EmpresasModalProps) 
               </p>
             </>
           )}
-        </div>
-
-        <div className="flex items-center gap-2 border-t border-gray-100 px-5 py-3 dark:border-gray-800">
-          <button
-            onClick={onClose}
-            className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!sameAsTenant || !profile.rede_id}
-            className="flex-1 rounded-md bg-[#1e3a5f] px-3 py-2 text-sm font-semibold text-white hover:bg-[#162d4a] disabled:opacity-50"
-          >
-            Salvar
-          </button>
-        </div>
       </div>
-    </div>
+
+    </PainelLateral>
   )
 }
 
@@ -1649,22 +1572,27 @@ const ModulosModal = ({ profile, onClose, onSave }: ModulosModalProps) => {
   const iaModulo = MODULOS.find((m) => m.id === IA_ID)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gradient-to-b dark:from-gray-900 dark:to-black">
-        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3 dark:border-gray-800">
-          <div className="min-w-0">
-            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Módulos liberados</h2>
-            <p className="truncate text-xs text-gray-500 dark:text-gray-400">{userName}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800"
-          >
-            <X className="h-4 w-4" />
+    <PainelLateral
+      open
+      naoModal
+      camada={50}
+      onClose={onClose}
+      titulo="Módulos liberados"
+      subtitulo={userName}
+      rodape={
+        <>
+          <button type="button" onClick={onClose}
+            className="h-10 rounded-lg border border-gray-300 px-4 text-[13.5px] font-semibold text-gray-700 hover:bg-gray-50 dark:border-[#3e4c63] dark:text-gray-200 dark:hover:bg-white/[0.06]">
+            Cancelar
           </button>
-        </div>
-
-        <div className="px-5 py-4">
+          <button type="button" onClick={handleSave}
+            className="h-10 rounded-lg bg-[#1e3a5f] px-5 text-[13.5px] font-semibold text-white hover:bg-[#162d4a] disabled:opacity-50 dark:bg-teal-600 dark:hover:bg-teal-500">
+            Salvar
+          </button>
+        </>
+      }
+    >
+      <div>
           <label className="mb-3 flex cursor-pointer items-center gap-2 border-b border-gray-100 pb-2 dark:border-gray-800">
             <input
               type="checkbox"
@@ -1732,24 +1660,9 @@ const ModulosModal = ({ profile, onClose, onSave }: ModulosModalProps) => {
             base inclui todos os módulos; o <strong>Analista de IA</strong> é um
             adicional opcional. Marcar todos ou nenhum equivale a "sem restrição".
           </p>
-        </div>
-
-        <div className="flex items-center gap-2 border-t border-gray-100 px-5 py-3 dark:border-gray-800">
-          <button
-            onClick={onClose}
-            className="flex-1 rounded-md border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
-          >
-            Cancelar
-          </button>
-          <button
-            onClick={handleSave}
-            className="flex-1 rounded-md bg-[#1e3a5f] px-3 py-2 text-sm font-semibold text-white hover:bg-[#162d4a]"
-          >
-            Salvar
-          </button>
-        </div>
       </div>
-    </div>
+
+    </PainelLateral>
   )
 }
 

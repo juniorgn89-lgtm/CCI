@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { GuiaModal } from '@/components/guia/tipos'
 import { cn } from '@/lib/utils'
+import PainelLateral from '@/components/ui/PainelLateral'
 
 /**
  * Modal padrão do módulo. No celular (<768px) deixa a barra inferior do app
@@ -10,7 +11,7 @@ import { cn } from '@/lib/utils'
  * desktop. Rodapé de botões: use <ModalRodape> pra ficar fixo embaixo.
  */
 export const Modal = ({
-  open, onClose, titulo, descricao, children, largura = 'max-w-xl', fundo = '', guia, rolagemFina = false,
+  open, onClose, titulo, descricao, children, largura = 'max-w-xl', fundo = '', guia, rolagemFina = false, lateral = false,
 }: {
   open: boolean
   onClose: () => void
@@ -24,7 +25,13 @@ export const Modal = ({
   guia?: GuiaModal
   /** Barra de rolagem fina e discreta (classe .rolagem-fina do index.css). */
   rolagemFina?: boolean
-}) => (
+  /** Abre como painel lateral (direita, altura toda) — padrão Atlas para formulários. */
+  lateral?: boolean
+}) => lateral ? (
+  <PainelLateral open={open} onClose={onClose} titulo={titulo} subtitulo={descricao} largura={largura}>
+    <div className="painel-lateral">{children}</div>
+  </PainelLateral>
+) : (
   <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
     <DialogContent guia={guia} className={cn('top-[calc(50%-2rem)] max-h-[calc(100dvh-6rem)] overflow-y-auto md:top-[50%] md:max-h-[92vh] dark:border-gray-700', rolagemFina && 'rolagem-fina', fundo, largura)}>
       <DialogHeader className="text-left">
@@ -38,7 +45,7 @@ export const Modal = ({
 
 /** Rodapé de ações que fica visível mesmo com o conteúdo rolando. */
 export const ModalRodape = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <div className={cn('sticky -bottom-6 -mx-6 -mb-6 mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-white px-6 py-3 dark:border-gray-700 dark:bg-black', className)}>
+  <div className={cn('modal-rodape sticky -bottom-6 -mx-6 -mb-6 mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-gray-200 bg-white px-6 py-3 dark:border-gray-700 dark:bg-black', className)}>
     {children}
   </div>
 )

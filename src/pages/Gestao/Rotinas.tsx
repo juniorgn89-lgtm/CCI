@@ -1,19 +1,23 @@
 import { useMemo, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Repeat, Plus, Layers, Loader2, Check, Power, Copy, Pencil, X, Trash2, Camera } from 'lucide-react'
+import { Repeat, Plus, Layers, Loader2, Check, Power, Copy, Pencil, X, Trash2, Camera, CalendarClock } from 'lucide-react'
 import {
   fetchRotinas, criarRotina, atualizarRotina, excluirRotina, criarSetor, atualizarSetor, gerarTarefasDeRotinas, proximaGeracao,
   RECORRENCIA_LABEL, REFERENTE_LABEL, DIAS_SEMANA, MODO_PERSONALIZADO_LABEL, PRIORIDADE_LABEL, MESES_CURTOS, exigeAnexo,
   type RotinaRow, type RotinaInput, type Recorrencia, type ReferenteA, type ModoPersonalizado, type Prioridade,
 } from '@/api/supabase/gestaoTarefas'
 import { SeloPrioridade } from './Prioridade'
-import { useGestaoBase, containerCls, inputCls, selectCls, labelCls, btnPrimary, btnGhost, hojeLocal, fmtData, descreverRegra, fmtMmdd } from './comum'
+import { useGestaoBase, containerCls, inputCls, selectCls, btnPrimary, btnGhost, hojeLocal, fmtData, descreverRegra, fmtMmdd } from './comum'
 import { Modal, ModalRodape, Erro } from './comumUi'
 import { cn } from '@/lib/utils'
 import { GUIAS } from '@/lib/guiasModais'
 import InfoHint from '@/components/ui/InfoHint'
 import SeletorHora from '@/components/ui/SeletorHora'
+import SeletorPostos from './SeletorPostos'
+import { BlocoForm, EtapasCampo } from './BlocoForm'
+import { CAMPO, ROTULO, pilula, segmento, corPrioridade } from './estiloForm'
+import { BuscaResponsavel } from './Tarefas'
 
 /**
  * Gestão → Rotinas: modelos recorrentes que geram as tarefas sozinhos
@@ -181,7 +185,7 @@ const Rotinas = () => {
 
 /* ─── formulário de rotina ─────────────────────────────────────────────── */
 
-const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { rotina: RotinaRow | null; copiaDe?: RotinaRow | null; onClose: () => void; onSalva: () => void }) => {
+export const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { rotina: RotinaRow | null; copiaDe?: RotinaRow | null; onClose: () => void; onSalva: () => void }) => {
   const base = useGestaoBase()
   // Edição usa a própria rotina; duplicação usa a cópia só como modelo (salva como nova).
   const rotina = editando ?? copiaDe ?? null
@@ -211,7 +215,6 @@ const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { rotina: R
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
 
-  const alternarEmpresa = (c: number) => setEmpresas((xs) => (xs.includes(c) ? xs.filter((x) => x !== c) : [...xs, c]))
   const alternarDia = (d: number) => setDias((xs) => (xs.includes(d) ? xs.filter((x) => x !== d) : [...xs, d]))
   const addEtapa = () => { const t = novaEtapa.trim(); if (!t) return; setChecklist((xs) => [...xs, t]); setNovaEtapa('') }
   const alternarDiaMes = (d: number) => setDiasMes((xs) => (xs.includes(d) ? xs.filter((x) => x !== d) : [...xs, d]))
@@ -258,85 +261,93 @@ const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { rotina: R
     }
   }
 
-  return (
-    <Modal guia={GUIAS.rotinaForm} open onClose={onClose} titulo={<span className="inline-flex items-center gap-2"><Repeat className="h-4 w-4" /> {editando ? 'Editar rotina' : copiaDe ? 'Duplicar rotina' : 'Nova rotina'}</span>} largura="max-w-2xl">
-      <div className="space-y-4">
-        <div>
-          <label className={labelCls}>Nome</label>
-          <input className={inputCls} placeholder="Ex.: Medição dos tanques" value={nome} onChange={(e) => setNome(e.target.value)} autoFocus />
-        </div>
-        <div>
-          <label className={labelCls}>Descrição (opcional)</label>
-          <textarea className={inputCls} rows={2} value={descricao} onChange={(e) => setDescricao(e.target.value)} />
-        </div>
-        <div>
-          <label className={cn(labelCls, 'inline-flex items-center gap-1')}>Postos ({empresas.length ? `${empresas.length} selecionado(s)` : 'nenhum = uma tarefa só, sem posto'}) <InfoHint text="Cada posto marcado vira uma tarefa própria todo dia, com o mesmo responsável e checklist. Sem posto marcado, nasce uma tarefa só, da rede." /></label>
-          <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto rounded-lg border border-gray-200 p-2 dark:border-gray-700">
-            {base.postos.length === 0 && <span className="text-xs text-gray-400">Carregando postos da rede…</span>}
-            {base.postos.map((p) => {
-              const on = empresas.includes(p.codigo)
-              return (
-                <button key={p.codigo} type="button" onClick={() => alternarEmpresa(p.codigo)}
-                  className={cn('rounded-full border px-2.5 py-1 text-xs font-medium', on ? 'border-[#1e3a5f] bg-[#1e3a5f] text-white dark:border-blue-600 dark:bg-blue-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800')}>
-                  {on && <Check className="mr-1 inline h-3 w-3" />}{p.fantasia || p.razao || `Posto ${p.codigo}`}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div>
-            <label className={cn(labelCls, 'inline-flex items-center gap-1')}>Responsável <InfoHint text="Quem recebe as tarefas geradas. Sem responsável a rotina fica cadastrada mas não gera nada, e aparece com o selo 'não gera tarefas' na lista." /></label>
-            <select className={selectCls} value={responsavel} onChange={(e) => setResponsavel(e.target.value)}>
-              <option value="">Sem responsável (não gera)</option>
-              {base.usuarios.map((u) => <option key={u.user_id} value={u.user_id}>{u.nome}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={labelCls}>Setor</label>
-            <select className={selectCls} value={setor} onChange={(e) => setSetor(e.target.value)}>
-              <option value="">Sem setor</option>
-              {base.setores.filter((s) => s.ativo || s.id === setor).map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className={cn(labelCls, 'inline-flex items-center gap-1')}>Prioridade <InfoHint text="Vai para cada tarefa gerada. Alta e Urgente ganham selo na lista e sobem na ordem dentro do mesmo prazo. Mudar aqui também atualiza as tarefas desta rotina que ainda estão em aberto." /></label>
-            <select className={selectCls} value={prioridade} onChange={(e) => setPrioridade(e.target.value as Prioridade)}>
-              {(Object.keys(PRIORIDADE_LABEL) as Prioridade[]).map((p) => <option key={p} value={p}>{PRIORIDADE_LABEL[p]}</option>)}
-            </select>
-          </div>
-        </div>
+  // Visual do painel lateral: peças compartilhadas com a tarefa (estiloForm / BlocoForm).
+  const campo = CAMPO
+  const rotulo = ROTULO
+  const Bloco = BlocoForm
+  const proxima = responsavel ? proximaGeracao({ ...regra, inicio_em: inicio || hojeLocal() }, hojeLocal()) : null
+  const nTarefas = empresas.length || 1
+  const [verDescricao, setVerDescricao] = useState(!!descricao)
 
-        <div className="space-y-3 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
-          <div>
-            <label className={cn(labelCls, 'inline-flex items-center gap-1')}>Recorrência <InfoHint text="Todos os dias, só dias úteis (segunda a sexta) ou Personalizada: dias da semana, dias do mês (ex.: todo dia 5, ou o último dia), datas no ano (ex.: 31/12) ou escala (ex.: trabalha 1, folga 1). 'Início em' é a partir de quando gera, e na escala é o primeiro dia de trabalho; 'vence às' é a hora limite de cada tarefa. A linha verde resume e mostra a próxima geração." /></label>
-            <div className="flex flex-wrap items-center gap-2">
-              {(Object.keys(RECORRENCIA_LABEL) as Recorrencia[]).map((r) => (
-                <button key={r} type="button" onClick={() => setRecorrencia(r)}
-                  className={cn('rounded-md px-3 py-1.5 text-xs font-semibold', recorrencia === r ? 'bg-[#1e3a5f] text-white dark:bg-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-[#0f0f0f] dark:text-gray-300')}>
-                  {RECORRENCIA_LABEL[r]}
-                </button>
-              ))}
-              <span className="flex w-full flex-wrap items-center gap-2 text-xs text-gray-500 sm:ml-auto sm:w-auto">
-                <span className="whitespace-nowrap">início em</span> <input type="date" className={cn(inputCls, 'h-8 w-auto py-1')} value={inicio} onChange={(e) => setInicio(e.target.value)} />
-                <span className="whitespace-nowrap">vence às</span> <SeletorHora aria-label="Vence às" className="h-8" value={hora} onChange={setHora} />
-              </span>
+  return (
+    <Modal open onClose={onClose} lateral titulo={<span className="inline-flex items-center gap-2"><Repeat className="h-4 w-4" /> {editando ? 'Editar rotina' : copiaDe ? 'Duplicar rotina' : 'Nova rotina'}</span>}
+      descricao="Gera as tarefas sozinha, todo dia que cair na repetição." largura="max-w-[640px]">
+      <div className="space-y-6">
+        {/* 1 · O quê */}
+        {Bloco({ n: 1, titulo: 'O quê', children: (
+          <>
+            <label className="block">
+              <span className={rotulo}>Nome da rotina</span>
+              <input className={campo} placeholder="Ex.: Medição dos tanques" value={nome} onChange={(e) => setNome(e.target.value)} autoFocus />
+            </label>
+            {verDescricao ? (
+              <label className="block">
+                <span className={rotulo}>Descrição</span>
+                <textarea className={cn(campo, 'h-auto py-2.5')} rows={2} value={descricao} onChange={(e) => setDescricao(e.target.value)} placeholder="Orientação para quem vai fazer" />
+              </label>
+            ) : (
+              <button type="button" onClick={() => setVerDescricao(true)} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100"><Plus className="h-4 w-4" /> Adicionar descrição</button>
+            )}
+          </>
+        ) })}
+
+        {/* 2 · Onde e quem */}
+        {Bloco({ n: 2, titulo: 'Onde e quem', children: (
+          <>
+            <div>
+              <span className={rotulo}>Postos <InfoHint text="Cada posto marcado vira uma tarefa própria, com o mesmo responsável e etapas. Sem posto marcado, nasce uma tarefa só, da rede." /></span>
+              <SeletorPostos postos={base.postos} valor={empresas} onChange={setEmpresas} />
             </div>
-            {pers && (
-              <div className="mt-2 space-y-2">
-                <div className="grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-1 sm:grid-cols-4 dark:bg-[#0f0f0f]">
-                  {(Object.keys(MODO_PERSONALIZADO_LABEL) as ModoPersonalizado[]).map((m) => (
-                    <button key={m} type="button" onClick={() => setModo(m)}
-                      className={cn('rounded-md px-2 py-1.5 text-xs font-semibold', modo === m ? 'bg-[#1e3a5f] text-white shadow-sm dark:bg-blue-700 dark:text-white' : 'text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200')}>
-                      {MODO_PERSONALIZADO_LABEL[m]}
+            <div>
+              <span className={rotulo}>Responsável <InfoHint text="Quem recebe as tarefas geradas. Sem responsável a rotina fica cadastrada, mas não gera nada." /></span>
+              <BuscaResponsavel id="rotina-resp" usuarios={base.usuarios} valor={responsavel} onChange={setResponsavel} vazio="Sem responsável (não gera tarefas)" />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <label className="block">
+                <span className={rotulo}>Setor</span>
+                <select className={campo} value={setor} onChange={(e) => setSetor(e.target.value)}>
+                  <option value="">Sem setor</option>
+                  {base.setores.filter((x) => x.ativo || x.id === setor).map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}
+                </select>
+              </label>
+              <div>
+                <span className={rotulo}>Prioridade <InfoHint text="Vai para cada tarefa gerada. Alta e Urgente ganham selo e sobem na lista. Mudar aqui também atualiza as tarefas desta rotina ainda em aberto." /></span>
+                <div className="flex h-11 items-center gap-1 rounded-lg bg-gray-100 p-1 dark:bg-white/[0.05]">
+                  {(Object.keys(PRIORIDADE_LABEL) as Prioridade[]).map((p) => (
+                    <button key={p} type="button" onClick={() => setPrioridade(p)} className={cn(segmento(prioridade === p), 'h-full px-3', corPrioridade(p, prioridade === p))}>
+                      {PRIORIDADE_LABEL[p]}
                     </button>
                   ))}
                 </div>
+              </div>
+            </div>
+          </>
+        ) })}
+
+        {/* 3 · Quando */}
+        {Bloco({ n: 3, titulo: 'Quando', children: (
+          <>
+            <div>
+              <span className={rotulo}>Repete <InfoHint text="Todos os dias, só dias úteis (segunda a sexta) ou Personalizada: dias da semana, dias do mês (ex.: todo dia 5, ou o último dia), datas no ano (ex.: 31/12) ou escala (ex.: trabalha 1, folga 1)." /></span>
+              <div className="flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-white/[0.05]">
+                {(Object.keys(RECORRENCIA_LABEL) as Recorrencia[]).map((r) => (
+                  <button key={r} type="button" onClick={() => setRecorrencia(r)} className={segmento(recorrencia === r)}>{RECORRENCIA_LABEL[r]}</button>
+                ))}
+              </div>
+            </div>
+
+            {pers && (
+              <div className="space-y-3 rounded-xl border border-gray-200 p-4 dark:border-white/[0.08]">
+                <div className="flex flex-wrap gap-1.5">
+                  {(Object.keys(MODO_PERSONALIZADO_LABEL) as ModoPersonalizado[]).map((m) => (
+                    <button key={m} type="button" onClick={() => setModo(m)} className={pilula(modo === m)}>{MODO_PERSONALIZADO_LABEL[m]}</button>
+                  ))}
+                </div>
                 {modo === 'semana' && (
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="grid grid-cols-7 gap-1.5">
                     {DIAS_SEMANA.map((d, i) => (
                       <button key={d} type="button" onClick={() => alternarDia(i)}
-                        className={cn('rounded-full border px-2.5 py-1 text-xs font-medium', dias.includes(i) ? 'border-[#1e3a5f] bg-[#1e3a5f] text-white dark:border-blue-600 dark:bg-blue-700' : 'border-gray-300 text-gray-600 dark:border-gray-700 dark:text-gray-300')}>
+                        className={cn('h-10 rounded-lg border text-[12.5px] font-semibold transition-colors', dias.includes(i) ? 'border-[#1e3a5f] bg-[#1e3a5f] text-white dark:border-teal-600 dark:bg-teal-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-[#3e4c63] dark:text-gray-300 dark:hover:bg-white/[0.05]')}>
                         {d}
                       </button>
                     ))}
@@ -344,38 +355,38 @@ const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { rotina: R
                 )}
                 {modo === 'mes' && (
                   <div>
-                    <div className="grid grid-cols-7 gap-1 sm:grid-cols-11">
+                    <div className="grid grid-cols-8 gap-1.5">
                       {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
                         <button key={d} type="button" onClick={() => alternarDiaMes(d)}
-                          className={cn('h-8 rounded-md border text-xs font-medium tabular-nums', diasMes.includes(d) ? 'border-[#1e3a5f] bg-[#1e3a5f] text-white dark:border-blue-600 dark:bg-blue-700' : 'border-gray-300 text-gray-600 dark:border-gray-700 dark:text-gray-300')}>
+                          className={cn('h-9 rounded-lg border text-[12.5px] font-semibold tabular-nums transition-colors', diasMes.includes(d) ? 'border-[#1e3a5f] bg-[#1e3a5f] text-white dark:border-teal-600 dark:bg-teal-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-[#3e4c63] dark:text-gray-300 dark:hover:bg-white/[0.05]')}>
                           {d}
                         </button>
                       ))}
                       <button type="button" onClick={() => alternarDiaMes(0)}
-                        className={cn('col-span-3 h-8 rounded-md border text-xs font-medium sm:col-span-2', diasMes.includes(0) ? 'border-[#1e3a5f] bg-[#1e3a5f] text-white dark:border-blue-600 dark:bg-blue-700' : 'border-gray-300 text-gray-600 dark:border-gray-700 dark:text-gray-300')}>
-                        Último dia
+                        className={cn('col-span-1 h-9 rounded-lg border text-[11px] font-semibold leading-tight transition-colors', diasMes.includes(0) ? 'border-[#1e3a5f] bg-[#1e3a5f] text-white dark:border-teal-600 dark:bg-teal-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50 dark:border-[#3e4c63] dark:text-gray-300 dark:hover:bg-white/[0.05]')}>
+                        Último
                       </button>
                     </div>
-                    <p className="mt-1 text-[11px] text-gray-500">Mês que não tem o dia (ex.: 31 em abril) é pulado. Para o fim de todo mês, use "Último dia".</p>
+                    <p className="mt-2 text-[12px] text-gray-500 dark:text-gray-400">Mês sem o dia (ex.: 31 em abril) é pulado. Para o fim de todo mês, use "Último".</p>
                   </div>
                 )}
                 {modo === 'ano' && (
-                  <div className="space-y-2">
+                  <div className="space-y-2.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <select className={cn(selectCls, 'h-8 w-auto py-1')} value={novaDataDia} onChange={(e) => setNovaDataDia(e.target.value)} aria-label="Dia">
+                      <select className={cn(campo, 'h-10 w-auto')} value={novaDataDia} onChange={(e) => setNovaDataDia(e.target.value)} aria-label="Dia">
                         {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}</option>)}
                       </select>
-                      <select className={cn(selectCls, 'h-8 w-auto py-1')} value={novaDataMes} onChange={(e) => setNovaDataMes(e.target.value)} aria-label="Mês">
+                      <select className={cn(campo, 'h-10 w-auto')} value={novaDataMes} onChange={(e) => setNovaDataMes(e.target.value)} aria-label="Mês">
                         {MESES_CURTOS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
                       </select>
-                      <button type="button" className={cn(btnGhost, 'h-8 px-2 text-xs')} onClick={addDataAno}><Plus className="h-3.5 w-3.5" /> Data</button>
+                      <button type="button" className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-gray-300 px-3.5 text-[13px] font-semibold text-gray-700 hover:bg-gray-50 dark:border-[#3e4c63] dark:text-gray-200 dark:hover:bg-white/[0.05]" onClick={addDataAno}><Plus className="h-4 w-4" /> Adicionar data</button>
                     </div>
                     {datasAno.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {datasAno.map((d) => (
-                          <span key={d} className="inline-flex items-center gap-1 rounded-full bg-[#1e3a5f] px-2.5 py-1 text-xs font-medium text-white dark:bg-blue-700">
+                          <span key={d} className="inline-flex items-center gap-1.5 rounded-full bg-[#1e3a5f] py-1 pl-3 pr-1.5 text-[12.5px] font-semibold text-white dark:bg-teal-600">
                             {fmtMmdd(d)}
-                            <button type="button" onClick={() => setDatasAno((xs) => xs.filter((x) => x !== d))} aria-label="Remover data"><X className="h-3 w-3" /></button>
+                            <button type="button" onClick={() => setDatasAno((xs) => xs.filter((x) => x !== d))} aria-label="Remover data" className="rounded-full p-0.5 hover:bg-white/20"><X className="h-3 w-3" /></button>
                           </span>
                         ))}
                       </div>
@@ -383,74 +394,74 @@ const RotinaForm = ({ rotina: editando, copiaDe, onClose, onSalva }: { rotina: R
                   </div>
                 )}
                 {modo === 'escala' && (
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
-                      Trabalha <input type="number" min={1} className={cn(inputCls, 'h-8 w-16 py-1 text-center')} value={escTrab} onChange={(e) => setEscTrab(e.target.value)} /> dia(s), folga
-                      <input type="number" min={0} className={cn(inputCls, 'h-8 w-16 py-1 text-center')} value={escFolga} onChange={(e) => setEscFolga(e.target.value)} /> dia(s)
-                    </div>
+                  <div className="space-y-3">
                     <div className="flex flex-wrap gap-1.5">
-                      {([['12×36 (1 por 1)', 1, 1], ['5×1', 5, 1], ['6×1', 6, 1], ['5×2', 5, 2], ['4×2', 4, 2]] as const).map(([rot, t, fo]) => (
-                        <button key={rot} type="button" onClick={() => { setEscTrab(String(t)); setEscFolga(String(fo)) }}
-                          className={cn('rounded-md px-2 py-1 text-[11px] font-medium', trab === t && folga === fo ? 'bg-[#1e3a5f] text-white dark:bg-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-[#0f0f0f] dark:text-gray-300')}>
-                          {rot}
-                        </button>
+                      {([['12×36', 1, 1], ['5×1', 5, 1], ['6×1', 6, 1], ['5×2', 5, 2], ['4×2', 4, 2]] as const).map(([rot, t, fo]) => (
+                        <button key={rot} type="button" onClick={() => { setEscTrab(String(t)); setEscFolga(String(fo)) }} className={pilula(trab === t && folga === fo)}>{rot}</button>
                       ))}
                     </div>
-                    <p className="text-[11px] text-gray-500">O ciclo começa em "início em": esse é o primeiro dia de trabalho.</p>
+                    <div className="flex flex-wrap items-center gap-2 text-[13px] text-gray-600 dark:text-gray-300">
+                      Trabalha <input type="number" min={1} className={cn(campo, 'h-10 w-16 px-2 text-center')} value={escTrab} onChange={(e) => setEscTrab(e.target.value)} /> {trab === 1 ? 'dia' : 'dias'}, folga
+                      <input type="number" min={0} className={cn(campo, 'h-10 w-16 px-2 text-center')} value={escFolga} onChange={(e) => setEscFolga(e.target.value)} /> {folga === 1 ? 'dia' : 'dias'}
+                    </div>
+                    <p className="text-[12px] text-gray-500 dark:text-gray-400">O ciclo começa no dia de início: esse é o primeiro dia de trabalho.</p>
                   </div>
                 )}
               </div>
             )}
-            <p className="mt-1.5 text-xs text-emerald-700 dark:text-emerald-400">{resumo}</p>
-            <p className="mt-0.5 text-[11px] text-gray-500">
-              {!responsavel
-                ? 'Sem responsável, nada é gerado.'
-                : (() => {
-                  const p = proximaGeracao({ ...regra, inicio_em: inicio || hojeLocal() }, hojeLocal())
-                  if (!p) return 'Com essa recorrência, nenhuma tarefa seria gerada no próximo ano.'
-                  const n = empresas.length || 1
-                  return `Próxima geração: ${fmtData(p)}${p === hojeLocal() ? ' (hoje, assim que salvar)' : ''} · ${n} tarefa${n > 1 ? 's' : ''}${empresas.length ? ' (uma por posto)' : ''}.`
-                })()}
-            </p>
-          </div>
-          <div>
-            <label className={cn(labelCls, 'inline-flex items-center gap-1')}>Referente a <InfoHint text="De que dia a tarefa trata. 'Conferir o caixa' gerada hoje normalmente é sobre ontem (dia anterior); um fechamento gerado no dia 1 é sobre o mês anterior. Isso aparece na tarefa como 'referente a'." /></label>
-            <div className="flex flex-wrap gap-2">
-              {(Object.keys(REFERENTE_LABEL) as ReferenteA[]).map((r) => (
-                <button key={r} type="button" onClick={() => setReferente(r)}
-                  className={cn('rounded-md px-3 py-1.5 text-xs font-semibold', referente === r ? 'bg-[#1e3a5f] text-white dark:bg-blue-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-[#0f0f0f] dark:text-gray-300')}>
-                  {REFERENTE_LABEL[r]}
-                </button>
-              ))}
+
+            <div className="grid grid-cols-2 gap-4">
+              <label className="block">
+                <span className={rotulo}>Começa em</span>
+                <input type="date" className={campo} value={inicio} onChange={(e) => setInicio(e.target.value)} />
+              </label>
+              <div>
+                <span className={rotulo}>Vence às</span>
+                <SeletorHora aria-label="Vence às" className="h-11 w-full" value={hora} onChange={setHora} />
+              </div>
             </div>
-            <p className="mt-1.5 text-[11px] text-gray-500">
-              {referente === 'proprio_dia' ? 'A tarefa se refere ao dia em que é feita.' : referente === 'mes_anterior' ? 'A tarefa trata do mês anterior (ex.: fechamento mensal).' : 'A tarefa trata do dia anterior (ex.: conferir o caixa de ontem).'}
-            </p>
-          </div>
-        </div>
 
-        <div>
-          <label className={cn(labelCls, 'inline-flex items-center gap-1')}>Checklist-modelo (copiado para cada tarefa gerada) <InfoHint text="As etapas entram em toda tarefa que a rotina gerar. Mudar aqui vale só para as próximas; as já geradas ficam como estão." /></label>
-          {checklist.length > 0 && (
-            <ul className="mb-2 space-y-1">
-              {checklist.map((c, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-                  <span className="flex-1">{i + 1}. {c}</span>
-                  <button type="button" className="text-xs text-gray-400 hover:text-red-600" onClick={() => setChecklist((xs) => xs.filter((_, j) => j !== i))}>remover</button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div className="flex gap-2">
-            <input className={inputCls} placeholder="Adicionar etapa e pressionar Enter…" value={novaEtapa} onChange={(e) => setNovaEtapa(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addEtapa() } }} />
-            <button type="button" className={btnGhost} onClick={addEtapa}><Plus className="h-4 w-4" /></button>
-          </div>
-        </div>
+            <div>
+              <span className={rotulo}>A tarefa é sobre <InfoHint text="De que dia a tarefa trata. 'Conferir o caixa' gerada hoje normalmente é sobre ontem; um fechamento gerado no dia 1 é sobre o mês anterior. Aparece na tarefa como 'referente a'." /></span>
+              <div className="flex flex-wrap gap-1.5">
+                {(Object.keys(REFERENTE_LABEL) as ReferenteA[]).map((r) => (
+                  <button key={r} type="button" onClick={() => setReferente(r)} className={pilula(referente === r)}>{REFERENTE_LABEL[r]}</button>
+                ))}
+              </div>
+              <p className="mt-2 text-[12px] text-gray-500 dark:text-gray-400">
+                {referente === 'proprio_dia' ? 'O próprio dia em que é feita.' : referente === 'mes_anterior' ? 'O mês anterior (ex.: fechamento mensal).' : 'O dia anterior (ex.: conferir o caixa de ontem).'}
+              </p>
+            </div>
 
-        <ExigirAnexoCampos exige={exigeFoto} onExige={setExigeFoto} documentos={documentos} onDocumentos={setDocumentos} novoDoc={novoDoc} onNovoDoc={setNovoDoc} onAdd={addDoc} />
+            {/* Resumo do que vai acontecer */}
+            <div className={cn('flex items-start gap-3 rounded-xl px-4 py-3', responsavel && proxima ? 'bg-emerald-50 dark:bg-emerald-500/10' : 'bg-amber-50 dark:bg-amber-500/10')}>
+              <CalendarClock className={cn('mt-0.5 h-5 w-5 shrink-0', responsavel && proxima ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')} />
+              <div className="min-w-0 text-[13px] leading-snug">
+                <p className={cn('font-semibold', responsavel && proxima ? 'text-emerald-800 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300')}>{resumo}</p>
+                <p className="mt-0.5 text-gray-600 dark:text-gray-300">
+                  {!responsavel
+                    ? 'Sem responsável, nada é gerado. Escolha quem vai fazer.'
+                    : !proxima
+                      ? 'Com essa repetição, nenhuma tarefa seria gerada no próximo ano.'
+                      : <>Próxima: <b>{fmtData(proxima)}</b>{proxima === hojeLocal() ? ' (hoje, assim que salvar)' : ''} · {nTarefas} {nTarefas > 1 ? 'tarefas (uma por posto)' : 'tarefa'}</>}
+                </p>
+              </div>
+            </div>
+          </>
+        ) })}
 
-        {editando && <p className="text-[11px] text-gray-500">Alterações valem para as próximas tarefas geradas. Nas tarefas em aberto desta rotina, só a prioridade e os anexos exigidos são atualizados.</p>}
+        {/* 4 · Etapas e comprovação */}
+        {Bloco({ n: 4, titulo: 'Etapas e comprovação', children: (
+          <>
+            <div>
+              <span className={rotulo}>Etapas <span className="font-normal text-gray-400">(opcional)</span> <InfoHint text="Entram em toda tarefa que a rotina gerar. Mudar aqui vale só para as próximas; as já geradas ficam como estão." /></span>
+              <EtapasCampo itens={checklist.map((texto) => ({ texto }))} onRemover={(i) => setChecklist((xs) => xs.filter((_, j) => j !== i))} novo={novaEtapa} onNovo={setNovaEtapa} onAdd={addEtapa} />
+            </div>
+            <ExigirAnexoCampos exige={exigeFoto} onExige={setExigeFoto} documentos={documentos} onDocumentos={setDocumentos} novoDoc={novoDoc} onNovoDoc={setNovoDoc} onAdd={addDoc} />
+          </>
+        ) })}
+
+        {editando && <p className="rounded-lg bg-gray-50 px-3.5 py-2.5 text-[12px] text-gray-500 dark:bg-white/[0.04] dark:text-gray-400">Mudanças valem para as próximas tarefas geradas. Nas tarefas em aberto desta rotina, só a prioridade e os anexos exigidos são atualizados.</p>}
 
         <Erro msg={erro} />
         <ModalRodape>
@@ -473,9 +484,11 @@ export const ExigirAnexoCampos = ({ exige, onExige, documentos, onDocumentos, no
   novoDoc: string; onNovoDoc: (v: string) => void; onAdd: () => void
 }) => (
   <div className="space-y-2">
-    <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-      <input type="checkbox" className="h-4 w-4 accent-[#1e3a5f]" checked={exige || documentos.length > 0} onChange={(e) => { onExige(e.target.checked); if (!e.target.checked) onDocumentos([]) }} />
-      Exigir foto ou documento para concluir
+    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 px-3.5 py-3 text-[13.5px] text-gray-800 hover:bg-gray-50 dark:border-white/[0.08] dark:text-gray-100 dark:hover:bg-white/[0.03]">
+      <Camera className="h-4 w-4 shrink-0 text-gray-400" />
+      <span className="min-w-0 flex-1 font-medium">Exigir foto ou documento para concluir</span>
+      <input type="checkbox" className="peer sr-only" checked={exige || documentos.length > 0} onChange={(e) => { onExige(e.target.checked); if (!e.target.checked) onDocumentos([]) }} />
+      <span aria-hidden className="relative h-6 w-10 shrink-0 rounded-full bg-gray-300 transition-colors after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:bg-[#1e3a5f] peer-checked:after:translate-x-4 dark:bg-gray-600 dark:peer-checked:bg-teal-600" />
       <InfoHint text="A tarefa só conclui com anexo. Sem nomes, basta uma foto ou documento qualquer. Com nomes (ex.: PDF do fechamento de caixa), cada um vira um item a anexar e a tarefa só conclui com todos. A trava vale também no banco: ninguém conclui sem anexar." />
     </label>
     {(exige || documentos.length > 0) && (

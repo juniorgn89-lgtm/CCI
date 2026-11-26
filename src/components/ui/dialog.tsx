@@ -3,6 +3,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import useSaidaSuave from "@/hooks/useSaidaSuave"
 import GuiaDoModal from "@/components/guia/GuiaDoModal"
 import { GUIA_ATTR, type GuiaModal } from "@/components/guia/tipos"
 
@@ -40,6 +41,8 @@ const DialogContent = React.forwardRef<
   }
 >(({ className, children, guia, onPointerDownOutside, onInteractOutside, onFocusOutside, onOpenAutoFocus, ...props }, ref) => {
   const localRef = React.useRef<HTMLDivElement | null>(null)
+  // Fecha com suavidade mesmo quando a tela desmonta o modal na hora (ver useSaidaSuave).
+  useSaidaSuave(localRef, 'dialogo-sai .16s ease-in forwards')
   const setRefs = (el: HTMLDivElement | null) => {
     localRef.current = el
     if (typeof ref === "function") ref(el)
