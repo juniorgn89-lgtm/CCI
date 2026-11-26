@@ -45,9 +45,9 @@ const Header = ({ onMobileMenuOpen, posto }: HeaderProps) => {
           {/* Logo + nome. Clicar volta pra Central da Rede (home do app). */}
           <Link to="/dashboard" aria-label="Ir para a Central da Rede" className="group mr-1 flex shrink-0 items-center gap-2.5">
             <img
-              src="/brand/visor360-icon-512.png"
+              src="/brand/visor360-app-192.png"
               alt="Visor360"
-              className="h-[30px] w-[30px] shrink-0 object-contain transition-transform group-hover:scale-105"
+              className="h-[30px] w-[30px] shrink-0 rounded-[7px] object-contain transition-transform group-hover:scale-105"
             />
             <span className="hidden flex-col leading-tight sm:flex">
               <span className="text-[15px] font-bold tracking-[-0.01em] text-[#1e3a5f] dark:text-white">

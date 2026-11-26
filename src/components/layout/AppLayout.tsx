@@ -32,6 +32,7 @@ import SuporteCaduWidget from '@/components/cadu/SuporteCaduWidget'
 import useIsMobile from '@/hooks/useIsMobile'
 import { useLogAcesso } from '@/hooks/useLogAcesso'
 import MobileShell from '@/components/mobile/MobileShell'
+import AvisoIconeNovo from '@/components/pwa/AvisoIconeNovo'
 import { Eye } from 'lucide-react'
 import { useTopbarUi } from '@/store/topbarUi'
 import { useEscopoSegmento, moduloOcultoPorSegmento } from '@/hooks/useEscopoSegmento'
@@ -211,6 +212,7 @@ const AppLayout = () => {
       <MobileShell items={visibleNavItems} showFilters={showFilters}>
         {welcomeModal}
         <ChaveApiOnboarding />
+        <AvisoIconeNovo />
         <LoadingOverlay />
         <ErrorBoundary key={pathname}>
           <div className={cn(dataUpdating && 'animate-pulse')}>
@@ -225,6 +227,7 @@ const AppLayout = () => {
     <div className="flex h-[calc(100dvh/var(--ui-zoom,1))] flex-col bg-gray-100 dark:bg-[#1e293b]">
       {welcomeModal}
       <ChaveApiOnboarding />
+      <AvisoIconeNovo />
       {/* Briefing matinal — só no shell web (decisão de produto); abre 1×/dia. */}
       {authUser && <BriefingModal />}
       {/* Barra de topo de largura total — logo+nome na ponta esquerda (fixos,

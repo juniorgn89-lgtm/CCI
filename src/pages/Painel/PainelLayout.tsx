@@ -108,7 +108,7 @@ const PainelLayout = () => {
           MobileShell já mostra a marca Visor360 no topo — senão duplica feio. */}
       <header className="hidden items-center justify-between gap-3 sm:flex">
         <div className="flex items-center gap-2">
-          <img src="/brand/visor360-icon-512.png" alt="Visor360" className="h-[34px] w-[34px] shrink-0 object-contain" />
+          <img src="/brand/visor360-app-192.png" alt="Visor360" className="h-[34px] w-[34px] shrink-0 rounded-[8px] object-contain" />
           <span className="text-[19px] font-extrabold tracking-[-0.02em] text-[#1e3a5f] dark:text-white">
             Visor<span className="text-[#0F766E] dark:text-[#14b8a6]">360</span>
           </span>

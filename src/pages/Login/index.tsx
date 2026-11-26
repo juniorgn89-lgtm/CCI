@@ -41,9 +41,9 @@ const BrandMark = ({ light = false }: { light?: boolean }) => (
     className="flex w-fit items-center gap-[11px] rounded-lg transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563eb]/60"
   >
     <img
-      src="/brand/visor360-icon-512.png"
+      src="/brand/visor360-app-192.png"
       alt="Visor360"
-      className="h-10 w-10 shrink-0 object-contain"
+      className="h-10 w-10 shrink-0 rounded-[9px] object-contain"
     />
     <span
       className={cn(

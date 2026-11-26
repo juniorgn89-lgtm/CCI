@@ -100,11 +100,9 @@ export const SeloVersao = ({ versao, data, className }: { versao: string; data?:
   </span>
 )
 
-/** Ícone do app num quadrado escuro (cabeçalho dos avisos). */
+/** Ícone do app (cabeçalho dos avisos). */
 export const IconeApp = ({ className = 'h-12 w-12' }: { className?: string }) => (
-  <span className={cn('flex shrink-0 items-center justify-center rounded-xl bg-[#0f172a] ring-1 ring-white/5', className)}>
-    <img src="/brand/visor360-icon-192.png" alt="" className="h-[70%] w-[70%] rounded-lg" />
-  </span>
+  <img src="/brand/visor360-app-192.png" alt="" className={cn('shrink-0 rounded-xl', className)} />
 )
 
 interface NovidadesModalProps {

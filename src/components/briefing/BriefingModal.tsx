@@ -140,7 +140,7 @@ const BriefingModal = () => {
         {/* Cabeçalho petróleo com a marca */}
         <div className="relative shrink-0 overflow-hidden px-6 pb-5 pt-5" style={{ background: 'radial-gradient(520px 260px at 85% -20%, #2a7c74 0%, #134e4a 45%, #1e293b 100%)' }}>
           <div className="flex items-start gap-3">
-            <img src="/brand/visor360-icon-512.png" alt="Visor360" className="h-11 w-11 shrink-0 rounded-xl bg-[#0f172a]/60 p-1.5" />
+            <img src="/brand/visor360-app-192.png" alt="Visor360" className="h-11 w-11 shrink-0 rounded-[10px]" />
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/70">Resumo de ontem</p>
               <DialogTitle className="text-[19px] font-bold leading-tight text-white">{dataLonga(r.ontem)}</DialogTitle>

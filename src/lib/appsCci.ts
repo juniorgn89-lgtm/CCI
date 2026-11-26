@@ -65,6 +65,7 @@ export const CCI_APPS: CciApp[] = [
     manifest: 'https://visor360.cci.app.br/manifest.webmanifest',
     Icon: LayoutDashboard,
     tile: 'from-[#1e3a5f] to-[#2563eb]',
+    img: '/brand/visor360-app-192.png',
   },
   {
     id: 'prospeccao360',

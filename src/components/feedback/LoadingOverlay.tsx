@@ -213,7 +213,7 @@ const LoadingOverlay = () => {
             <div className="flex items-center gap-4">
               <div className="relative flex h-12 w-12 items-center justify-center">
                 <div className="absolute inset-0 animate-ping rounded-full bg-white/10" style={{ animationDuration: '2s' }} />
-                <img src="/brand/visor360-icon-512.png" alt="Visor360" className="relative h-11 w-11 object-contain" />
+                <img src="/brand/visor360-app-192.png" alt="Visor360" className="relative h-11 w-11 rounded-[10px] object-contain" />
               </div>
               <div>
                 <h1 className="text-lg font-bold tracking-wider text-white">Visor<span className="text-[#14b8a6]">360</span></h1>
