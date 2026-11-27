@@ -7,6 +7,8 @@ import Sidebar from '@/components/layout/Sidebar'
 import { navItems } from '@/components/layout/navConfig'
 import { useFocusMode } from '@/store/focusMode'
 import Header from '@/components/layout/Header'
+import AreaVazia from '@/components/layout/AreaVazia'
+import { useJanelas } from '@/store/janelas'
 import ErrorBoundary from '@/components/feedback/ErrorBoundary'
 import LoadingOverlay from '@/components/feedback/LoadingOverlay'
 import ApuracaoAlertaBanner from '@/components/feedback/ApuracaoAlertaBanner'
@@ -58,6 +60,8 @@ const AppLayout = () => {
   useAutoSelectSinglePosto()
   useFiltersUrlSync()
   const [mobileOpen, setMobileOpen] = useState(false)
+  // Computador com todas as janelas fechadas (barra de janelas do topo).
+  const semJanelas = useJanelas((s) => s.vazio)
   // Sombra reforçada na TopBar quando o conteúdo já rolou (feedback de "fixo").
   const [scrolled, setScrolled] = useState(false)
   const focusActive = useFocusMode((s) => s.active)
@@ -315,9 +319,12 @@ const AppLayout = () => {
             )}
           >
             <LoadingOverlay />
-            <ErrorBoundary key={pathname}>
-              <Outlet />
-            </ErrorBoundary>
+            {/* Todas as janelas fechadas: área vazia com atalhos (só computador). */}
+            {semJanelas ? <AreaVazia /> : (
+              <ErrorBoundary key={pathname}>
+                <Outlet />
+              </ErrorBoundary>
+            )}
           </main>
 
           {/* CTA central "aplicar filtro" — aparece sobre o conteúdo embaçado

@@ -449,7 +449,9 @@ const Sidebar = () => {
                 // Modo "Opções ao passar o mouse": hover mostra só o nome; o CLIQUE
                 // abre o menu de opções (em vez de navegar direto). Só vale pros
                 // módulos com abas deep-linkáveis; os demais navegam normal.
-                const optionsMode = mode === 'options' && narrow && !!subOptions
+                // Recolhido também: o módulo com várias telas abre a lista ao lado (as
+                // telas não aparecem mais junto do título da página).
+                const optionsMode = (mode === 'options' || mode === 'collapsed') && narrow && !!subOptions
                 const optionsOpen = openOptions === item.path
 
                 const badge = item.path === '/gestao' && tarefasAtencao > 0 ? tarefasAtencao : 0
@@ -472,9 +474,9 @@ const Sidebar = () => {
                     <div key={item.path}>
                       <button
                         type="button"
-                        // Outro módulo: abre e já vai para a primeira tela dele (ex.: Visão Geral,
-                        // Painel, Análise de estoque). O módulo em que você está: só abre/fecha a lista.
-                        onClick={() => { if (moduloAtual === item.path) alternarModulo(item.path); else { setAberto(item.path); navigate(filhos[0]?.to ?? item.path) } }}
+                        // Só abre/fecha a lista das telas: a tela é escolhida ali e abre numa
+                        // janela (barra de janelas do topo). Não pula mais para a primeira tela.
+                        onClick={() => alternarModulo(item.path)}
                         aria-expanded={estaAberto}
                         className={cn('relative flex h-9 w-full items-center rounded-lg text-left transition-colors hover:bg-gray-100 dark:hover:bg-white/[0.06]',
                           isActive ? 'text-gray-900 dark:text-white' : 'text-gray-700 dark:text-white/80')}

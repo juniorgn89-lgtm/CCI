@@ -8,7 +8,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import ProjecoesPainel from '@/pages/Dashboard/components/ProjecoesPainel'
 import RealizadoChave from '@/components/kpi/RealizadoChave'
 import SecaoTitulo from './components/SecaoTitulo'
-import ServicosCci from './components/ServicosCci'
 import useIsMobile from '@/hooks/useIsMobile'
 import CentralMobile from '@/pages/Dashboard/CentralMobile'
 import PageHeaderTitle from '@/components/layout/PageHeaderTitle'
@@ -146,7 +145,6 @@ const Dashboard = () => {
                 </a>
               </SecaoTitulo>
               <ProjecoesPainel />
-              <ServicosCci />
             </div>
           )}
 

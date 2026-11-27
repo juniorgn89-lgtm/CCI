@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Briefcase, Database, LineChart, Sparkles, Truck, Check, MessageCircle, ChevronDown, Lightbulb, type LucideIcon } from 'lucide-react'
+import { Briefcase, Database, LineChart, Sparkles, Truck, Check, MessageCircle, Lightbulb, type LucideIcon } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
@@ -12,11 +12,9 @@ import useCciServicos from '@/hooks/useCciServicos'
 import useRedeSetores from '@/pages/Dashboard/hooks/useRedeSetores'
 import useContasResumo from '@/pages/Dashboard/hooks/useContasResumo'
 import { CATALOGO } from '@/pages/Diagnostico/lib/recomendacoes'
-import SecaoTitulo from './SecaoTitulo'
 
 /** WhatsApp COMERCIAL da CCI (venda de serviço). */
 const CCI_COMERCIAL = '5527992725459'
-const RECOLHIDO_KEY = 'visor360.central.servicosCci.recolhido'
 
 type Id = 'consultoria' | 'bpo-financeiro' | 'relatorios' | 'fleetpass' | 'visor360'
 const ORDEM: Id[] = ['consultoria', 'bpo-financeiro', 'relatorios', 'fleetpass', 'visor360']
@@ -43,7 +41,8 @@ const useSouSupervisor = () =>
   })
 
 /**
- * Vitrine dos serviços da CCI na Central (estilo "Game Pass" no meio da página):
+ * Vitrine dos serviços da CCI (estilo "Game Pass"). Mora na tela vazia do
+ * computador (todas as janelas fechadas), não mais na Central:
  * o que a rede já tem, marcado, e o que mais pode contratar — sem preço. Um
  * serviço ganha destaque quando um número DESTA tela justifica (contas vencidas,
  * lucro caindo, vendas a prazo). Só dono e diretor veem.
@@ -62,8 +61,6 @@ const Vitrine = () => {
   const empresas = useEmpresasPermitidas(empresasData?.resultados ?? [])
   const { global, comparisonMode, isLoading: setoresCarregando } = useRedeSetores()
   const contas = useContasResumo()
-  const [recolhido, setRecolhido] = useState(() => { try { return localStorage.getItem(RECOLHIDO_KEY) === '1' } catch { return false } })
-  const alternar = () => setRecolhido((v) => { try { localStorage.setItem(RECOLHIDO_KEY, v ? '0' : '1') } catch { /* sem storage */ } return !v })
 
   const total = empresas.length
   const cmp = comparisonMode === 'prevYear' ? 'mesmo período do ano passado' : 'mesmo período do mês passado'
@@ -114,16 +111,29 @@ const Vitrine = () => {
 
   return (
     <section className="space-y-3">
-      <SecaoTitulo
-        titulo={tudoContratado ? 'Seus serviços CCI' : 'Serviços CCI'}
-        subtitulo={tudoContratado ? 'Sua rede já conta com todos os serviços da CCI' : `Sua rede tem ${qtdTem} de ${ORDEM.length} · veja o que mais a CCI pode fazer por ela`}
-      >
-        <button type="button" onClick={alternar} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-medium text-gray-500 transition-colors hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-100">
-          {recolhido ? 'Mostrar' : 'Recolher'} <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', !recolhido && 'rotate-180')} />
-        </button>
-      </SecaoTitulo>
+      {/* Chamada da CCI Consultoria */}
+      <div className="relative overflow-hidden rounded-2xl border border-teal-500/30 bg-gradient-to-br from-[#0f2a2c] via-[#10202f] to-[#0b1220] px-6 py-6 text-white shadow-[0_20px_50px_-24px_rgba(0,0,0,0.8)]">
+        <span aria-hidden className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-teal-400/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
+          <div className="max-w-2xl">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-300">CCI Consultoria</p>
+            <h2 className="mt-1.5 text-[24px] font-bold leading-tight [text-wrap:balance]">O Visor mostra onde está o dinheiro. A CCI faz ele chegar no caixa.</h2>
+            <p className="mt-2 text-[13.5px] leading-relaxed text-white/70">
+              {tudoContratado
+                ? 'Sua rede já conta com todos os serviços da CCI. Obrigado pela confiança.'
+                : `Sua rede usa ${qtdTem} de ${ORDEM.length} serviços. Financeiro em dia, rotina organizada e relatório pronto: o que a CCI pode assumir para você cuidar do posto.`}
+            </p>
+          </div>
+          {!tudoContratado && (
+            <a href={`https://wa.me/${CCI_COMERCIAL}?text=${encodeURIComponent(`Olá! Sou da ${rede} e quero conhecer os serviços da CCI.`)}`} target="_blank" rel="noreferrer"
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl bg-teal-500 px-4 py-2.5 text-[13.5px] font-semibold text-[#062925] hover:bg-teal-400">
+              <MessageCircle className="h-4 w-4" /> Falar com a CCI
+            </a>
+          )}
+        </div>
+      </div>
 
-      {!recolhido && (
+      {(
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {lista.map((id) => {
             const Icone = ICONE[id]

@@ -11,6 +11,8 @@ import { REGISTRY } from '@/lib/moduleRegistry'
 import { nomeLegivel } from '@/lib/nomeLegivel'
 import { PAGE_HEADER_TITLE_SLOT_ID } from '@/components/layout/PageHeaderTitle'
 import { HEADER_TRAY_SLOT_ID } from '@/components/layout/HeaderTray'
+import JanelasBar from '@/components/layout/JanelasBar'
+import { useJanelas } from '@/store/janelas'
 
 const fmtDataHora = (d: Date) => {
   const p = (n: number) => String(n).padStart(2, '0')
@@ -85,7 +87,7 @@ interface Props {
 
 /**
  * Cabeçalho do painel de conteúdo (padrão NotaOK / apps CCI):
- *   Rede › Módulo › Tela            (trilha pequena)
+ *   Rede › [janelas abertas]        (computador; no celular: Rede › Módulo › Tela)
  *   Título grande + subtítulo       |  filtros · status de atualização · engrenagem
  * O título é a tela aberta (ou o módulo, se ele não tem telas).
  */
@@ -95,22 +97,31 @@ const CabecalhoPagina = ({ filtros, scrolled }: Props) => {
   const abasPath = useModuloAbas((s) => s.path)
   const tabs = useModuloAbas((s) => s.tabs)
   const ativa = useModuloAbas((s) => s.active)
-  const trocarAba = useModuloAbas((s) => s.onChange)
-  const sidebarFixo = useModuloAbas((s) => s.sidebarFixo)
   const isMobile = useIsMobile()
   const redeNome = useRedeNomeExibicao(useTenantStore((s) => s.rede?.nome))
+  // Todas as janelas fechadas: só a barra fica (sem título nem filtros da tela anterior).
+  const semJanelas = useJanelas((s) => s.vazio) && !isMobile
 
   const tela = modulo && abasPath === modulo.path ? tabs.find((t) => t.id === ativa)?.label : undefined
   const meta = modulo ? REGISTRY[modulo.path] : undefined
   const titulo = tela ?? modulo?.label ?? ''
   const subtitulo = meta?.subtitle ? meta.subtitle.charAt(0).toUpperCase() + meta.subtitle.slice(1) : null
-  // Menu recolhido : as telas do módulo entram na trilha, como abas de navegador.
-  const abasNaTrilha = !isMobile && !sidebarFixo && !!modulo && abasPath === modulo.path && tabs.length > 1 && !!trocarAba
-  const trilha = [redeNome ? nomeLegivel(redeNome) : null, modulo?.label ?? null, abasNaTrilha ? null : tela ?? null].filter(Boolean) as string[]
+  const redeLegivel = redeNome ? nomeLegivel(redeNome) : null
+  const trilha = [redeLegivel, modulo?.label ?? null, tela ?? null].filter(Boolean) as string[]
 
   return (
     <div className={cn('shrink-0 bg-gray-50 px-4 pb-4 pt-5 transition-shadow duration-200 dark:bg-[#0b1220] md:px-8 md:pt-6', scrolled && 'shadow-md')}>
-      {trilha.length > 0 && (
+      {!isMobile ? (
+        <nav aria-label="Janelas abertas" className={cn('flex min-w-0 items-center gap-1.5 text-[12.5px]', !semJanelas && 'mb-7')}>
+          {redeLegivel && (
+            <>
+              <span className="shrink-0 text-gray-500 dark:text-[#64748b]">{redeLegivel}</span>
+              <ChevronRight className="h-3 w-3 shrink-0 text-gray-400 dark:text-[#64748b]" />
+            </>
+          )}
+          <JanelasBar titulo={titulo} />
+        </nav>
+      ) : trilha.length > 0 && (
         <nav aria-label="Você está em" className="mb-7 flex min-w-0 items-center gap-1.5 text-[12.5px]">
           {trilha.map((t, i) => (
             <span key={`${i}-${t}`} className="flex min-w-0 items-center gap-1.5">
@@ -118,29 +129,9 @@ const CabecalhoPagina = ({ filtros, scrolled }: Props) => {
               <span className={cn('truncate', i === trilha.length - 1 ? 'font-semibold text-gray-900 dark:text-[#f1f5f9]' : 'text-gray-500 dark:text-[#64748b]')}>{t}</span>
             </span>
           ))}
-          {abasNaTrilha && (
-            <span className="flex min-w-0 items-center gap-1.5">
-              <ChevronRight className="h-3 w-3 shrink-0 text-gray-400 dark:text-[#64748b]" />
-              <span role="tablist" aria-label={`Telas de ${modulo?.label ?? 'módulo'}`} className="flex min-w-0 flex-wrap items-center gap-0.5">
-                {tabs.map((t) => {
-                  const on = t.id === ativa
-                  return (
-                    <button key={t.id} type="button" role="tab" aria-selected={on} disabled={t.disabled}
-                      onClick={() => !on && trocarAba?.(t.id)}
-                      className={cn('relative shrink-0 whitespace-nowrap rounded-md px-2 py-1 transition-colors disabled:opacity-40',
-                        on
-                          ? 'font-semibold text-gray-900 dark:text-[#f1f5f9]'
-                          : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800 dark:text-[#94a3b8] dark:hover:bg-white/[0.05] dark:hover:text-[#e2e8f0]')}>
-                      {t.label}
-                    </button>
-                  )
-                })}
-              </span>
-            </span>
-          )}
         </nav>
       )}
-      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+      <div className={cn('flex flex-wrap items-end justify-between gap-x-4 gap-y-2', semJanelas && 'hidden')}>
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1">
           {titulo && (
             <div className="min-w-0">
