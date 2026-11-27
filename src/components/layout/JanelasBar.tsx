@@ -3,8 +3,12 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useJanelas, chaveDe } from '@/store/janelas'
+import { useAuthStore } from '@/store/auth'
 import { navItems } from '@/components/layout/navConfig'
 import { REGISTRY } from '@/lib/moduleRegistry'
+
+/** Marca da sessão do navegador: o início do diretor (só a Configuração) já foi feito. */
+const INICIO_DIRETOR = 'visor360.janelas.inicioDiretor'
 
 /**
  * Barra de janelas do computador (fica no lugar da trilha "Módulo › Tela"):
@@ -31,9 +35,20 @@ const JanelasBar = ({ titulo }: { titulo: string }) => {
   const aviso = useJanelas((s) => s.aviso)
   const limparAviso = useJanelas((s) => s.limparAviso)
 
+  const isMaster = useAuthStore((s) => s.isMaster)
+
   // Cada navegação abre ou ativa a janela dela. Conta o `key` da navegação: com
   // tudo fechado, clicar no menu na MESMA tela de antes também reabre.
-  useEffect(() => { visitar(pathname, search) }, [pathname, search, key, visitar])
+  // Diretor (CCI): cada vez que o app abre, começa só com a Configuração para
+  // escolher a rede — sem a Visão Geral nem as janelas da última vez.
+  useEffect(() => {
+    if (isMaster && !sessionStorage.getItem(INICIO_DIRETOR)) {
+      sessionStorage.setItem(INICIO_DIRETOR, '1')
+      useJanelas.setState({ janelas: [], ativa: null, vazio: false, fechadas: [] })
+      if (!pathname.startsWith('/painel')) { navigate('/painel/selecionar-rede', { replace: true }); return }
+    }
+    visitar(pathname, search)
+  }, [pathname, search, key, visitar, isMaster, navigate])
   // O nome que a tela mostra vira o nome da janela.
   useEffect(() => { if (titulo) renomear(chaveDe(pathname, search), titulo) }, [titulo, pathname, search, renomear])
   useEffect(() => {
