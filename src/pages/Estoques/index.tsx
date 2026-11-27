@@ -1,7 +1,7 @@
-import { lazy, Suspense, useState } from 'react'
-import { Navigate } from 'react-router-dom'
+import { useState } from 'react'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Warehouse, Package, Settings, LayoutDashboard } from 'lucide-react'
+import { Warehouse, Package, Settings } from 'lucide-react'
 import { useFilterStore } from '@/store/filters'
 import { fetchEmpresas } from '@/api/endpoints/empresas'
 import { useEmpresasPermitidas } from '@/hooks/useEmpresasPermitidas'
@@ -14,20 +14,19 @@ import ProdutosEstoque from '@/pages/Estoques/components/abas/ProdutosEstoque'
 import { JanelaCalculoBar, EstoqueTableSkeleton as TableSkeleton } from '@/pages/Estoques/components/JanelaCalculo'
 import useEstoqueAnalytics from '@/pages/Estoques/hooks/useEstoqueAnalytics'
 import useSetorProduto from '@/pages/Estoques/hooks/useSetorProduto'
-import type { AbrirProdutos } from '@/pages/Estoques/components/abas/EstoqueVisaoGeral'
+import { SITUACOES, type AbrirProdutos } from '@/pages/Estoques/components/estoqueComum'
+import type { SetorEstoque } from '@/pages/Estoques/hooks/useSetorProduto'
 import useIsMobile from '@/hooks/useIsMobile'
 import EstoqueMobile from '@/pages/Estoques/EstoqueMobile'
 
-const EstoqueVisaoGeral = lazy(() => import('@/pages/Estoques/components/abas/EstoqueVisaoGeral'))
-
 const TAB_ICONS: Record<string, typeof Warehouse> = {
-  visao: LayoutDashboard,
   produtos: Package,
 }
 
 /** Abas antigas (links/favoritos) → as novas: Estoque geral/Giro/Média viraram
  *  "Produtos". Comprar (antes Necessidade) mudou para Compras › Análise de estoque. */
-const ABA_ANTIGA: Record<string, string> = { geral: 'produtos', giro: 'produtos', mediaVendas: 'produtos' }
+// A Visão de Estoques saiu (26/11/2026): Curva ABC, Giro × Margem e mais vendidos viraram situações da lista.
+const ABA_ANTIGA: Record<string, string> = { geral: 'produtos', giro: 'produtos', mediaVendas: 'produtos', visao: 'produtos' }
 const FOI_PARA_COMPRAS = new Set(['comprar', 'necessidade'])
 
 /**
@@ -43,7 +42,7 @@ const Estoques = () => {
   // se a aba do ?tab= estiver escondida via engrenagem, cai na primeira visível
   // (sem mutar estado/URL no render).
   const [tabParamBruto, setActiveTab] = useTabParam<string>(
-    'visao',
+    'produtos',
     (v): v is string => v != null && (layoutTabs.some((t) => t.id === v) || v in ABA_ANTIGA || FOI_PARA_COMPRAS.has(v)),
   )
   const tabParam = ABA_ANTIGA[tabParamBruto] ?? tabParamBruto
@@ -67,10 +66,19 @@ const Estoques = () => {
   const { setorDe, carregando: carregandoSetor } = useSetorProduto()
   const isLoading = carregandoEstoque || carregandoSetor
   // Bloco da Visão Geral → aba Produtos com o mesmo filtro (a key remonta a lista).
-  const [filtroProdutos, setFiltroProdutos] = useState<{ f: AbrirProdutos; n: number } | null>(null)
+  // Link de outra tela (ex.: "Como fechar o mês ainda melhor?") → ?setor=&situacao= abre Produtos já filtrado.
+  const [searchParams] = useSearchParams()
+  const [filtroProdutos] = useState<{ f: AbrirProdutos; n: number } | null>(() => {
+    const setor = searchParams.get('setor')
+    const situacao = searchParams.get('situacao')
+    const f: AbrirProdutos = {}
+    if (setor === 'combustivel' || setor === 'automotivos' || setor === 'conveniencia') f.setor = setor as SetorEstoque
+    if (situacao && SITUACOES.some((x) => x.v === situacao)) f.situacao = situacao as AbrirProdutos['situacao']
+    return f.setor || f.situacao ? { f, n: 1 } : null
+  })
 
   // Abas cuja métrica depende da janela e mostram o seletor NO PARENT.
-  const showJanelaSelector = ['visao', 'produtos'].includes(activeTab)
+  const showJanelaSelector = activeTab === 'produtos'
   // Esqueleto SEMPRE que estiver carregando sem dados (não só na 1ª vez) — evita
   // mostrar cards zerados durante o (re)carregamento do estoque.
   // Esqueleto enquanto QUALQUER parte carrega: o saldo chega antes das vendas, e
@@ -85,14 +93,10 @@ const Estoques = () => {
   // Sem posto disponível (nenhuma empresa permitida) → estado de seleção.
   if (selectedCodigo == null) return <SelectCompanyState />
 
-  const abrirProdutos = (f: AbrirProdutos) => {
-    setFiltroProdutos((v) => ({ f, n: (v?.n ?? 0) + 1 }))
-    setActiveTab('produtos')
-  }
-
   return (
     <div className="space-y-6">
-      {visibleTabs.length > 0 && (
+      {/* Uma aba só (Produtos): sem a barra de abas. */}
+      {visibleTabs.length > 1 && (
         <PageHeaderTitle>
           <ModuloAbas
             tabs={visibleTabs.map((t) => ({ id: t.id, label: t.label, Icon: TAB_ICONS[t.id] ?? Warehouse }))}
@@ -116,11 +120,6 @@ const Estoques = () => {
       ) : (
         <>
           {showJanelaSelector && <JanelaCalculoBar value={janelaDias} onChange={setJanelaDias} />}
-          {activeTab === 'visao' && (
-            <Suspense fallback={<TableSkeleton />}>
-              <EstoqueVisaoGeral data={productAnalytics} setorDe={setorDe} coberturaDias={coberturaDias} janelaDias={janelaDias} onAbrirProdutos={abrirProdutos} />
-            </Suspense>
-          )}
           {activeTab === 'produtos' && <ProdutosEstoque key={filtroProdutos?.n ?? 0} data={productAnalytics} categorias={categorias} janelaDias={janelaDias} coberturaDias={coberturaDias} setorDe={setorDe} filtroInicial={filtroProdutos?.f} />}
         </>
       )}

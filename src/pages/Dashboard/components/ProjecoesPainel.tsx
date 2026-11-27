@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react'
 import useVisivel from '@/hooks/useVisivel'
-import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Droplets, Wrench, Store, Globe, BarChart3, Table2, TrendingUp, TrendingDown, CalendarRange, Gauge, ArrowRight } from 'lucide-react'
 import { formatCurrency, formatCurrencyInt, formatCurrencyShort, formatLitersShort, formatNumber } from '@/lib/formatters'
@@ -19,6 +18,7 @@ import ProjecaoModoAviso from '@/components/kpi/ProjecaoModoAviso'
 import SetorPostosModal, { type SetorModal } from '@/pages/Dashboard/components/modais/SetorPostosModal'
 import PostoResumoModal from '@/pages/Dashboard/components/modais/PostoResumoModal'
 import LinhaRitmo from '@/components/kpi/LinhaRitmo'
+import FecharMesMelhorModal from '@/pages/Dashboard/components/modais/FecharMesMelhorModal'
 
 const SETORES_PROJ = ['combustivel', 'automotivos', 'conveniencia'] as const
 const SETOR_NOME: Record<(typeof SETORES_PROJ)[number], string> = { combustivel: 'combustível', automotivos: 'automotivos', conveniencia: 'conveniência' }
@@ -226,6 +226,8 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
   // Modais de detalhe dos cards (setor posto a posto → resumo do posto).
   const [setorModal, setSetorModal] = useState<SetorModal | null>(null)
   const [postoModal, setPostoModal] = useState<number | null>(null)
+  // "Como fechar o mês ainda melhor?" → escolha do setor (combustível / automotivos / conveniência).
+  const [fecharMelhor, setFecharMelhor] = useState(false)
   // Setor de onde o posto foi aberto (card Combustível → só combustível no resumo do posto).
   const [setorDoPosto, setSetorDoPosto] = useState<'combustivel' | 'automotivos' | 'conveniencia' | null>(null)
   // Avisa o pai (Dashboard) quando abre/fecha — pra ocultar o Detalhamento por setor.
@@ -740,13 +742,13 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
                 )}
               </div>
 
-              {/* 5. Próximo passo: o Radar de Preços mostra o que fazer nos dias que faltam */}
-              {!fechado && radarVisivel && (
-                <Link to="/comercial?tab=radar"
-                  className="group inline-flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.06] px-3 py-2 text-[12.5px] font-semibold text-white transition-colors hover:border-[#5eead4]/50 hover:bg-white/[0.1]">
+              {/* 5. Próximo passo: escolher o setor — combustível (Radar), automotivos ou conveniência (estoque parado + kits) */}
+              {!fechado && (
+                <button type="button" onClick={() => setFecharMelhor(true)}
+                  className="group inline-flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.06] px-3 py-2 text-left text-[12.5px] font-semibold text-white transition-colors hover:border-[#5eead4]/50 hover:bg-white/[0.1]">
                   <span>{vsCheio !== null && vsCheio < 0 ? `Como virar o jogo nos ${projGlobalCard.diasRestantes} dias que faltam?` : 'Como fechar o mês ainda melhor?'}</span>
-                  <span className="inline-flex shrink-0 items-center gap-1 text-[#5eead4]">Ver no Radar de Preços <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></span>
-                </Link>
+                  <span className="inline-flex shrink-0 items-center gap-1 text-[#5eead4]">Combustível, automotivos e conveniência <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></span>
+                </button>
               )}
 
               {/* 4. Quanto confiar */}
@@ -897,6 +899,14 @@ const ProjecoesPainel = ({ onExpandedChange }: { onExpandedChange?: (v: boolean)
       </div>
     </div>
 
+      {fecharMelhor && <FecharMesMelhorModal
+        open
+        onClose={() => setFecharMelhor(false)}
+        previsao={{ combustivel: projComb.lucroBruto, automotivos: projAuto.lucroBruto, conveniencia: projConv.lucroBruto }}
+        diasRestantes={projGlobalCard.diasRestantes}
+        radarVisivel={radarVisivel}
+        postos={permitidas.filter((e) => codes.includes(e.codigo))}
+      />}
       <SetorPostosModal setor={setorModal} onClose={() => setSetorModal(null)} onPosto={(c) => { setSetorDoPosto(setorModal && setorModal !== 'global' ? setorModal : null); setSetorModal(null); setPostoModal(c) }} />
       <PostoResumoModal empresaCodigo={postoModal} onClose={() => { setPostoModal(null); setSetorDoPosto(null) }} setor={setorDoPosto}
         onVoltar={setorDoPosto ? () => { setPostoModal(null); setSetorModal(setorDoPosto); setSetorDoPosto(null) } : undefined} />

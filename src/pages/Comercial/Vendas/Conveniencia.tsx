@@ -13,7 +13,11 @@ import { GROUP_TINT } from '@/lib/groupTint'
 import TablePager from '@/components/tables/TablePager'
 import InfoHint from '@/components/ui/InfoHint'
 import ProjecaoRitmo from '@/components/kpi/ProjecaoRitmo'
+import { serieRitmo, COR_SETOR } from '@/lib/serieRitmo'
 import RitmoDoMesCard from '@/components/kpi/RitmoDoMesCard'
+import FecharMesMelhorModal from '@/pages/Dashboard/components/modais/FecharMesMelhorModal'
+import usePostosDoFiltro from '@/hooks/usePostosDoFiltro'
+import useVisivel from '@/hooks/useVisivel'
 import PistaDiaModal, { type PistaDiaData } from '@/pages/Comercial/Vendas/PistaDiaModal'
 import { fimDoMesIso, expectedDailySeries } from '@/lib/projection'
 import { todayLocal } from '@/lib/period'
@@ -111,7 +115,7 @@ const KpiCard = ({ label, value, help, delta, extra, Icon, iconBg, iconColor, ca
           <DeltaPill pct={delta} />
         </div>
       )}
-      {ritmo && <div className="mt-2">{ritmo}</div>}
+      {ritmo && <div className="mt-2 flex flex-1 flex-col">{ritmo}</div>}
       {projecao && !ritmo && (
         <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400">
           <TrendingUp className="h-3 w-3 shrink-0" />
@@ -155,6 +159,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
     projecaoFat,
     projCheioAnterior,
     sazonalFatIndex,
+    sazonalLucroIndex,
     sazonalModo,
     catalogProducts,
     gruposList,
@@ -165,6 +170,10 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
     isLoading,
   } = useConvenienceData()
   const postoNomes = usePostoNomes()
+  // "Como virar o jogo?" → janela de produtos parados e kits, já em Conveniência.
+  const [fecharMelhor, setFecharMelhor] = useState(false)
+  const postosFiltro = usePostosDoFiltro()
+  const radarVisivel = useVisivel().aba('/comercial', 'radar')
   // Visão do gráfico diário: 'rede' (linha) ou 'posto' (matriz posto × dia).
   const [diaChartView, setDiaChartView] = useState<'rede' | 'posto'>('rede')
 
@@ -235,6 +244,9 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
       .map((d) => ({ data: d.data, litros: d.qtd, faturamento: d.fat, lbPorLitro: d.qtd > 0 ? d.lucro / d.qtd : 0 })),
     [realizadoDiaADia.days],
   )
+  // Linha do dia a dia nos cartões (padrão da Central): realizado + projeção sazonal.
+  const serieFat = useMemo(() => serieRitmo({ daily: realizadoDiaADia.days.map((d) => ({ data: d.data, value: d.fat })), dataInicial, dataFinal, indices: sazonalFatIndex, cor: COR_SETOR.conveniencia }), [realizadoDiaADia.days, dataInicial, dataFinal, sazonalFatIndex])
+  const serieLucro = useMemo(() => serieRitmo({ daily: realizadoDiaADia.days.map((d) => ({ data: d.data, value: d.lucro })), dataInicial, dataFinal, indices: sazonalLucroIndex, cor: COR_SETOR.conveniencia }), [realizadoDiaADia.days, dataInicial, dataFinal, sazonalLucroIndex])
   // Matriz posto × dia (faturamento) pra visão "por posto" do gráfico.
   const postoDiaMatrix = useMemo(() => {
     const dayList = diaSerie.map((d) => d.data)
@@ -295,7 +307,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               loading={showSkeleton}
               ritmo={kpis ? (
                 <ProjecaoRitmo realizado={kpis.faturamento} projetado={projecao.faturamento} diasRestantes={projecaoFat.diasRestantes}
-                  cheioAnterior={projCheioAnterior.faturamento > 0 ? projCheioAnterior.faturamento : null} cheioLabel={projCheioAnterior.label} fmt={formatCurrencyInt} />
+                  cheioAnterior={projCheioAnterior.faturamento > 0 ? projCheioAnterior.faturamento : null} cheioLabel={projCheioAnterior.label} fmt={formatCurrencyInt} serie={serieFat} />
               ) : undefined}
               extra={
                 kpis ? (
@@ -322,7 +334,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               loading={showSkeleton}
               ritmo={kpis ? (
                 <ProjecaoRitmo realizado={kpis.margem} projetado={projecao.lucroBruto} diasRestantes={projecaoFat.diasRestantes}
-                  cheioAnterior={projCheioAnterior.lucro > 0 ? projCheioAnterior.lucro : null} cheioLabel={projCheioAnterior.label} fmt={formatCurrencyInt} />
+                  cheioAnterior={projCheioAnterior.lucro > 0 ? projCheioAnterior.lucro : null} cheioLabel={projCheioAnterior.label} fmt={formatCurrencyInt} serie={serieLucro} />
               ) : undefined}
               extra={
                 kpis ? (
@@ -402,8 +414,10 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               confiabilidadePct={projecaoFat.confiabilidadePct}
               modo={sazonalModo}
               contexto="conveniência"
+              acao={{ label: 'Ver produtos parados e kits', onClick: () => setFecharMelhor(true) }}
               loading={showSkeleton}
             />
+            {fecharMelhor && <FecharMesMelhorModal open onClose={() => setFecharMelhor(false)} setorInicial="conveniencia" diasRestantes={projecaoFat.diasRestantes} radarVisivel={radarVisivel} postos={postosFiltro} />}
           </div>
 
           {/* Detalhamento de informações — UM card só (igual Pista/Combustível):

@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import InfoHint from '@/components/ui/InfoHint'
 import { useChartTheme } from '@/lib/chartTheme'
 import { formatCurrencyInt, formatCurrencyShort, formatLiters, formatNumber } from '@/lib/formatters'
+import { useFilterStore } from '@/store/filters'
 import useRedeSetores, { type RedeSetor } from '@/pages/Dashboard/hooks/useRedeSetores'
 import PostoResumoModal from '@/pages/Dashboard/components/modais/PostoResumoModal'
 import SetorPostosModal from '@/pages/Dashboard/components/modais/SetorPostosModal'
@@ -239,8 +240,14 @@ const TooltipEvolucao = ({ active, payload, serie, gran }: { active?: boolean; p
   )
 }
 
+/** Ranking ignora o filtro de posto: sempre a rede inteira (referência estável). */
+const TODOS_POSTOS: number[] = []
+
 const VisaoGeralGraficos = () => {
   const rede = useRedeSetores()
+  // Mesmo cache (a agregação vem por empresa e o filtro de posto é aplicado depois): sem nova busca.
+  const redeToda = useRedeSetores({ empresaCodigos: TODOS_POSTOS })
+  const filtroPostos = useFilterStore((st) => st.empresaCodigos)
   const ct = useChartTheme()
   const [rankMetric, setRankMetric] = useState<RankMetric>('lucroBruto')
   // Evolução por dia (período do filtro) ou por mês / ano (série longa do cache).
@@ -294,11 +301,11 @@ const VisaoGeralGraficos = () => {
     return out
   }, [evolucao])
 
-  // Ranking por posto: LB e faturamento somam os 3 setores; margem = LB total ÷
+  // Ranking por posto (SEMPRE todos os postos, sem o filtro de posto): LB e faturamento somam os 3 setores; margem = LB total ÷
   // faturamento total (NUNCA média de percentuais); litros = só combustível.
   const ranking = useMemo(() => {
     const porPosto = new Map<number, { empresaCodigo: number; posto: string; lucroBruto: number; faturamento: number; litros: number }>()
-    for (const { id, obj } of setores) {
+    for (const [id, obj] of [['combustivel', redeToda.combustivel], ['automotivos', redeToda.automotivos], ['conveniencia', redeToda.conveniencia]] as const) {
       for (const p of obj.postos) {
         const e = porPosto.get(p.empresaCodigo) ?? { empresaCodigo: p.empresaCodigo, posto: p.posto, lucroBruto: 0, faturamento: 0, litros: 0 }
         e.lucroBruto += p.lucroBruto
@@ -313,7 +320,7 @@ const VisaoGeralGraficos = () => {
     const max = ordenadas.length ? valor(ordenadas[0]) : 0
     const fmt = rankMetric === 'margem' ? (v: number) => pct(v) : rankMetric === 'litros' ? formatLiters : formatCurrencyInt
     return { linhas: ordenadas, max, fmt, valor }
-  }, [setores, rankMetric])
+  }, [redeToda.combustivel, redeToda.automotivos, redeToda.conveniencia, rankMetric])
 
   // Variação do período: litros = combustível; faturamento e lucro = consolidado.
   const variacao = useMemo(() => {
@@ -454,7 +461,7 @@ const VisaoGeralGraficos = () => {
         Icon={Trophy}
         // Título fixo: com o nome da medida ele mudava de tamanho e as abas pulavam de linha.
         title="Ranking dos postos"
-        hint="Lucro bruto e faturamento somam os três setores. Margem = lucro bruto total ÷ faturamento total do posto. Litros considera só combustível."
+        hint="Sempre todos os postos da rede, mesmo com um posto escolhido no filtro do topo (o escolhido fica destacado). Lucro bruto e faturamento somam os três setores. Margem = lucro bruto total ÷ faturamento total do posto. Litros considera só combustível."
         className="xl:col-span-4"
         right={
           <div className="inline-flex rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800">
@@ -477,7 +484,7 @@ const VisaoGeralGraficos = () => {
           <ol className="max-h-[300px] space-y-2.5 overflow-y-auto pr-1">
             {ranking.linhas.map((p, i) => (
               <li key={p.empresaCodigo}>
-                <button type="button" onClick={() => setPostoSel(p.empresaCodigo)} title="Ver o resumo do posto" className="flex w-full items-center gap-3 rounded-md px-1 py-0.5 text-[12.5px] transition-colors hover:bg-gray-50 dark:hover:bg-white/5">
+                <button type="button" onClick={() => setPostoSel(p.empresaCodigo)} title="Ver o resumo do posto" className={cn('flex w-full items-center gap-3 rounded-md px-1 py-0.5 text-[12.5px] transition-colors hover:bg-gray-50 dark:hover:bg-white/5', filtroPostos.includes(p.empresaCodigo) && 'bg-blue-50 ring-1 ring-blue-200 dark:bg-blue-500/10 dark:ring-blue-400/30')}>
                 <span className="w-4 shrink-0 text-right tabular-nums text-gray-400">{i + 1}</span>
                 <span className="inline-flex w-[38%] min-w-0 shrink-0 items-center gap-1.5 font-medium text-gray-800 dark:text-gray-100">
                   <span className="truncate">{p.posto}</span>

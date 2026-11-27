@@ -24,7 +24,7 @@ const SCREENS: ScreenInfo[] = [
   {
     path: '/estoques',
     label: 'Estoques',
-    glossario: `Abas (um posto por vez): Visão Geral (por setor Automotivos/Conveniência: valor do inventário, valor em risco = parado sem venda há +90 dias + excesso acima de 2× a meta de cobertura, cobertura média só de quem vende, ruptura + crítico, valorização a custo médio/atual/venda, Curva ABC por faturamento 6m, Giro × Margem pela mediana, imobilizado por grupo), Produtos, Comprar.
+    glossario: `Uma tela só (um posto por vez): Produtos do posto, sem combustível. Setor (Automotivos/Conveniência) e Situação: estoque (ruptura+crítico, excesso = acima de 2× a meta de cobertura, parados = sem venda há +90 dias, travados = parados ou estoque para +90 dias, zerados, negativos, abaixo do mínimo, sem movimento), venda (mais vendidos, Curva ABC por faturamento 6m: A=80%, B=95%, C resto) e giro × margem pela mediana (Estrelas, Mina de ouro, Tração, Reduzir). Sinais: vendendo abaixo do custo, sem estoque, custo zerado, última compra fora do normal (±20% da mediana), custo subiu e o preço não acompanhou. Botão Analisar estoque = relatório em R$/mês por setor.
 - Saldo/Qtd: saldo ATUAL do produto (não muda com a data). Não inclui combustível.
 - P. Custo / P. Venda: médias REALIZADAS dos últimos 6 meses (podem divergir do cadastro).
 - Markup %, Marg. Luc.: margem sobre custo / lucro por unidade.

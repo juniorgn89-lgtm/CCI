@@ -148,7 +148,6 @@ export const APP_STRUCTURE: AppModule[] = [
     plano: 'pro',
     permId: 'estoques',
     tabs: [
-      { id: 'visao', label: 'Visão de Estoques', plano: 'pro' },
       { id: 'produtos', label: 'Produtos', plano: 'pro' },
     ],
   },

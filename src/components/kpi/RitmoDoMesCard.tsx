@@ -37,8 +37,8 @@ interface RitmoDoMesCardProps {
   /** "Ver detalhes" (aba Combustível): abre a quebra por combustível nos KPIs. */
   expanded?: boolean
   onToggleExpanded?: () => void
-  /** Atalho "o que fazer" (ex.: Radar de Preços na aba Combustível). */
-  acao?: { to: string; label: string }
+  /** Atalho "o que fazer": link (ex.: Radar de Preços) ou clique (ex.: abrir a janela de kits). */
+  acao?: { label: string; to?: string; onClick?: () => void }
   className?: string
 }
 
@@ -142,13 +142,18 @@ const RitmoDoMesCard = ({
           </div>
 
           {/* 4. Próximo passo */}
-          {!fechado && acao && (
-            <Link to={acao.to}
-              className="group inline-flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.06] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:border-[#5eead4]/50 hover:bg-white/[0.1]">
-              <span>{vsCheio !== null && vsCheio < 0 ? `Como virar o jogo nos ${diasRestantes} dias?` : 'Como fechar ainda melhor?'}</span>
-              <span className="inline-flex shrink-0 items-center gap-1 text-[#5eead4]">{acao.label} <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></span>
-            </Link>
-          )}
+          {!fechado && acao && (() => {
+            const cls = 'group inline-flex items-center justify-between gap-2 rounded-xl border border-white/15 bg-white/[0.06] px-3 py-2 text-left text-[12px] font-semibold text-white transition-colors hover:border-[#5eead4]/50 hover:bg-white/[0.1]'
+            const miolo = (
+              <>
+                <span>{vsCheio !== null && vsCheio < 0 ? `Como virar o jogo nos ${diasRestantes} dias?` : 'Como fechar ainda melhor?'}</span>
+                <span className="inline-flex shrink-0 items-center gap-1 text-[#5eead4]">{acao.label} <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" /></span>
+              </>
+            )
+            return acao.onClick
+              ? <button type="button" onClick={acao.onClick} className={cls}>{miolo}</button>
+              : <Link to={acao.to ?? '#'} className={cls}>{miolo}</Link>
+          })()}
 
           {/* 5. Quanto confiar */}
           <div className="mt-auto flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-white/70">

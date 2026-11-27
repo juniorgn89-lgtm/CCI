@@ -983,6 +983,8 @@ export interface TarefaInicial {
   data?: string
   /** HH:mm */
   hora?: string
+  /** Documentos exigidos para concluir (já liga o "exige anexo"). */
+  documentos?: string[]
 }
 
 export const TarefaForm = ({ tarefa, inicial, onClose, onSalva }: { tarefa?: TarefaRow | null; inicial?: TarefaInicial; onClose: () => void; onSalva: (t?: TarefaRow) => void }) => {
@@ -1002,8 +1004,8 @@ export const TarefaForm = ({ tarefa, inicial, onClose, onSalva }: { tarefa?: Tar
   const [novaEtapa, setNovaEtapa] = useState('')
   const addEtapa = () => { const t = novaEtapa.trim(); if (!t) return; setChecklist((xs) => [...xs, { texto: t, feito: false }]); setNovaEtapa('') }
   const [prioridade, setPrioridade] = useState<Prioridade>(tarefa?.prioridade ?? inicial?.prioridade ?? 'media')
-  const [exigeFoto, setExigeFoto] = useState(tarefa?.exige_anexo ?? false)
-  const [documentos, setDocumentos] = useState<string[]>(tarefa?.documentos_exigidos ?? [])
+  const [exigeFoto, setExigeFoto] = useState(tarefa?.exige_anexo ?? !!inicial?.documentos?.length)
+  const [documentos, setDocumentos] = useState<string[]>(tarefa?.documentos_exigidos ?? inicial?.documentos ?? [])
   const [novoDoc, setNovoDoc] = useState('')
   const addDoc = () => { const d = novoDoc.trim(); if (!d || documentos.includes(d)) return; setDocumentos((xs) => [...xs, d]); setNovoDoc(''); setExigeFoto(true) }
   const [salvando, setSalvando] = useState(false)

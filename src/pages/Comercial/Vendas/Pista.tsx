@@ -33,7 +33,11 @@ import InfoHint from '@/components/ui/InfoHint'
 import CoberturaBadge from '@/components/badges/CoberturaBadge'
 import { diasEntreDatas } from '@/components/badges/cobertura'
 import ProjecaoRitmo from '@/components/kpi/ProjecaoRitmo'
+import { serieRitmo, COR_SETOR } from '@/lib/serieRitmo'
 import RitmoDoMesCard from '@/components/kpi/RitmoDoMesCard'
+import FecharMesMelhorModal from '@/pages/Dashboard/components/modais/FecharMesMelhorModal'
+import usePostosDoFiltro from '@/hooks/usePostosDoFiltro'
+import useVisivel from '@/hooks/useVisivel'
 import useProjecaoSazonalPiloto, { EMPTY_FUEL_DAILY } from './useProjecaoSazonalPiloto'
 import useAbastecimentosAnalytics from '@/pages/Operacao/hooks/useAbastecimentosAnalytics'
 import { smoothedProjection, projecaoSazonal, reprojectByFactor, fimDoMesIso, expectedDailySeries, PROJECAO_TOOLTIP_PRODUTO } from '@/lib/projection'
@@ -146,7 +150,7 @@ const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, car
         )}
       </div>
     )}
-    {ritmo && !loading && <div className="mt-2">{ritmo}</div>}
+    {ritmo && !loading && <div className="mt-2 flex flex-1 flex-col">{ritmo}</div>}
     {projecao && !ritmo && !loading && (
       <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400">
         <TrendingUp className="h-3 w-3 shrink-0" />
@@ -189,6 +193,10 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   // anterior COMPLETO pro badge. Só precisamos dos índices/comparativo aqui — a
   // projeção usa a série diária própria da aba (mais coerente com o realizado).
   const sz = useProjecaoSazonalPiloto(EMPTY_FUEL_DAILY, true, 'automotivos')
+  // "Como virar o jogo?" → janela de produtos parados e kits, já em Automotivos.
+  const [fecharMelhor, setFecharMelhor] = useState(false)
+  const postosFiltro = usePostosDoFiltro()
+  const radarVisivel = useVisivel().aba('/comercial', 'radar')
   // "Todos" ([]) = postos PERMITIDOS (não a rede RLS inteira) — senão a aba
   // somaria postos fora da permissão e divergiria da Visão Geral.
   const { data: empresasDataPerm } = useQuery({ queryKey: ['empresas'], queryFn: () => fetchEmpresas({ limite: 200 }), staleTime: 30 * 60 * 1000 })
@@ -723,8 +731,13 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
       projetadoTicketMedio,
       isProjetada: pf.diasRestantes > 0,
       dataFinalProjecao: monthEnd,
+      fatDiario: Array.from(fatDaily.entries()).map(([data, value]) => ({ data, value })),
+      lucroDiario: Array.from(lucroDaily.entries()).map(([data, value]) => ({ data, value })),
     }
   }, [computed, vendaItens, produtosData, gruposData, dataInicial, sz, cuponsAtual])
+  // Linha do dia a dia nos cartões (padrão da Central): realizado + projeção sazonal.
+  const serieFat = useMemo(() => serieRitmo({ daily: projecaoPista.fatDiario, dataInicial, dataFinal, indices: sz.linear ? {} : sz.indices.faturamento, cor: COR_SETOR.automotivos }), [projecaoPista.fatDiario, dataInicial, dataFinal, sz.linear, sz.indices.faturamento])
+  const serieLucro = useMemo(() => serieRitmo({ daily: projecaoPista.lucroDiario, dataInicial, dataFinal, indices: sz.linear ? {} : sz.indices.lucro, cor: COR_SETOR.automotivos }), [projecaoPista.lucroDiario, dataInicial, dataFinal, sz.linear, sz.indices.lucro])
 
   // Linha de projeção esperada (FATURAMENTO por dia) pro gráfico "Faturamento por dia".
   const projFatDaily = useMemo(() => {
@@ -772,7 +785,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               comparisonLabel={cmpLabel}
               ritmo={!isLoadingVendas && computed ? (
                 <ProjecaoRitmo realizado={cmpKpis.atual.faturamento} projetado={projecaoPista.projetadoFat} diasRestantes={projecaoPista.fat.diasRestantes}
-                  cheioAnterior={sz.cmpAnterior.faturamento > 0 ? sz.cmpAnterior.faturamento : null} cheioLabel={sz.cmpLabel} fmt={formatCurrencyInt} />
+                  cheioAnterior={sz.cmpAnterior.faturamento > 0 ? sz.cmpAnterior.faturamento : null} cheioLabel={sz.cmpLabel} fmt={formatCurrencyInt} serie={serieFat} />
               ) : undefined}
               extra={
                 !isLoadingVendas && cmpKpis.prev.faturamento > 0 ? (
@@ -801,7 +814,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               comparisonLabel={cmpLabel}
               ritmo={!isLoadingVendas && computed ? (
                 <ProjecaoRitmo realizado={cmpKpis.atual.lucroBruto} projetado={projecaoPista.projetadoLucro} diasRestantes={projecaoPista.fat.diasRestantes}
-                  cheioAnterior={sz.cmpAnterior.lucro > 0 ? sz.cmpAnterior.lucro : null} cheioLabel={sz.cmpLabel} fmt={formatCurrencyInt} />
+                  cheioAnterior={sz.cmpAnterior.lucro > 0 ? sz.cmpAnterior.lucro : null} cheioLabel={sz.cmpLabel} fmt={formatCurrencyInt} serie={serieLucro} />
               ) : undefined}
               extra={
                 !isLoadingVendas && cmpKpis.prev.lucroBruto > 0 ? (
@@ -885,8 +898,10 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               confiabilidadePct={projecaoPista.fat.confiabilidadePct}
               modo={sz.modo}
               contexto="automotivos"
+              acao={{ label: 'Ver produtos parados e kits', onClick: () => setFecharMelhor(true) }}
               loading={isLoadingVendas || sz.isLoading}
             />
+            {fecharMelhor && <FecharMesMelhorModal open onClose={() => setFecharMelhor(false)} setorInicial="automotivos" diasRestantes={projecaoPista.fat.diasRestantes} radarVisivel={radarVisivel} postos={postosFiltro} />}
           </div>
 
           {/* Detalhamento de informações — UM card só (igual Combustível):

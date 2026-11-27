@@ -3,6 +3,11 @@ import useSaidaSuave from '@/hooks/useSaidaSuave'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import GuiaDoModal from '@/components/guia/GuiaDoModal'
+import { GUIA_ATTR, type GuiaModal } from '@/components/guia/tipos'
+
+/** Clique/foco dentro do balão do guia (portal fora do painel) não fecha o painel. */
+const noGuia = (e: Event) => (e.target instanceof Element && !!e.target.closest(`[${GUIA_ATTR}]`))
 
 /**
  * Painel lateral (padrão Atlas): abre da direita, ocupando a altura toda — para
@@ -32,6 +37,8 @@ interface Props {
   /** Corpo sem margem interna (o conteúdo traz as próprias seções). */
   semPadding?: boolean
   naoModal?: boolean
+  /** Dica do personagem ao lado do painel (só no modo padrão). */
+  guia?: GuiaModal
   /** Camada (z-index) no modo naoModal; o de cima usa um número maior. */
   camada?: number
 }
@@ -41,7 +48,7 @@ const TITULO = 'text-[18px] font-semibold leading-tight text-gray-900 dark:text-
 const FECHAR = 'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600 transition-colors hover:bg-gray-200 hover:text-gray-900 dark:bg-white/[0.06] dark:text-gray-300 dark:hover:bg-white/[0.12] dark:hover:text-white'
 const PAINEL = 'fixed inset-y-0 right-0 flex w-full flex-col border-l border-gray-200 bg-white shadow-2xl outline-none dark:border-[#2f3b4f] dark:bg-[#1e293b]'
 
-const PainelLateral = ({ open, onClose, titulo, subtitulo, children, rodape, onSubmit, largura = 'max-w-[460px]', semPadding, naoModal, camada = 40 }: Props) => {
+const PainelLateral = ({ open, onClose, titulo, subtitulo, children, rodape, onSubmit, largura = 'max-w-[460px]', semPadding, naoModal, camada = 40, guia }: Props) => {
   const painelRef = useRef<HTMLDivElement>(null)
   useSaidaSuave(painelRef, 'painel-sai .22s cubic-bezier(.4, 0, 1, 1) forwards')
   const corpo = (
@@ -65,6 +72,9 @@ const PainelLateral = ({ open, onClose, titulo, subtitulo, children, rodape, onS
         <DialogPrimitive.Content
           ref={painelRef}
           aria-describedby={undefined}
+          onPointerDownOutside={(e) => { if (guia && noGuia(e)) e.preventDefault() }}
+          onInteractOutside={(e) => { if (guia && noGuia(e)) e.preventDefault() }}
+          onFocusOutside={(e) => { if (guia && noGuia(e)) e.preventDefault() }}
           onOpenAutoFocus={(e) => {
             // Foca o 1º campo de digitação (não o botão de fechar).
             e.preventDefault()
@@ -81,6 +91,7 @@ const PainelLateral = ({ open, onClose, titulo, subtitulo, children, rodape, onS
             <DialogPrimitive.Close aria-label="Fechar" className={FECHAR}><X className="h-4 w-4" /></DialogPrimitive.Close>
           </div>
           {conteudo}
+          {guia && <GuiaDoModal guia={guia} contentRef={painelRef} />}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
     </DialogPrimitive.Root>

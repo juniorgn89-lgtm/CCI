@@ -9,6 +9,31 @@ import type { GuiaModal } from '@/components/guia/tipos'
 const g = (id: string, titulo: string, texto: string[], topicos?: GuiaModal['topicos']): GuiaModal => ({ id, titulo, texto, topicos })
 
 export const GUIAS = {
+  // ── Como fechar o mês ainda melhor? / Estoques ──────────────────────────
+  fecharMesMelhor: g('fechar-mes-melhor', 'Como fechar o mês melhor', [
+    'A previsão do mês soma os três setores. Cada cartão mostra quanto aquele setor pesa no lucro.',
+    'Combustível: o Radar de Preços mostra em qual posto dá para subir, segurar ou ceder o preço.',
+    'Automotivos e Conveniência: veja os produtos parados e os kits para fazê-los vender junto com o que já sai bem.',
+  ]),
+  destravarEstoque: g('destravar-estoque', 'Destravar o estoque', [
+    'Em cima, quantos produtos deste posto estão parados e quanto dinheiro está preso na prateleira. Troque o posto e o setor no topo.',
+    'Cada kit junta um produto parado com um que vende bem. "Saem juntos" ou "Quem compra… leva este" quer dizer que os clientes já levam os dois no mesmo cupom. "Sugestão" é palpite: teste antes.',
+    'O desconto vai só no produto parado e o kit continua dando lucro. Para vender, cadastre o kit no seu sistema com o preço sugerido.',
+  ]),
+  // Versão com o tópico de tarefa: só para quem pode criar tarefa (id novo = aparece de novo).
+  destravarEstoqueTarefa: g('destravar-estoque-tarefa', 'Destravar o estoque', [
+    'Em cima, quantos produtos deste posto estão parados e quanto dinheiro está preso na prateleira. Troque o posto e o setor no topo.',
+    'Cada kit junta um produto parado com um que vende bem. "Saem juntos" ou "Quem compra… leva este" quer dizer que os clientes já levam os dois no mesmo cupom. "Sugestão" é palpite: teste antes.',
+    'O desconto vai só no produto parado e o kit continua dando lucro.',
+  ], [{ titulo: 'Mandar alguém fazer', texto: [
+    'Marque as caixinhas dos kits e dos produtos que você decidiu fazer.',
+    'Toque em Criar tarefa, lá embaixo: ela já vem com cada kit e cada preço novo. É só escolher o funcionário.',
+  ] }]),
+  relatorioEstoque: g('relatorio-estoque', 'A análise do estoque', [
+    'Primeiro, quanto está em jogo por mês: o prejuízo de quem vende abaixo do custo e o lucro que deixa de entrar onde o custo subiu.',
+    'Os blocos vêm em ordem: o que perde dinheiro todo mês, o que já foi pago a mais nas notas e o que é só cadastro para corrigir.',
+    'Em cada bloco, "Ver na tabela" mostra os produtos daquele problema. O botão PDF gera o relatório para guardar ou mandar.',
+  ]),
   // ── Central ──────────────────────────────────────────────────────────────
   tanquesPosto: g('tanques-posto', 'Os tanques do posto', [
     'Aqui você vê cada tanque do posto: quanto tem agora, quanto cabe, quanto consome por dia e quantos dias dura.',

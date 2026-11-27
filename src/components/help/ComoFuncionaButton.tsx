@@ -221,61 +221,16 @@ const HELP_CONTENT: Record<string, RouteHelp> = {
   },
 
   '/estoques': {
-    defaultTab: 'visao',
+    defaultTab: 'produtos',
     tabs: {
-      visao: {
-        tela: 'Estoques · Visão Geral',
-        intro: 'Panorama do estoque de não-combustíveis (loja) no posto filtrado. Os números abaixo são fictícios.',
+      produtos: {
+        tela: 'Estoques · Produtos do posto',
+        intro: 'Todos os produtos do posto (sem combustível), com estoque e venda numa lista só. Os números abaixo são fictícios.',
         sections: [
-          { n: 1, title: 'Total de produtos e valor', exemplo: '742 produtos · R$ 138.000 em estoque', comoLer: 'Quantos SKUs têm saldo/movimentação e quanto vale o estoque a custo médio dos últimos 6 meses.' },
-          { n: 2, title: 'Mini-alarmes', exemplo: 'Saldo negativo 3 · Ruptura 8 · Necessidade crítica 21 · Giro 2,4', comoLer: 'Saúde do estoque. Clique num card pra ir à aba que detalha aquele problema.' },
-          { n: 3, title: 'Vão zerar em breve', exemplo: 'Cerveja Lata · zera em 5d · 90 un · 18/dia', comoLer: 'Top 3 prestes a acabar pela média diária. Vermelho < 7 dias, âmbar < 15 dias.' },
-          { n: 4, title: 'Top valor e categorias', exemplo: 'Bebidas R$ 42.000 (30%) · 120 SKU', comoLer: 'Onde está o dinheiro parado, o que comprar com urgência e a distribuição do valor por categoria.' },
-        ],
-      },
-      geral: {
-        tela: 'Estoques · Estoque geral',
-        intro: 'Saldo atual de todos os produtos, ordenável e filtrável. Os valores abaixo são fictícios.',
-        sections: [
-          { n: 1, title: 'Busca e categoria', exemplo: 'Buscar "coca" · Categoria Bebidas', comoLer: 'Filtre por nome/SKU ou categoria pra reduzir a lista.' },
-          { n: 2, title: 'Linha do produto', exemplo: 'Coca-Cola Lata · saldo 180 · custo R$ 2,90 · R$ 522 em estoque', comoLer: 'Saldo, custo médio e valor por produto. Saldo zero/negativo em vermelho.' },
-          { n: 3, title: 'Rodapé de totais', exemplo: '742 produtos · 18.400 un · R$ 138.000', comoLer: 'Soma do que está filtrado — recalcula conforme você filtra.' },
-        ],
-      },
-      giro: {
-        tela: 'Estoques · Giro',
-        intro: 'Quantas vezes o estoque girou em 6 meses (vendas ÷ estoque médio). Os valores abaixo são fictícios.',
-        sections: [
-          { n: 1, title: 'Giro (6m)', exemplo: 'Coca-Cola 6,0x · Amaciante 0,5x', comoLer: 'Giro alto = produto rodando; baixo = capital parado. A célula é colorida (verde alto, vermelho baixo).' },
-          { n: 2, title: 'Faixas de leitura', exemplo: '> 4x ótimo · 2–4x saudável · 0,5–2x empacando · < 0,5x parado', comoLer: 'Use o "?" do título pra ver fórmula e ação sugerida por faixa.' },
-          { n: 3, title: 'Rodapé de totais', exemplo: 'Com giro 510 · sem movimento 232 · giro médio 2,4x', comoLer: 'Quantos giraram, quantos ficaram parados e o giro médio do filtrado.' },
-        ],
-      },
-      estoqueMedio: {
-        tela: 'Estoques · Estoque médio',
-        intro: 'Média do saldo de 6 meses vs o saldo atual de cada produto. Os valores abaixo são fictícios.',
-        sections: [
-          { n: 1, title: 'Médio vs atual', exemplo: 'Coca-Cola · médio 200 · atual 180', comoLer: 'A média histórica indica se o saldo de hoje está acima ou abaixo do normal.' },
-          { n: 2, title: 'Variação vs média', exemplo: '−10% abaixo · +25% acima', comoLer: 'Verde = acima da média; vermelho = abaixo (risco de ruptura se for demais).' },
-          { n: 3, title: 'Rodapé de totais', exemplo: '742 produtos · médio 19.000 · atual 18.400', comoLer: 'Soma do estoque médio e do saldo atual do filtrado.' },
-        ],
-      },
-      mediaVendas: {
-        tela: 'Estoques · Média de venda (6m)',
-        intro: 'Volume vendido por produto em 6 meses, com média mensal e mês de pico. Os valores abaixo são fictícios.',
-        sections: [
-          { n: 1, title: 'Vendas e média mensal', exemplo: 'Coca-Cola · 1.200 em 6m · 200/mês', comoLer: 'Quanto saiu no semestre e a média mensal — base pra dimensionar compra e estoque.' },
-          { n: 2, title: 'Mês de pico', exemplo: 'Pico 320 · Dez/25', comoLer: 'O mês de maior venda — útil pra antecipar sazonalidade.' },
-          { n: 3, title: 'Receita 6m e totais', exemplo: 'Receita R$ 8.400 · total 92.000 un · R$ 540.000', comoLer: 'Receita por produto e os totais do filtrado no rodapé.' },
-        ],
-      },
-      necessidade: {
-        tela: 'Estoques · Necessidade',
-        intro: 'Compara o saldo atual com a média de venda (6m) pra sugerir o que comprar. Os valores abaixo são fictícios.',
-        sections: [
-          { n: 1, title: 'Cards de status', exemplo: 'Negativos 3 · Críticos 21 · Baixos 44 · OK 610', comoLer: 'Clique num card pra filtrar por status. Negativo = saldo abaixo de zero, investigar.' },
-          { n: 2, title: 'Cobertura e dias', exemplo: 'Saldo 90 · 200/mês · cobre 13 dias', comoLer: 'Por quantos dias o saldo cobre a venda. Vermelho perto de zerar, âmbar abaixo da meta.' },
-          { n: 3, title: 'Quanto comprar', exemplo: 'Comprar 350 un · custo estimado R$ 24.000', comoLer: 'Sugestão de compra pra cobrir os dias do campo "Cobertura" (padrão 30) e o custo estimado.' },
+          { n: 1, title: 'Setor e situação', exemplo: 'Automotivos · Curva A · Mais vendidos · Travados', comoLer: 'Escolha o setor nas pílulas e a situação no botão ao lado (tem busca): estoque (ruptura, excesso, parados…), venda (mais vendidos, Curva A/B/C) e giro × margem (Estrelas, Mina de ouro, Tração, Reduzir).' },
+          { n: 2, title: 'Sinais', exemplo: 'Vendendo abaixo do custo 41 · Última compra fora do normal 65', comoLer: 'Cada botão filtra os produtos com aquele problema, com o motivo embaixo do nome e o que fazer.' },
+          { n: 3, title: 'Analisar estoque', exemplo: 'Em jogo por mês R$ 2.300', comoLer: 'Relatório simples: quanto se perde por mês, o que já foi pago a mais e o que é cadastro para corrigir, por setor. Gera PDF.' },
+          { n: 4, title: 'Marcar e agir', exemplo: '3 produtos selecionados', comoLer: 'Marque produtos para gerar pedido de compra ou criar uma tarefa de baixar o preço.' },
         ],
       },
     },

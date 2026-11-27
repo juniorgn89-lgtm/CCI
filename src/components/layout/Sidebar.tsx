@@ -16,7 +16,6 @@ import { Bug,
   Wrench,
   Store,
   LayoutDashboard,
-  Package,
   ShoppingCart,
   ClipboardList,
   ArrowDownCircle,
@@ -128,10 +127,6 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Pista', to: '/produtividade?tab=pista', Icon: Fuel },
     { label: 'Loja', to: '/produtividade?tab=loja', Icon: Store },
     { label: 'Resumo da rede', to: '/produtividade?tab=rede', Icon: Building2 },
-  ],
-  '/estoques': [
-    { label: 'Visão de Estoques', to: '/estoques', Icon: LayoutDashboard },
-    { label: 'Produtos', to: '/estoques?tab=produtos', Icon: Package },
   ],
   '/financeiro': [
     { label: 'Visão Financeira', to: '/financeiro', Icon: LayoutDashboard },

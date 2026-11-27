@@ -1,5 +1,5 @@
 import {
-  BarChart3, Warehouse, DollarSign, Brain, Fuel,
+  BarChart3, Package, DollarSign, Brain, Fuel,
   ShieldAlert, TrendingUp, Radio, Building2, ClipboardList, ShoppingCart, Settings } from 'lucide-react'
 
 export interface NavItem {
@@ -48,7 +48,7 @@ export const navGroups: NavGroup[] = [
       { label: 'Tarefas', path: '/gestao', icon: ClipboardList, requerGestao: true },
       // Compras (pedidos com liberação) — só em redes com o módulo ligado.
       { label: 'Compras', path: '/compras', icon: ShoppingCart, requerCompras: true },
-      { label: 'Estoques', path: '/estoques', icon: Warehouse },
+      { label: 'Estoques', path: '/estoques', icon: Package },
       { label: 'Financeiro', path: '/financeiro', icon: DollarSign },
       { label: 'Qualidade de Dados', path: '/qualidade-dados', icon: ShieldAlert },
     ],

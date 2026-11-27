@@ -39,6 +39,19 @@
 .dark input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
 }
+/* Lista aberta das caixas de seleção nativas: as opções herdam a cor e o fundo
+   (às vezes translúcido, de "filtro ativo") da caixa e ficavam ilegíveis.
+   Cor e fundo próprios, sólidos, nos dois temas. */
+select option,
+select optgroup {
+  background-color: #ffffff;
+  color: #111827;
+}
+.dark select option,
+.dark select optgroup {
+  background-color: #0f172a;
+  color: #e5e7eb;
+}
 
 @layer base {
   :root {

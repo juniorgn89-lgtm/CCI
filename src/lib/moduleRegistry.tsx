@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { Brain, Building2, CreditCard, Gauge, LayoutDashboard, Radio, SearchCheck, ShieldCheck, Stethoscope, TrendingUp, Users, Wallet, Warehouse } from 'lucide-react'
+import { Brain, Building2, CreditCard, Gauge, LayoutDashboard, Radio, SearchCheck, ShieldCheck, Stethoscope, TrendingUp, Users, Wallet, Package } from 'lucide-react'
 import { moduleByPath } from '@/lib/appStructure'
 
 /**
@@ -22,7 +22,7 @@ export const REGISTRY: Record<string, ModuleMeta> = {
   '/comercial': { Icon: TrendingUp, nome: 'Comercial', subtitle: 'inteligência de preço, margem e concorrência' },
   '/operacao': { Icon: Gauge, nome: 'Operação', subtitle: 'tanques, manutenção e aferições' },
   '/financeiro': { Icon: Wallet, nome: 'Financeiro', subtitle: 'títulos a receber e a pagar' },
-  '/estoques': { Icon: Warehouse, nome: 'Estoques', subtitle: 'saldo, giro e necessidade de compra' },
+  '/estoques': { Icon: Package, nome: 'Estoques', subtitle: 'saldo, giro e necessidade de compra' },
   '/produtividade': { Icon: Users, nome: 'Produtividade', subtitle: 'desempenho de frentistas e vendedores' },
   '/qualidade-dados': { Icon: SearchCheck, nome: 'Qualidade de Dados', subtitle: 'inconsistências e sinais de fraude' },
   '/inteligencia': { Icon: Brain, nome: 'Inteligência', subtitle: 'o analista de IA da rede' },

@@ -17,12 +17,14 @@ interface Props {
   diasNoMes: number
   /** Cor da linha (a do setor). */
   cor: string
+  /** Formato do valor no hover (padrão: R$ sem centavos). */
+  fmt?: (v: number) => string
 }
 
 const W = 100
 const H = 44
 
-const LinhaRitmo = ({ diario, projecao, diasNoMes, cor }: Props) => {
+const LinhaRitmo = ({ diario, projecao, diasNoMes, cor, fmt = formatCurrencyInt }: Props) => {
   const [hover, setHover] = useState<number | null>(null)
   const n = diario.length
   const ult = n - 1
@@ -56,9 +58,9 @@ const LinhaRitmo = ({ diario, projecao, diasNoMes, cor }: Props) => {
       {h !== null && (
         <div className="pointer-events-none absolute -top-6 left-0 right-0 z-10 flex items-center justify-between gap-2 text-[10.5px] text-gray-500 dark:text-gray-400">
           <span className="rounded-md bg-white/95 px-1.5 py-0.5 shadow-sm dark:bg-[#1e293b]/95">
-            dia {h + 1}{hProj && ' · projeção'}: <b className="font-semibold text-gray-800 dark:text-gray-100">{formatCurrencyInt(hValor)}</b>
+            dia {h + 1}{hProj && ' · projeção'}: <b className="font-semibold text-gray-800 dark:text-gray-100">{fmt(hValor)}</b>
           </span>
-          {n > 0 && <span className="rounded-md bg-white/95 px-1.5 py-0.5 tabular-nums shadow-sm dark:bg-[#1e293b]/95">média {formatCurrencyInt(media)}/dia</span>}
+          {n > 0 && <span className="rounded-md bg-white/95 px-1.5 py-0.5 tabular-nums shadow-sm dark:bg-[#1e293b]/95">média {fmt(media)}/dia</span>}
         </div>
       )}
       <div className="relative h-16 cursor-crosshair" onMouseMove={onMove} onMouseLeave={() => setHover(null)}>

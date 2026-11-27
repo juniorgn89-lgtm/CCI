@@ -1,11 +1,14 @@
 import InfoHint from '@/components/ui/InfoHint'
+import LinhaRitmo from '@/components/kpi/LinhaRitmo'
+import type { SerieRitmo } from '@/lib/serieRitmo'
 import { cn } from '@/lib/utils'
 
 /**
- * Bloco de projeção dentro de um card de KPI (Central e abas de Vendas):
- * barra de ritmo (cheio = realizado, vazio = o que falta até a projeção),
- * "Fecha em X" comparado ao mês INTEIRO do ano/mês anterior, e o que falta
- * por dia. Período fechado → "Fechou em", sem barra.
+ * Bloco de projeção dentro de um card de KPI das abas de Vendas, no padrão da
+ * Central: "Fecha em X" comparado ao mês INTEIRO do ano/mês anterior e, no
+ * miolo do cartão, a linha do dia a dia com a projeção sazonal tracejada.
+ * (A barra "% do mês" e o "faltam" saíram — ficam no cartão "Como o mês vai fechar".)
+ * Período fechado → "Fechou em", linha sem projeção.
  *
  * `cheioAnterior` null = sem base no cache → diz "sem base", não inventa.
  */
@@ -17,16 +20,13 @@ interface ProjecaoRitmoProps {
   /** Rótulo do mês comparativo ("out/25" ou "ano ant." / "mês ant."). */
   cheioLabel: string
   fmt: (v: number) => string
-  /** Sufixo do ritmo por dia (ex.: "/dia"). */
-  sufixoDia?: string
+  /** Linha do dia a dia (null = período que não é um mês só → sem linha). */
+  serie?: SerieRitmo | null
   className?: string
 }
 
-const ProjecaoRitmo = ({ realizado, projetado, diasRestantes, cheioAnterior, cheioLabel, fmt, sufixoDia = '/dia', className }: ProjecaoRitmoProps) => {
+const ProjecaoRitmo = ({ realizado, projetado, diasRestantes, cheioAnterior, cheioLabel, fmt, serie, className }: ProjecaoRitmoProps) => {
   const fechado = diasRestantes <= 0
-  const entregue = projetado > 0 ? Math.min(100, (realizado / projetado) * 100) : 0
-  const falta = Math.max(0, projetado - realizado)
-  const porDia = diasRestantes > 0 ? falta / diasRestantes : 0
   const vsCheio = cheioAnterior && cheioAnterior > 0 ? (((fechado ? realizado : projetado) - cheioAnterior) / cheioAnterior) * 100 : null
   // Elemento (não componente) pra não recriar tipo a cada render.
   const vs = vsCheio === null ? (
@@ -41,31 +41,19 @@ const ProjecaoRitmo = ({ realizado, projetado, diasRestantes, cheioAnterior, che
     </span>
   )
 
-  if (fechado) {
-    return (
-      <p className={cn('flex flex-wrap items-baseline gap-x-1.5 text-[12px] leading-snug', className)}>
-        <span className="text-gray-500 dark:text-gray-400">Fechou em</span>
-        <span className="font-bold tabular-nums text-gray-900 dark:text-gray-100">{fmt(realizado)}</span>
-        {vs}
-      </p>
-    )
-  }
   return (
-    <div className={cn('space-y-1', className)}>
-      <div className="flex items-center gap-2">
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200/80 dark:bg-gray-700/80" title={`${Math.round(entregue)}% do projetado já realizado`}>
-          <div className="h-full rounded-full bg-[#1e3a5f] dark:bg-blue-500" style={{ width: `${Math.max(2, entregue)}%` }} />
-        </div>
-        <span className="shrink-0 text-[10px] font-semibold tabular-nums text-gray-500 dark:text-gray-400">{Math.round(entregue)}% do mês</span>
-      </div>
+    <div className={cn('flex flex-1 flex-col', className)}>
       <p className="flex flex-wrap items-baseline gap-x-1.5 text-[12px] leading-snug">
-        <span className="text-gray-500 dark:text-gray-400">Fecha em</span>
-        <span className="font-bold tabular-nums text-gray-900 dark:text-gray-100">{fmt(projetado)}</span>
+        <span className="text-gray-500 dark:text-gray-400">{fechado ? 'Fechou em' : 'Fecha em'}</span>
+        <span className="font-bold tabular-nums text-gray-900 dark:text-gray-100">{fmt(fechado ? realizado : projetado)}</span>
         {vs}
       </p>
-      <p className="hidden text-[11px] tabular-nums text-gray-500 sm:block dark:text-gray-400">
-        faltam {fmt(falta)} · {fmt(porDia)}{sufixoDia} · {diasRestantes} dia{diasRestantes === 1 ? '' : 's'}
-      </p>
+      {/* Centralizada no espaço livre entre a previsão e o rodapé (igual à Central). */}
+      {serie && serie.diario.length > 0 && (
+        <div className="flex min-h-[88px] flex-1 items-center py-3">
+          <LinhaRitmo diario={serie.diario} projecao={fechado ? null : serie.projecao} diasNoMes={serie.diasNoMes} cor={serie.cor} fmt={fmt} />
+        </div>
+      )}
     </div>
   )
 }

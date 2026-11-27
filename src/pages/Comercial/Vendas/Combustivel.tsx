@@ -36,6 +36,7 @@ import { buildPostoDiaMatrix } from '@/pages/Comercial/Vendas/postoDiaMatrix'
 import InfoHint from '@/components/ui/InfoHint'
 import RealizadoChave from '@/components/kpi/RealizadoChave'
 import ProjecaoRitmo from '@/components/kpi/ProjecaoRitmo'
+import { serieRitmo, COR_SETOR } from '@/lib/serieRitmo'
 import RitmoDoMesCard from '@/components/kpi/RitmoDoMesCard'
 import { projecaoSazonal, expectedDailySeries, reprojectByFactor } from '@/lib/projection'
 import { todayLocal } from '@/lib/period'
@@ -187,7 +188,7 @@ const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, car
         )}
       </div>
     )}
-    {ritmo && !loading && <div className="mt-2">{ritmo}</div>}
+    {ritmo && !loading && <div className="mt-2 flex flex-1 flex-col">{ritmo}</div>}
     {projecao && !ritmo && !loading && (
       <p className="mt-1.5 flex items-center gap-1 text-[11px] tabular-nums text-indigo-600 dark:text-indigo-400">
         <TrendingUp className="h-3 w-3 shrink-0" />
@@ -621,6 +622,9 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   // <90d). É a fonte do card grande E dos KPIs — e o MESMO índice do painel da
   // Central, pra tudo bater.
   const pilotoSazonal = useProjecaoSazonalPiloto(dailyData, true)
+  // Linha do dia a dia nos cartões (padrão da Central): realizado + projeção sazonal.
+  const serieLitros = useMemo(() => serieRitmo({ daily: dailyData.map((d) => ({ data: d.data, value: d.litros })), dataInicial, dataFinal, indices: pilotoSazonal.linear ? {} : pilotoSazonal.indices.litros, cor: COR_SETOR.combustivel }), [dailyData, dataInicial, dataFinal, pilotoSazonal.linear, pilotoSazonal.indices.litros])
+  const serieLucro = useMemo(() => serieRitmo({ daily: dailyData.map((d) => ({ data: d.data, value: d.lucroBruto })), dataInicial, dataFinal, indices: pilotoSazonal.linear ? {} : pilotoSazonal.indices.lucro, cor: COR_SETOR.combustivel }), [dailyData, dataInicial, dataFinal, pilotoSazonal.linear, pilotoSazonal.indices.lucro])
 
   /* ─── Projeção EXECUTIVA (faturamento + lucro + litros) — SAZONAL: projecaoSazonal
    * sobre a série diária com o índice de dia-da-semana da rede por métrica. Os
@@ -824,7 +828,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               comparisonLabel={cmpLabel}
               ritmo={!showSkeleton ? (
                 <ProjecaoRitmo realizado={vendaKpis.litros} projetado={projecaoCombustivel.projetadoLitros} diasRestantes={projecaoCombustivel.fat.diasRestantes}
-                  cheioAnterior={pilotoSazonal.cmpAnterior.litros > 0 ? pilotoSazonal.cmpAnterior.litros : null} cheioLabel={pilotoSazonal.cmpLabel} fmt={formatLiters} />
+                  cheioAnterior={pilotoSazonal.cmpAnterior.litros > 0 ? pilotoSazonal.cmpAnterior.litros : null} cheioLabel={pilotoSazonal.cmpLabel} fmt={formatLiters} serie={serieLitros} />
               ) : undefined}
               mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
               projDetalhe={renderProjFuelList((d) => formatLiters(d.litros))}
@@ -855,7 +859,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               comparisonLabel={cmpLabel}
               ritmo={!showSkeleton ? (
                 <ProjecaoRitmo realizado={vendaKpis.lucroBruto} projetado={projecaoCombustivel.projetadoLucro} diasRestantes={projecaoCombustivel.fat.diasRestantes}
-                  cheioAnterior={pilotoSazonal.cmpAnterior.lucro > 0 ? pilotoSazonal.cmpAnterior.lucro : null} cheioLabel={pilotoSazonal.cmpLabel} fmt={formatCurrencyInt} />
+                  cheioAnterior={pilotoSazonal.cmpAnterior.lucro > 0 ? pilotoSazonal.cmpAnterior.lucro : null} cheioLabel={pilotoSazonal.cmpLabel} fmt={formatCurrencyInt} serie={serieLucro} />
               ) : undefined}
               mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
               projDetalhe={renderProjFuelList((d) => formatCurrencyInt(d.lucro))}
