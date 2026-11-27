@@ -27,7 +27,7 @@ import { Bug,
   Tag,
   Sun,
   Repeat,
-  Stethoscope, ArrowLeftRight, FlaskConical, ChevronDown, FileText, CalendarDays } from 'lucide-react'
+  Stethoscope, ArrowLeftRight, FlaskConical, ChevronDown, FileText, CalendarDays, Package } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useModuloAbas, moduloDaRota } from '@/store/moduloAbas'
 import { useAuth } from '@/hooks/useAuth'
@@ -127,6 +127,10 @@ const MODULE_SUBOPTIONS: Record<string, SubOption[]> = {
     { label: 'Pista', to: '/produtividade?tab=pista', Icon: Fuel },
     { label: 'Loja', to: '/produtividade?tab=loja', Icon: Store },
     { label: 'Resumo da rede', to: '/produtividade?tab=rede', Icon: Building2 },
+  ],
+  // Estoques tem uma tela só, mas fica como submenu (clica no módulo, escolhe Produtos).
+  '/estoques': [
+    { label: 'Produtos', to: '/estoques', Icon: Package },
   ],
   '/financeiro': [
     { label: 'Visão Financeira', to: '/financeiro', Icon: LayoutDashboard },
@@ -461,7 +465,11 @@ const Sidebar = () => {
                 const daPagina = abasPath === item.path && abasTabs.length > 0
                 const filhos: { key: string; label: string; ativo: boolean; to?: string; ir?: () => void }[] = daPagina
                   ? abasTabs.filter((t) => !t.disabled).map((t) => ({ key: t.id, label: t.label, ativo: t.id === abasAtiva, ir: () => abasOnChange?.(t.id) }))
-                  : (subOptions ?? []).map((o) => ({ key: o.to, label: o.label, ativo: false, to: o.to }))
+                  : (subOptions ?? []).map((o) => {
+                    const [rotaO, tabO] = o.to.split('?tab=')
+                    const tabAtual = new URLSearchParams(search).get('tab')
+                    return { key: o.to, label: o.label, ativo: pathname === rotaO && (tabO ? tabAtual === tabO : !tabAtual), to: o.to }
+                  })
                 if (wide && filhos.length > 0) {
                   const estaAberto = aberto === item.path
                   const itemCls = (ativo: boolean) => cn(
