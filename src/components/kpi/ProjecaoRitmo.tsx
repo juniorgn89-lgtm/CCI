@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import InfoHint from '@/components/ui/InfoHint'
 import LinhaRitmo from '@/components/kpi/LinhaRitmo'
 import type { SerieRitmo } from '@/lib/serieRitmo'
@@ -22,10 +23,12 @@ interface ProjecaoRitmoProps {
   fmt: (v: number) => string
   /** Linha do dia a dia (null = período que não é um mês só → sem linha). */
   serie?: SerieRitmo | null
+  /** Projeção por item (combustível/categoria/grupo), logo abaixo do "Fecha em". */
+  detalhe?: ReactNode
   className?: string
 }
 
-const ProjecaoRitmo = ({ realizado, projetado, diasRestantes, cheioAnterior, cheioLabel, fmt, serie, className }: ProjecaoRitmoProps) => {
+const ProjecaoRitmo = ({ realizado, projetado, diasRestantes, cheioAnterior, cheioLabel, fmt, serie, detalhe, className }: ProjecaoRitmoProps) => {
   const fechado = diasRestantes <= 0
   const vsCheio = cheioAnterior && cheioAnterior > 0 ? (((fechado ? realizado : projetado) - cheioAnterior) / cheioAnterior) * 100 : null
   // Elemento (não componente) pra não recriar tipo a cada render.
@@ -48,6 +51,7 @@ const ProjecaoRitmo = ({ realizado, projetado, diasRestantes, cheioAnterior, che
         <span className="font-bold tabular-nums text-gray-900 dark:text-gray-100">{fmt(fechado ? realizado : projetado)}</span>
         {vs}
       </p>
+      {detalhe}
       {/* Centralizada no espaço livre entre a previsão e o rodapé (igual à Central). */}
       {serie && serie.diario.length > 0 && (
         <div className="flex min-h-[88px] flex-1 items-center py-3">

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { CalendarRange, Gauge, ChevronDown, ChevronUp, ArrowRight } from 'lucide-react'
+import { CalendarRange, Gauge, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrencyInt } from '@/lib/formatters'
 import InfoHint from '@/components/ui/InfoHint'
@@ -34,9 +34,6 @@ interface RitmoDoMesCardProps {
   modo?: ProjecaoModo
   contexto?: string
   loading?: boolean
-  /** "Ver detalhes" (aba Combustível): abre a quebra por combustível nos KPIs. */
-  expanded?: boolean
-  onToggleExpanded?: () => void
   /** Atalho "o que fazer": link (ex.: Radar de Preços) ou clique (ex.: abrir a janela de kits). */
   acao?: { label: string; to?: string; onClick?: () => void }
   className?: string
@@ -49,7 +46,7 @@ const Variacao = ({ v, sufixo }: { v: number | null; sufixo: string }) => v === 
 
 const RitmoDoMesCard = ({
   realizado, projetado, diasFechados, diasRestantes, dataFinal, cheioAnterior, cheioLabel, parcialAnterior, parcialLabel,
-  confiabilidade, confiabilidadePct, modo, contexto, loading, expanded, onToggleExpanded, acao, className,
+  confiabilidade, confiabilidadePct, modo, contexto, loading, acao, className,
 }: RitmoDoMesCardProps) => {
   const fechado = diasRestantes <= 0
   const entregue = projetado > 0 ? Math.min(100, (realizado / projetado) * 100) : 0
@@ -76,16 +73,6 @@ const RitmoDoMesCard = ({
           </p>
           <p className="mt-0.5 text-[11px] text-white/60">Previsão do lucro bruto{contexto ? ` de ${contexto}` : ''} até o fim do mês</p>
         </div>
-        {onToggleExpanded && (
-          <button
-            type="button"
-            onClick={onToggleExpanded}
-            className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-white/15 bg-white/[0.06] px-2.5 text-[11px] font-medium text-white/80 hover:bg-white/10 hover:text-white"
-          >
-            {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-            {expanded ? 'Ocultar detalhes' : 'Ver detalhes'}
-          </button>
-        )}
       </div>
 
       {loading ? (

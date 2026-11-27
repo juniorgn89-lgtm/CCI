@@ -28,15 +28,15 @@ const Metric = ({ label, mov, fis, format }: MetricProps) => {
       <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">{label}</p>
       <div className="mt-1.5 space-y-1">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-[11px] text-gray-500 dark:text-gray-400">Movimento</span>
+          <span className="text-[11px] text-gray-500 dark:text-gray-400">Vendido</span>
           <span className="text-sm font-bold tabular-nums text-gray-900 dark:text-gray-100">{format(mov)}</span>
         </div>
         <div className="flex items-baseline justify-between gap-2">
-          <span className="text-[11px] text-gray-500 dark:text-gray-400">Fiscal</span>
+          <span className="text-[11px] text-gray-500 dark:text-gray-400">Com nota autorizada</span>
           <span className="text-sm font-semibold tabular-nums text-gray-700 dark:text-gray-300">{format(fis)}</span>
         </div>
         <div className="flex items-baseline justify-between gap-2 border-t border-gray-100 pt-1 dark:border-gray-800">
-          <span className="text-[11px] font-medium text-gray-600 dark:text-gray-400">Δ não-fiscal</span>
+          <span className="text-[11px] font-medium text-gray-600 dark:text-gray-400">Sem nota</span>
           <span className={cn('text-sm font-bold tabular-nums', hasGap ? 'text-red-600 dark:text-red-400' : 'text-gray-400 dark:text-gray-500')}>
             {format(diff)} <span className="text-[11px] font-medium">({fmtPct(pct)})</span>
           </span>
@@ -75,8 +75,8 @@ const MovimentoFiscalValidacao = () => {
       return (
         <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
           <GitCompareArrows className="h-4 w-4 shrink-0 animate-pulse" />
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Movimento × Fiscal</span>
-          <span className="text-sm">· Verificando ao vivo…</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Vendas × Nota fiscal</span>
+          <span className="text-sm">· Conferindo ao vivo…</span>
         </div>
       )
     }
@@ -84,9 +84,9 @@ const MovimentoFiscalValidacao = () => {
       return (
         <div className="flex w-full items-center gap-2 text-red-700 dark:text-red-300">
           <AlertTriangle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
-          <span className="text-sm font-medium">Movimento × Fiscal</span>
+          <span className="text-sm font-medium">Vendas × Nota fiscal</span>
           <span className="text-sm font-semibold">
-            · {litrosFmt(gapLitros)} ({fmtPct(gapPct)}) não viraram documento fiscal
+            · {litrosFmt(gapLitros)} ({fmtPct(gapPct)}) vendidos ainda sem nota fiscal autorizada
           </span>
           <span className="ml-auto inline-flex items-center gap-1 text-xs font-medium">
             ver detalhes
@@ -98,8 +98,8 @@ const MovimentoFiscalValidacao = () => {
     return (
       <div className="flex w-full items-center gap-2 text-emerald-700 dark:text-emerald-300">
         <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-        <span className="text-sm font-medium">Movimento × Fiscal</span>
-        <span className="text-sm">· Tudo que movimentou virou documento fiscal</span>
+        <span className="text-sm font-medium">Vendas × Nota fiscal</span>
+        <span className="text-sm">· Todo combustível vendido saiu com nota fiscal autorizada</span>
         <ChevronDown className={cn('ml-auto h-4 w-4 text-gray-400 transition-transform dark:text-gray-500', expanded && 'rotate-180')} />
       </div>
     )
@@ -129,7 +129,7 @@ const MovimentoFiscalValidacao = () => {
         <InfoHint
           side="left"
           className="ml-2 shrink-0"
-          text="Movimento = vendas de combustível NÃO-canceladas (autorizadas + pendentes/contingência). Fiscal = só as autorizadas (situação A). Verde rigoroso = gap exatamente zero. Cálculo ao vivo (não usa cache) para o posto selecionado."
+          text="Confere se cada venda de combustível (não cancelada) tem nota fiscal autorizada. Venda pendente ou em contingência ainda não conta. Verde só quando não falta nem 1 litro. Conferido ao vivo no posto selecionado. Não é o LMC: perda e sobra de tanque ficam no cartão Litros vendidos."
         />
       </div>
 
@@ -147,10 +147,10 @@ const MovimentoFiscalValidacao = () => {
                 <thead>
                   <tr className="border-b border-gray-200 text-[10px] uppercase tracking-wide text-gray-500 dark:border-gray-700 dark:text-gray-400">
                     <th className="px-2 py-1.5 text-left font-medium">Combustível</th>
-                    <th className="px-2 py-1.5 text-right font-medium">Movimento (L)</th>
-                    <th className="px-2 py-1.5 text-right font-medium">Fiscal (L)</th>
-                    <th className="px-2 py-1.5 text-right font-medium">Δ (L)</th>
-                    <th className="px-2 py-1.5 text-right font-medium">Δ %</th>
+                    <th className="px-2 py-1.5 text-right font-medium">Vendido (L)</th>
+                    <th className="px-2 py-1.5 text-right font-medium">Com nota (L)</th>
+                    <th className="px-2 py-1.5 text-right font-medium">Sem nota (L)</th>
+                    <th className="px-2 py-1.5 text-right font-medium">Sem nota %</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-800">

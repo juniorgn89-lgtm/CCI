@@ -15,6 +15,7 @@ import { weekdayMonthEndFactor, projecaoSazonal, projecaoAvancada, fimDoMesIso }
 import { todayLocal, offsetPeriod } from '@/lib/period'
 import useCentralSazonal from '@/pages/Dashboard/hooks/useCentralSazonal'
 import ProjecaoModoAviso from '@/components/kpi/ProjecaoModoAviso'
+import DicaClique from '@/components/ui/DicaClique'
 import SetorPostosModal, { type SetorModal } from '@/pages/Dashboard/components/modais/SetorPostosModal'
 import PostoResumoModal from '@/pages/Dashboard/components/modais/PostoResumoModal'
 import LinhaRitmo from '@/components/kpi/LinhaRitmo'
@@ -117,11 +118,14 @@ interface SegmentCardProps {
 const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBruto, lucroBrutoAnterior, cmpLabel, cmpTitle, proj, cheioAnterior, cheioLabel, rodape, onClick, ritmo }: SegmentCardProps) => {
   const fechado = proj.diasRestantes <= 0
   const vsCheio = cheioAnterior && cheioAnterior > 0 ? ((proj.lucro - cheioAnterior) / cheioAnterior) * 100 : null
+  const global = label === 'Global'
   return (
+    <DicaClique ativo={!!onClick} Icon={Icon}
+      titulo={global ? 'Toda a rede, posto a posto' : `${label} posto a posto`}
+      texto={`O lucro ${global ? 'total' : `de ${label.toLowerCase()}`} de cada posto lado a lado, com a projeção do mês: veja quem puxa a rede para cima e quem segura. Clique num posto para o resumo dele.`}>
     <div
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
-      title={onClick ? 'Ver o setor posto a posto' : undefined}
       onClick={onClick ? (e) => { if ((e.target as HTMLElement).closest('button')) return; onClick() } : undefined}
       onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } } : undefined}
       className={cn('flex h-full w-full min-w-0 flex-col rounded-2xl border border-gray-200 p-5 text-left shadow-sm dark:border-[#2f3b4f] dark:shadow-none', cardBg, onClick && 'cursor-pointer transition-shadow hover:shadow-md hover:ring-2 hover:ring-[#1e3a5f]/25 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1e3a5f] dark:hover:ring-blue-400/40')}
@@ -199,6 +203,7 @@ const SegmentCard = ({ label, Icon, cardBg, iconBg, iconColor, loading, lucroBru
         ))}
       </div>
     </div>
+    </DicaClique>
   )
 }
 

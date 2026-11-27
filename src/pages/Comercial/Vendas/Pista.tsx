@@ -35,6 +35,8 @@ import { diasEntreDatas } from '@/components/badges/cobertura'
 import ProjecaoRitmo from '@/components/kpi/ProjecaoRitmo'
 import { serieRitmo, COR_SETOR } from '@/lib/serieRitmo'
 import RitmoDoMesCard from '@/components/kpi/RitmoDoMesCard'
+import ProjecaoPorItemBox from '@/components/kpi/ProjecaoPorItemBox'
+import { CORES_ITEM } from '@/components/kpi/coresItem'
 import FecharMesMelhorModal from '@/pages/Dashboard/components/modais/FecharMesMelhorModal'
 import usePostosDoFiltro from '@/hooks/usePostosDoFiltro'
 import useVisivel from '@/hooks/useVisivel'
@@ -121,13 +123,15 @@ interface KpiCardProps {
   projecao?: string
   /** Bloco de ritmo (barra + "Fecha em" vs mês inteiro) — substitui a linha "Proj. fim do mês". */
   ritmo?: ReactNode
+  /** Projeção pelas maiores categorias/grupos (sempre aberta, abaixo da linha de projeção). */
+  projDetalhe?: ReactNode
   /** Comparação com o período anterior (DeltaBadge). */
   current?: number
   previous?: number
   comparisonLabel?: string
 }
 
-const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, cardBg, loading, projecao, ritmo, current, previous, comparisonLabel }: KpiCardProps) => (
+const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, cardBg, loading, projecao, ritmo, projDetalhe, current, previous, comparisonLabel }: KpiCardProps) => (
   <div className={cn('flex flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
     <div className="flex items-center justify-between">
       <p className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400">
@@ -157,6 +161,7 @@ const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, car
         <span>Proj. fim do mês: <span className="font-semibold">{projecao}</span></span>
       </p>
     )}
+    {projDetalhe && !loading && projDetalhe}
     {hint && <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{hint}</p>}
     {extra && !loading && <div className="mt-auto border-t border-gray-200/60 pt-2.5 dark:border-gray-700/60">{extra}</div>}
   </div>
@@ -739,6 +744,22 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
   const serieFat = useMemo(() => serieRitmo({ daily: projecaoPista.fatDiario, dataInicial, dataFinal, indices: sz.linear ? {} : sz.indices.faturamento, cor: COR_SETOR.automotivos }), [projecaoPista.fatDiario, dataInicial, dataFinal, sz.linear, sz.indices.faturamento])
   const serieLucro = useMemo(() => serieRitmo({ daily: projecaoPista.lucroDiario, dataInicial, dataFinal, indices: sz.linear ? {} : sz.indices.lucro, cor: COR_SETOR.automotivos }), [projecaoPista.lucroDiario, dataInicial, dataFinal, sz.linear, sz.indices.lucro])
 
+  // Projeção das 3 maiores categorias nos cards (mesmo fator rede-wide da aba "Projeção por categoria").
+  const projCategorias = useMemo(() => {
+    if (!projecaoPista.isProjetada || !computed) return null
+    const kFat = projecaoPista.realizadoFat > 0 ? projecaoPista.projetadoFat / projecaoPista.realizadoFat : 1
+    const kLucro = projecaoPista.realizadoLucro > 0 ? projecaoPista.projetadoLucro / projecaoPista.realizadoLucro : kFat
+    const top = computed.categorias.slice(0, 3)
+    return {
+      top: top.map((c, i) => ({ nome: c.nome, cor: CORES_ITEM[i], fat: c.faturamento * kFat, lucro: (c.faturamento - c.custo) * kLucro })),
+      outras: computed.categorias.length - top.length,
+    }
+  }, [projecaoPista, computed])
+  const caixaCategorias = (fmt: (c: { fat: number; lucro: number }) => string) => projCategorias ? (
+    <ProjecaoPorItemBox titulo="Projeção por categoria" itens={projCategorias.top.map((c) => ({ nome: c.nome, cor: c.cor, valor: fmt(c) }))}
+      rodape={projCategorias.outras > 0 ? `+ ${projCategorias.outras} ${projCategorias.outras === 1 ? 'categoria' : 'categorias'} na aba Projeção` : undefined} />
+  ) : null
+
   // Linha de projeção esperada (FATURAMENTO por dia) pro gráfico "Faturamento por dia".
   const projFatDaily = useMemo(() => {
     if (diaSerie.length === 0 || !projecaoPista.isProjetada) return undefined
@@ -785,7 +806,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               comparisonLabel={cmpLabel}
               ritmo={!isLoadingVendas && computed ? (
                 <ProjecaoRitmo realizado={cmpKpis.atual.faturamento} projetado={projecaoPista.projetadoFat} diasRestantes={projecaoPista.fat.diasRestantes}
-                  cheioAnterior={sz.cmpAnterior.faturamento > 0 ? sz.cmpAnterior.faturamento : null} cheioLabel={sz.cmpLabel} fmt={formatCurrencyInt} serie={serieFat} />
+                  cheioAnterior={sz.cmpAnterior.faturamento > 0 ? sz.cmpAnterior.faturamento : null} cheioLabel={sz.cmpLabel} fmt={formatCurrencyInt} serie={serieFat} detalhe={caixaCategorias((c) => formatCurrencyInt(c.fat))} />
               ) : undefined}
               extra={
                 !isLoadingVendas && cmpKpis.prev.faturamento > 0 ? (
@@ -814,7 +835,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               comparisonLabel={cmpLabel}
               ritmo={!isLoadingVendas && computed ? (
                 <ProjecaoRitmo realizado={cmpKpis.atual.lucroBruto} projetado={projecaoPista.projetadoLucro} diasRestantes={projecaoPista.fat.diasRestantes}
-                  cheioAnterior={sz.cmpAnterior.lucro > 0 ? sz.cmpAnterior.lucro : null} cheioLabel={sz.cmpLabel} fmt={formatCurrencyInt} serie={serieLucro} />
+                  cheioAnterior={sz.cmpAnterior.lucro > 0 ? sz.cmpAnterior.lucro : null} cheioLabel={sz.cmpLabel} fmt={formatCurrencyInt} serie={serieLucro} detalhe={caixaCategorias((c) => formatCurrencyInt(c.lucro))} />
               ) : undefined}
               extra={
                 !isLoadingVendas && cmpKpis.prev.lucroBruto > 0 ? (
@@ -842,6 +863,7 @@ const ComercialVendasPista = ({ embedded = false }: ComercialVendasPistaProps = 
               previous={cmpKpis.prev.margemPct > 0 ? cmpKpis.prev.margemPct : undefined}
               comparisonLabel={cmpLabel}
               projecao={projecaoPista.isProjetada && computed ? `${projecaoPista.projetadoMargemPct.toFixed(2).replace('.', ',')}%` : undefined}
+              projDetalhe={caixaCategorias((c) => `${(c.fat > 0 ? (c.lucro / c.fat) * 100 : 0).toFixed(2).replace('.', ',')}%`)}
               extra={
                 !isLoadingVendas && cmpKpis.prev.margemPct > 0 ? (
                   <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">

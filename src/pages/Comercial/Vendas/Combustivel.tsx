@@ -38,6 +38,8 @@ import RealizadoChave from '@/components/kpi/RealizadoChave'
 import ProjecaoRitmo from '@/components/kpi/ProjecaoRitmo'
 import { serieRitmo, COR_SETOR } from '@/lib/serieRitmo'
 import RitmoDoMesCard from '@/components/kpi/RitmoDoMesCard'
+import ProjecaoPorItemBox from '@/components/kpi/ProjecaoPorItemBox'
+import DicaClique from '@/components/ui/DicaClique'
 import { projecaoSazonal, expectedDailySeries, reprojectByFactor } from '@/lib/projection'
 import { todayLocal } from '@/lib/period'
 import type { FuelVendaFuelType } from '@/pages/Operacao/hooks/useFuelVendaAnalytics'
@@ -143,15 +145,16 @@ interface KpiCardProps {
   projecao?: string
   /** Bloco de ritmo (barra + "Fecha em" vs mês inteiro) — substitui a linha "Proj. fim do mês". */
   ritmo?: ReactNode
-  /** Quebra da projeção por combustível (toggle global "Ver detalhes"). */
+  /** Quebra da projeção por combustível (sempre aberta, abaixo da linha de projeção). */
   projDetalhe?: ReactNode
-  /** Se o detalhe por combustível deve aparecer (estado global expandido). */
-  mostrarProjDetalhe?: boolean
   /** Torna o card clicável (abre o drill-down de conferência). */
   onClick?: () => void
+  /** Balão "o que o clique abre" (mouse parado sobre o cartão). */
+  dica?: { titulo: string; texto: string }
 }
 
-const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, cardBg, loading, current, previous, comparisonLabel, projecao, ritmo, projDetalhe, mostrarProjDetalhe, onClick }: KpiCardProps) => (
+const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, cardBg, loading, current, previous, comparisonLabel, projecao, ritmo, projDetalhe, onClick, dica }: KpiCardProps) => (
+  <DicaClique ativo={!!(onClick && dica)} titulo={dica?.titulo ?? ''} texto={dica?.texto ?? ''} Icon={Icon}>
   <div
     className={cn(
       'flex h-full flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700',
@@ -195,19 +198,13 @@ const KpiCard = ({ label, value, help, hint, extra, Icon, iconBg, iconColor, car
         <span>Proj. fim do mês: <span className="font-semibold">{projecao}</span></span>
       </p>
     )}
-    {mostrarProjDetalhe && projDetalhe && !loading && (
-      <div className="mt-2 rounded-lg bg-indigo-50/70 px-2.5 py-2 dark:bg-indigo-950/20">
-        <p className="mb-1 text-[9px] font-semibold uppercase tracking-wide text-indigo-500 dark:text-indigo-400">
-          Projeção por combustível
-        </p>
-        {projDetalhe}
-      </div>
-    )}
+    {projDetalhe && !loading && projDetalhe}
     {hint && <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{hint}</p>}
     {/* mt-auto ancora o detalhe no rodapé — todas as seções "extra" alinham
         na base do card (alturas iguais via grid). */}
     {extra && !loading && <div className="mt-auto border-t border-gray-200/60 pt-2.5 dark:border-gray-700/60">{extra}</div>}
   </div>
+  </DicaClique>
 )
 
 /* ─── Página ─── */
@@ -269,9 +266,6 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   // Visão do gráfico "Litros vendidos por dia": 'rede' (linha) ou 'posto' (matriz
   // posto × dia) — pra enxergar quem puxa o volume da rede pra cima/baixo.
   const [diaChartView, setDiaChartView] = useState<'rede' | 'posto'>('rede')
-  // Toggle global "Ver detalhes" (no card de Projeção) → expande os 4 KPIs com a
-  // projeção por combustível.
-  const [projDetalheAberto, setProjDetalheAberto] = useState(false)
   const radarVisivel = useVisivel().aba('/comercial', 'radar')
 
   // Mix ordenado por participação. fuelTypeData já vem com `participacao`
@@ -740,23 +734,15 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
   }, [vendaRows, fuelTypeData, dataInicial, pilotoSazonal])
 
   /* Renderiza a lista de projeção por combustível pro card (formatador por métrica). */
-  const renderProjFuelList = (fmt: (d: ProjFuelDetalhe) => string) => (
-    <div className="space-y-1 text-[10px] tabular-nums">
-      {fuelTypeData.map((f) => {
+  const renderProjFuelList = (fmt: (d: ProjFuelDetalhe) => string) => projecaoCombustivel.fat.diasRestantes > 0 ? (
+    <ProjecaoPorItemBox
+      titulo="Projeção por combustível"
+      itens={fuelTypeData.flatMap((f) => {
         const d = projDetalhePorFuel.get(f.nome)
-        if (!d) return null
-        return (
-          <div key={f.nome} className="flex items-center justify-between gap-2">
-            <span className="inline-flex min-w-0 items-center gap-1.5 text-gray-500 dark:text-gray-400">
-              <span className={cn('h-2 w-2 shrink-0 rounded-sm', fuelColor(f.nome))} />
-              <span className="truncate">{f.nome}</span>
-            </span>
-            <span className="shrink-0 font-semibold text-indigo-600 dark:text-indigo-400">{fmt(d)}</span>
-          </div>
-        )
+        return d ? [{ nome: f.nome, cor: fuelColor(f.nome), valor: fmt(d) }] : []
       })}
-    </div>
-  )
+    />
+  ) : null
 
   /* ─── Máximos por coluna (data bars) ─── */
   const colMax = useMemo(() => {
@@ -818,6 +804,7 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               help="Volume total de combustível vendido no período, em litros. Base fiscal: itens de venda autorizados. Clique para a conferência físico × fiscal (perda/sobra)."
               value={showSkeleton ? '—' : formatLiters(vendaKpis.litros)}
               onClick={() => setLitrosModalOpen(true)}
+              dica={{ titulo: 'Conferência do combustível (LMC)', texto: 'Perda ou sobra de cada combustível no período: o que o tanque mediu contra o que deveria ter, pelo Livro de Movimentação (LMC).' }}
               Icon={Droplets}
               iconBg="bg-cyan-100 dark:bg-cyan-900/30"
               iconColor="text-cyan-600 dark:text-cyan-400"
@@ -828,10 +815,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               comparisonLabel={cmpLabel}
               ritmo={!showSkeleton ? (
                 <ProjecaoRitmo realizado={vendaKpis.litros} projetado={projecaoCombustivel.projetadoLitros} diasRestantes={projecaoCombustivel.fat.diasRestantes}
-                  cheioAnterior={pilotoSazonal.cmpAnterior.litros > 0 ? pilotoSazonal.cmpAnterior.litros : null} cheioLabel={pilotoSazonal.cmpLabel} fmt={formatLiters} serie={serieLitros} />
+                  cheioAnterior={pilotoSazonal.cmpAnterior.litros > 0 ? pilotoSazonal.cmpAnterior.litros : null} cheioLabel={pilotoSazonal.cmpLabel} fmt={formatLiters} serie={serieLitros} detalhe={renderProjFuelList((d) => formatLiters(d.litros))} />
               ) : undefined}
-              mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
-              projDetalhe={renderProjFuelList((d) => formatLiters(d.litros))}
               extra={
                 vendaCmp.litros > 0 ? (
                   <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
@@ -859,10 +844,8 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               comparisonLabel={cmpLabel}
               ritmo={!showSkeleton ? (
                 <ProjecaoRitmo realizado={vendaKpis.lucroBruto} projetado={projecaoCombustivel.projetadoLucro} diasRestantes={projecaoCombustivel.fat.diasRestantes}
-                  cheioAnterior={pilotoSazonal.cmpAnterior.lucro > 0 ? pilotoSazonal.cmpAnterior.lucro : null} cheioLabel={pilotoSazonal.cmpLabel} fmt={formatCurrencyInt} serie={serieLucro} />
+                  cheioAnterior={pilotoSazonal.cmpAnterior.lucro > 0 ? pilotoSazonal.cmpAnterior.lucro : null} cheioLabel={pilotoSazonal.cmpLabel} fmt={formatCurrencyInt} serie={serieLucro} detalhe={renderProjFuelList((d) => formatCurrencyInt(d.lucro))} />
               ) : undefined}
-              mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
-              projDetalhe={renderProjFuelList((d) => formatCurrencyInt(d.lucro))}
               extra={
                 !showSkeleton && vendaCmp.lucroBruto > 0 ? (
                   <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
@@ -889,7 +872,6 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               previous={vendaCmp.margemPct > 0 ? vendaCmp.margemPct : undefined}
               comparisonLabel={cmpLabel}
               projecao={projecaoCombustivel.fat.diasRestantes > 0 && !showSkeleton ? `${projecaoCombustivel.projetadoMargem.toFixed(2).replace('.', ',')}%` : undefined}
-              mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
               projDetalhe={renderProjFuelList((d) => `${d.margem.toFixed(2).replace('.', ',')}%`)}
               extra={
                 !showSkeleton && vendaCmp.margemPct > 0 ? (
@@ -918,7 +900,6 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               previous={vendaCmp.litros > 0 ? vendaCmp.lucroBruto / vendaCmp.litros : undefined}
               comparisonLabel={cmpLabel}
               projecao={projecaoCombustivel.fat.diasRestantes > 0 && !showSkeleton ? formatCurrency(projecaoCombustivel.projetadoLBLitro) : undefined}
-              mostrarProjDetalhe={projDetalheAberto && projecaoCombustivel.fat.diasRestantes > 0}
               projDetalhe={renderProjFuelList((d) => formatCurrency(d.lbLitro))}
               extra={
                 (lbRanking || vendaCmp.litros > 0) ? (
@@ -974,8 +955,6 @@ const ComercialVendasCombustivel = ({ embedded = false }: ComercialVendasCombust
               modo={pilotoSazonal.modo}
               contexto="combustível"
               acao={radarVisivel ? { to: '/comercial?tab=radar', label: 'Ver no Radar de Preços' } : undefined}
-              expanded={projDetalheAberto}
-              onToggleExpanded={() => setProjDetalheAberto((v) => !v)}
               loading={isLoadingValor || pilotoSazonal.isLoading}
             />
           </div>

@@ -15,6 +15,8 @@ import InfoHint from '@/components/ui/InfoHint'
 import ProjecaoRitmo from '@/components/kpi/ProjecaoRitmo'
 import { serieRitmo, COR_SETOR } from '@/lib/serieRitmo'
 import RitmoDoMesCard from '@/components/kpi/RitmoDoMesCard'
+import ProjecaoPorItemBox from '@/components/kpi/ProjecaoPorItemBox'
+import { CORES_ITEM } from '@/components/kpi/coresItem'
 import FecharMesMelhorModal from '@/pages/Dashboard/components/modais/FecharMesMelhorModal'
 import usePostosDoFiltro from '@/hooks/usePostosDoFiltro'
 import useVisivel from '@/hooks/useVisivel'
@@ -94,9 +96,11 @@ interface KpiCardProps {
   projecao?: string
   /** Bloco de ritmo (barra + "Fecha em" vs mês inteiro) — substitui a linha "Proj. fim do mês". */
   ritmo?: ReactNode
+  /** Projeção pelas maiores categorias/grupos (sempre aberta, abaixo da linha de projeção). */
+  projDetalhe?: ReactNode
 }
 
-const KpiCard = ({ label, value, help, delta, extra, Icon, iconBg, iconColor, cardBg, loading, projecao, ritmo }: KpiCardProps) => {
+const KpiCard = ({ label, value, help, delta, extra, Icon, iconBg, iconColor, cardBg, loading, projecao, ritmo, projDetalhe }: KpiCardProps) => {
   if (loading) return <KpiSkeleton />
   return (
     <div className={cn('flex flex-col rounded-xl border border-gray-200 p-5 shadow-sm dark:border-gray-700', cardBg)}>
@@ -122,6 +126,7 @@ const KpiCard = ({ label, value, help, delta, extra, Icon, iconBg, iconColor, ca
           <span>Proj. fim do mês: <span className="font-semibold">{projecao}</span></span>
         </p>
       )}
+      {projDetalhe}
       {extra && <div className="mt-2.5 border-t border-gray-200/60 pt-2 dark:border-gray-700/60">{extra}</div>}
     </div>
   )
@@ -173,6 +178,23 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
   // "Como virar o jogo?" → janela de produtos parados e kits, já em Conveniência.
   const [fecharMelhor, setFecharMelhor] = useState(false)
   const postosFiltro = usePostosDoFiltro()
+
+  // Projeção dos 3 maiores grupos nos cards (mesmo fator rede-wide da aba "Projeção por Grupo").
+  const projGrupos = useMemo(() => {
+    if (!projecao.isProjetada || !kpis) return null
+    const kFat = kpis.faturamento > 0 ? projecao.faturamento / kpis.faturamento : 1
+    const kLucro = kpis.margem > 0 ? projecao.lucroBruto / kpis.margem : kFat
+    const ord = [...groupTable].sort((a, b) => b.faturamento - a.faturamento)
+    const top = ord.slice(0, 3)
+    return {
+      top: top.map((g, i) => ({ nome: g.nome, cor: CORES_ITEM[i], fat: g.faturamento * kFat, lucro: g.margemTotal * kLucro })),
+      outros: ord.length - top.length,
+    }
+  }, [projecao, kpis, groupTable])
+  const caixaGrupos = (fmt: (g: { fat: number; lucro: number }) => string) => projGrupos ? (
+    <ProjecaoPorItemBox titulo="Projeção por grupo" itens={projGrupos.top.map((g) => ({ nome: g.nome, cor: g.cor, valor: fmt(g) }))}
+      rodape={projGrupos.outros > 0 ? `+ ${projGrupos.outros} ${projGrupos.outros === 1 ? 'grupo' : 'grupos'} na aba Projeção` : undefined} />
+  ) : null
   const radarVisivel = useVisivel().aba('/comercial', 'radar')
   // Visão do gráfico diário: 'rede' (linha) ou 'posto' (matriz posto × dia).
   const [diaChartView, setDiaChartView] = useState<'rede' | 'posto'>('rede')
@@ -307,7 +329,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               loading={showSkeleton}
               ritmo={kpis ? (
                 <ProjecaoRitmo realizado={kpis.faturamento} projetado={projecao.faturamento} diasRestantes={projecaoFat.diasRestantes}
-                  cheioAnterior={projCheioAnterior.faturamento > 0 ? projCheioAnterior.faturamento : null} cheioLabel={projCheioAnterior.label} fmt={formatCurrencyInt} serie={serieFat} />
+                  cheioAnterior={projCheioAnterior.faturamento > 0 ? projCheioAnterior.faturamento : null} cheioLabel={projCheioAnterior.label} fmt={formatCurrencyInt} serie={serieFat} detalhe={caixaGrupos((g) => formatCurrencyInt(g.fat))} />
               ) : undefined}
               extra={
                 kpis ? (
@@ -334,7 +356,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               loading={showSkeleton}
               ritmo={kpis ? (
                 <ProjecaoRitmo realizado={kpis.margem} projetado={projecao.lucroBruto} diasRestantes={projecaoFat.diasRestantes}
-                  cheioAnterior={projCheioAnterior.lucro > 0 ? projCheioAnterior.lucro : null} cheioLabel={projCheioAnterior.label} fmt={formatCurrencyInt} serie={serieLucro} />
+                  cheioAnterior={projCheioAnterior.lucro > 0 ? projCheioAnterior.lucro : null} cheioLabel={projCheioAnterior.label} fmt={formatCurrencyInt} serie={serieLucro} detalhe={caixaGrupos((g) => formatCurrencyInt(g.lucro))} />
               ) : undefined}
               extra={
                 kpis ? (
@@ -360,6 +382,7 @@ const ComercialVendasConveniencia = ({ embedded = false }: ComercialVendasConven
               cardBg="bg-gradient-to-br from-amber-50/60 to-white dark:from-amber-950/20 dark:to-gray-900"
               loading={showSkeleton}
               projecao={projecao.isProjetada ? `${(projecao.faturamento > 0 ? (projecao.lucroBruto / projecao.faturamento) * 100 : 0).toFixed(2).replace('.', ',')}%` : undefined}
+              projDetalhe={caixaGrupos((g) => `${(g.fat > 0 ? (g.lucro / g.fat) * 100 : 0).toFixed(2).replace('.', ',')}%`)}
               extra={
                 kpis ? (
                   <div className="text-[10px] tabular-nums text-gray-500 dark:text-gray-400">
