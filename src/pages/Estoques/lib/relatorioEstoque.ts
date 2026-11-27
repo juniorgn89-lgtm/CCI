@@ -44,6 +44,8 @@ export interface LinhaSinal {
 
 export interface BlocoRelatorio {
   produtosAnalisados: number
+  /** Quantos venderam na janela (0 = setor parado neste posto). */
+  produtosVendidos: number
   /** Prejuízo + lucro que deixa de entrar, por mês. */
   emJogoMes: number
   /** Pago a mais nas últimas notas fora do normal (uma vez). */
@@ -102,7 +104,7 @@ const montarBloco = (produtos: ProductAnalyticsRow[], historico: Map<number, Ult
       top: top.slice(0, 3).map((a) => ({ nome: a.produto.produtoNome, ref: a.produto.codigoSku, valor: a.impacto })),
     })
   }
-  return { produtosAnalisados: produtos.length, emJogoMes, pagoAMais, vendaComLucroErrado, linhas }
+  return { produtosAnalisados: produtos.length, produtosVendidos: produtos.filter((p) => p.vendasJanela > 0).length, emJogoMes, pagoAMais, vendaComLucroErrado, linhas }
 }
 
 export interface RelatorioEstoque {

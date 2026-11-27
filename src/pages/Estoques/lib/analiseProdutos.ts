@@ -44,6 +44,9 @@ const dataBR = (iso: string) => iso.split('-').reverse().join('/')
 
 export interface EscopoAnalise { quantos: number | 'todos'; setor: string; categoria: string }
 
+/** Item dado de propósito (cortesia, brinde): preço simbólico, não é erro de preço. */
+const ehCortesia = (nome: string) => /CORTESIA|BRINDE/i.test(nome)
+
 export const analisarProdutos = (
   produtos: ProductAnalyticsRow[],
   historico: Map<number, UltimaCompra[]>,
@@ -56,16 +59,18 @@ export const analisarProdutos = (
     const medAnt = anteriores.length > 0 ? mediana(anteriores) : null
     const custoRef = ultima?.custo ?? (p.precoCustoCadastro > 0 ? p.precoCustoCadastro : 0)
     const preco = p.precoVendaCadastro > 0 ? p.precoVendaCadastro : p.precoMedioVenda
+    // "Vendendo…": sem venda no período não há prejuízo nem lucro errado para mostrar.
+    const vendeu = p.vendasJanela > 0
 
-    if (p.saldoAtual <= 0) {
+    if (vendeu && p.saldoAtual <= 0) {
       out.push({ tipo: 'sem_estoque', produto: p, impacto: p.receitaJanela,
         detalhe: `Saldo ${un(p.saldoAtual)} e vendeu ${un(p.vendasJanela)} no período (${brl(p.receitaJanela)}).` })
     }
-    if (p.precoCustoCadastro <= 0 && !ultima) {
+    if (vendeu && p.precoCustoCadastro <= 0 && !ultima) {
       out.push({ tipo: 'custo_zerado', produto: p, impacto: p.receitaJanela,
         detalhe: `Sem custo no cadastro e sem nota de entrada no último ano; vendeu ${brl(p.receitaJanela)} no período.` })
     }
-    if (preco > 0 && custoRef > 0 && preco < custoRef) {
+    if (vendeu && preco > 0 && custoRef > 0 && preco < custoRef && !ehCortesia(p.produtoNome)) {
       out.push({ tipo: 'abaixo_custo', produto: p, impacto: (custoRef - preco) * p.vendasJanela,
         detalhe: `Vende a ${brl(preco)} e ${ultima ? `a última compra (${dataBR(ultima.data)}) custou` : 'o custo do cadastro é'} ${brl(custoRef)}: ${brl(custoRef - preco)} de prejuízo por unidade.` })
     }

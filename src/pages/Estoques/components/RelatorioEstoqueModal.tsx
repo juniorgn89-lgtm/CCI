@@ -99,13 +99,24 @@ const RelatorioEstoqueModal = ({ open, onClose, relatorio: r, posto, janelaDias,
             ajuda="Vendas de produtos sem estoque no sistema ou sem custo no cadastro. Não é prejuízo direto: é venda cujo lucro aparece errado no Visor até o cadastro ser corrigido." />
         </div>
 
-        {g.linhas.length === 0 ? (
+        {g.produtosVendidos === 0 && (
+          <p className="flex items-start gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2.5 text-[13px] leading-relaxed text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>
+              {g.produtosAnalisados === 0
+                ? <>Este posto não tem produtos de {nomeEscopo(escopo)} no estoque.</>
+                : <>Este posto <b>não vendeu nada de {nomeEscopo(escopo)}</b> nos últimos {janelaDias} dias. {g.produtosAnalisados === 1 ? 'O único produto' : `Os ${g.produtosAnalisados} produtos`} no estoque {g.produtosAnalisados === 1 ? 'está parado' : 'estão parados'}: veja em Situação › Parados.</>}
+            </span>
+          </p>
+        )}
+
+        {g.linhas.length === 0 ? (g.produtosVendidos === 0 ? null : (
           <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-[13px] text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
             Nenhum sinal encontrado nos {g.produtosAnalisados} produtos de {nomeEscopo(escopo)}. Estoque e preços em ordem.
           </p>
-        ) : (
+        )) : (
           <>
-            {maior && (
+            {maior && maior.valor >= 1 && (
               <p className="text-[14px] leading-relaxed text-gray-700 dark:text-gray-200">
                 Analisamos <b>{g.produtosAnalisados} produtos</b>. O que mais pesa no bolso é <b>{maior.titulo.toLowerCase()}</b>: {formatCurrencyInt(maior.valor)} por mês. Comece por ele.
               </p>
