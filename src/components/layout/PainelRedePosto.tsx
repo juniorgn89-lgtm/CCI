@@ -55,7 +55,8 @@ const PainelRedePosto = ({ postos, allowTodos, redeWide, onClose }: Props) => {
   const [buscaPosto, setBuscaPosto] = useState('')
   // Padrão: marcar vários (caixinhas + Aplicar). Só onde o módulo aceita mais de um posto.
   const [varios, setVarios] = useState(allowTodos && !redeWide)
-  const [rascunho, setRascunho] = useState<number[]>(empresaCodigos)
+  // Caixinhas: null = TODOS marcados (o filtro global guarda "todos" como lista vazia).
+  const [rascunho, setRascunho] = useState<number[] | null>(empresaCodigos.length ? empresaCodigos : null)
 
   // ── Redes (só a CCI escolhe aqui) ──
   const { data: redes = [] } = useQuery({ queryKey: ['redes'], queryFn: fetchRedes, enabled: isMaster, staleTime: 5 * 60_000 })
@@ -72,7 +73,7 @@ const PainelRedePosto = ({ postos, allowTodos, redeWide, onClose }: Props) => {
     if (id === tenant?.id) { setRedeAlvoId(null); return }
     setRedeAlvoId(id)
     setPostosAlvoSel([])
-    setRascunho([])
+    setRascunho(null)
     setBuscaPosto('')
   }
   const { data: empresasAlvo, isLoading: carregandoAlvo } = useQuery({
@@ -103,7 +104,16 @@ const PainelRedePosto = ({ postos, allowTodos, redeWide, onClose }: Props) => {
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')), [redeAlvo, empresasAlvo, postos])
   const postosVisiveis = listaPostos.filter((p) => !buscaPosto.trim() || `${p.nome} ${p.cidade}`.toLowerCase().includes(buscaPosto.trim().toLowerCase()))
   const escolherPosto = (codigos: number[]) => { setEmpresas(codigos); onClose() }
-  const alternarRascunho = (c: number) => setRascunho((d) => (d.includes(c) ? d.filter((x) => x !== c) : [...d, c]))
+  const todosCodigos = listaPostos.map((p) => p.codigo)
+  /** O que está marcado de fato (todos, quando o rascunho é "todos"). */
+  const marcados = rascunho ?? todosCodigos
+  const todosMarcados = todosCodigos.length > 0 && todosCodigos.every((c) => marcados.includes(c))
+  /** Para o filtro: todos marcados volta a ser "todos" (lista vazia). */
+  const paraFiltro = todosMarcados ? [] : marcados
+  const alternarRascunho = (c: number) => setRascunho(marcados.includes(c) ? marcados.filter((x) => x !== c) : [...marcados, c])
+  const rodapeMarcados = marcados.length === 0 ? 'Marque pelo menos um posto'
+    : todosMarcados ? `Todos os ${todosCodigos.length} postos`
+    : `${marcados.length} ${marcados.length === 1 ? 'posto marcado' : 'postos marcados'}`
   const mostraPostos = !redeWide && listaPostos.length > 1
   // Com rede nova escolhida: a seleção de posto é rascunho (vale no Aplicar).
   const selAtual = redeAlvo ? postosAlvoSel : empresaCodigos
@@ -154,7 +164,7 @@ const PainelRedePosto = ({ postos, allowTodos, redeWide, onClose }: Props) => {
           <p className={ROTULO}>
             <span className="flex items-center gap-1.5"><Fuel className="h-3.5 w-3.5" /> Posto</span>
             {mostraPostos && allowTodos && (
-              <button type="button" onClick={() => { setVarios((v) => !v); setRascunho(selAtual) }}
+              <button type="button" onClick={() => { setVarios((v) => !v); setRascunho(selAtual.length ? selAtual : null) }}
                 className="normal-case tracking-normal text-teal-700 hover:underline dark:text-[#5eead4]">
                 {varios ? 'Escolher um só' : 'Marcar vários'}
               </button>
@@ -189,7 +199,7 @@ const PainelRedePosto = ({ postos, allowTodos, redeWide, onClose }: Props) => {
                   </button>
                 )}
                 {postosVisiveis.map((p) => {
-                  const ativo = varios ? rascunho.includes(p.codigo) : selAtual.length === 1 && selAtual[0] === p.codigo
+                  const ativo = varios ? marcados.includes(p.codigo) : selAtual.length === 1 && selAtual[0] === p.codigo
                   return (
                     <button key={p.codigo} type="button" onClick={() => (varios ? alternarRascunho(p.codigo) : clicarPosto([p.codigo]))} className={linha(ativo)}>
                       {varios && (
@@ -216,30 +226,30 @@ const PainelRedePosto = ({ postos, allowTodos, redeWide, onClose }: Props) => {
         <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-3 py-2.5 dark:border-white/[0.06]">
           {varios && mostraPostos && !carregandoAlvo ? (
             <span className="flex flex-col gap-0.5">
-              <span className="text-[12.5px] text-gray-500 dark:text-[#94a3b8]">{rascunho.length === 0 ? 'Nenhum marcado = todos' : `${rascunho.length} ${rascunho.length === 1 ? 'posto marcado' : 'postos marcados'}`}</span>
-              <button type="button" onClick={() => setRascunho(listaPostos.every((p) => rascunho.includes(p.codigo)) ? [] : listaPostos.map((p) => p.codigo))}
+              <span className={cn('text-[12.5px]', marcados.length === 0 ? 'font-semibold text-amber-600 dark:text-amber-300' : 'text-gray-500 dark:text-[#94a3b8]')}>{rodapeMarcados}</span>
+              <button type="button" onClick={() => setRascunho(todosMarcados ? [] : null)}
                 className="w-fit text-[12px] font-semibold text-teal-700 hover:underline dark:text-[#5eead4]">
-                {listaPostos.length > 0 && listaPostos.every((p) => rascunho.includes(p.codigo)) ? 'Desmarcar todos' : 'Marcar todos'}
+                {todosMarcados ? 'Desmarcar todos' : 'Marcar todos'}
               </button>
             </span>
           ) : <span />}
           <span className="flex items-center gap-3">
             <button type="button" onClick={() => setRedeAlvoId(null)} className="text-[12.5px] text-gray-500 hover:text-gray-800 dark:text-[#94a3b8] dark:hover:text-white">Cancelar</button>
-            <button type="button" onClick={() => (varios ? aplicarRedeCom(rascunho) : aplicarRede())} disabled={carregandoAlvo}
+            <button type="button" onClick={() => (varios ? aplicarRedeCom(paraFiltro) : aplicarRede())} disabled={carregandoAlvo || (varios && mostraPostos && marcados.length === 0)}
               className="rounded-lg bg-teal-600 px-3.5 py-1.5 text-[13px] font-semibold text-white hover:bg-teal-700 disabled:opacity-50">Aplicar filtro</button>
           </span>
         </div>
       ) : varios && mostraPostos && !redeWide ? (
         <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-3 py-2.5 dark:border-white/[0.06]">
           <span className="flex flex-col gap-0.5">
-            <span className="text-[12.5px] text-gray-500 dark:text-[#94a3b8]">{rascunho.length === 0 ? 'Nenhum marcado = todos' : `${rascunho.length} ${rascunho.length === 1 ? 'posto marcado' : 'postos marcados'}`}</span>
+            <span className={cn('text-[12.5px]', marcados.length === 0 ? 'font-semibold text-amber-600 dark:text-amber-300' : 'text-gray-500 dark:text-[#94a3b8]')}>{rodapeMarcados}</span>
             {/* Marcar / desmarcar todos de uma vez */}
-            <button type="button" onClick={() => setRascunho(listaPostos.every((p) => rascunho.includes(p.codigo)) ? [] : listaPostos.map((p) => p.codigo))}
+            <button type="button" onClick={() => setRascunho(todosMarcados ? [] : null)}
               className="w-fit text-[12px] font-semibold text-teal-700 hover:underline dark:text-[#5eead4]">
-              {listaPostos.length > 0 && listaPostos.every((p) => rascunho.includes(p.codigo)) ? 'Desmarcar todos' : 'Marcar todos'}
+              {todosMarcados ? 'Desmarcar todos' : 'Marcar todos'}
             </button>
           </span>
-          <button type="button" onClick={() => escolherPosto(rascunho)} className="rounded-lg bg-teal-600 px-3.5 py-1.5 text-[13px] font-semibold text-white hover:bg-teal-700">Aplicar</button>
+          <button type="button" onClick={() => escolherPosto(paraFiltro)} disabled={marcados.length === 0} className="rounded-lg bg-teal-600 px-3.5 py-1.5 text-[13px] font-semibold text-white hover:bg-teal-700 disabled:opacity-50">Aplicar</button>
         </div>
       ) : (
         <div className="border-t border-gray-100 px-3 py-2 dark:border-white/[0.06]">
