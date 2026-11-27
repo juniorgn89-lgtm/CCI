@@ -642,6 +642,9 @@ html.dark .painel-lateral .modal-rodape { background-color: #1e293b; border-colo
 @keyframes dialogo-sai { to { opacity: 0; scale: .96; } }
 .painel-entra { animation: painel-entra .32s cubic-bezier(.22, 1, .36, 1); }
 .janela-fundo-entra { animation: janela-fundo-entra .25s ease-out; }
+/* Rastreio da troca de posto: pontinho descendo a linha da etapa em andamento. */
+@keyframes trilha-desce { 0% { top: -12px; opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+.trilha-desce { animation: trilha-desce 1.1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .painel-entra, .janela-fundo-entra { animation: none; }
+  .painel-entra, .janela-fundo-entra, .trilha-desce { animation: none; }
 }
