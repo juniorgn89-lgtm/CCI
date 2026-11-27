@@ -49,6 +49,8 @@ export interface ChamadoContexto {
   viewport: string
   tema: 'claro' | 'escuro'
   recorte?: { x: number; y: number; w: number; h: number } | 'tela inteira'
+  /** Quando o chamado tem mais de um print (vão juntos numa imagem só, nesta ordem). */
+  prints?: { ordem: number; origem: 'visor' | 'externo'; rotulo: string }[]
   erros: { quando: string; mensagem: string }[]
 }
 
